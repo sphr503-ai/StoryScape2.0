@@ -7,14 +7,14 @@
   <title>StoryScape - Interactive Audio Adventures</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;800&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;700;800&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
   <style>
     :root {
       --primary-glow: rgba(79, 70, 229, 0.15);
       --secondary-glow: rgba(236, 72, 153, 0.1);
     }
     body {
-      background-color: #050505;
+      background-color: #020202;
       color: #fafafa;
       font-family: 'Inter', sans-serif;
       overflow-x: hidden;
@@ -23,48 +23,52 @@
     .font-scifi { font-family: 'Orbitron', sans-serif; }
     
     .glass {
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.02);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
     }
     
     .glass-dark {
-      background: rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(30px);
+      border: 1px solid rgba(255, 255, 255, 0.03);
     }
 
     .neon-border {
-      box-shadow: 0 0 15px rgba(255, 255, 255, 0.05), inset 0 0 5px rgba(255, 255, 255, 0.02);
+      box-shadow: 0 0 20px rgba(79, 70, 229, 0.1);
     }
 
     .text-glow {
-      text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+      text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
     }
 
     @keyframes float {
-      0% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-      100% { transform: translateY(0px); }
+      0% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(1deg); }
+      100% { transform: translateY(0px) rotate(0deg); }
     }
 
     .animate-float {
-      animation: float 6s ease-in-out infinite;
+      animation: float 10s ease-in-out infinite;
+    }
+
+    .adventure-card-shadow {
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
     }
 
     ::-webkit-scrollbar {
-      width: 6px;
+      width: 5px;
     }
     ::-webkit-scrollbar-track {
-      background: rgba(0,0,0,0.2);
+      background: rgba(0,0,0,0.5);
     }
     ::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
       border-radius: 10px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.1);
     }
   </style>
 <script type="importmap">
