@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,19 +7,64 @@
   <title>StoryScape - Interactive Audio Adventures</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;800&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --primary-glow: rgba(79, 70, 229, 0.15);
+      --secondary-glow: rgba(236, 72, 153, 0.1);
+    }
     body {
-      background-color: #0a0a0a;
-      color: #e5e5e5;
+      background-color: #050505;
+      color: #fafafa;
       font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
     }
     .font-fantasy { font-family: 'Cinzel', serif; }
     .font-scifi { font-family: 'Orbitron', sans-serif; }
+    
     .glass {
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .glass-dark {
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .neon-border {
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.05), inset 0 0 5px rgba(255, 255, 255, 0.02);
+    }
+
+    .text-glow {
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+
+    .animate-float {
+      animation: float 6s ease-in-out infinite;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255,255,255,0.2);
     }
   </style>
 <script type="importmap">
