@@ -4,6 +4,7 @@ import { Genre, ViewMode, AdventureConfig, NarratorMode, GeminiVoice } from './t
 import AdventureView from './components/AdventureView';
 import StoryFilesView from './components/StoryFilesView';
 import VoiceGuruView from './components/VoiceGuruView';
+import FeedbackView from './components/FeedbackView';
 
 const LANGUAGES = [
   "English", "Spanish", "French", "German", "Hindi", "Japanese", "Chinese", "Arabic"
@@ -103,6 +104,18 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col items-center p-6 bg-[#0a0a0a] overflow-hidden relative">
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[120px] rounded-full"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full"></div>
+
+      {/* Floating Feedback Button */}
+      <button 
+        onClick={() => setViewMode(ViewMode.FEEDBACK)}
+        className="fixed bottom-10 right-10 z-50 w-14 h-14 bg-white text-black rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all group"
+        title="Send Feedback"
+      >
+        <i className="fas fa-comment-dots text-xl"></i>
+        <span className="absolute right-16 bg-white text-black text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-xl">
+          Feedback
+        </span>
+      </button>
 
       <div className="max-w-6xl w-full text-center z-10 pt-12 md:pt-20">
         <div className="flex flex-col items-center gap-6 mb-12">
@@ -307,6 +320,7 @@ const App: React.FC = () => {
       );
     }
     if (viewMode === ViewMode.SETUP) return renderSetup();
+    if (viewMode === ViewMode.FEEDBACK) return <FeedbackView onBack={() => setViewMode(ViewMode.HOME)} />;
     return renderHome();
   };
 

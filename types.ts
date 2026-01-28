@@ -9,7 +9,8 @@ export enum Genre {
 export enum ViewMode {
   HOME = 'home',
   ADVENTURE = 'adventure',
-  SETUP = 'setup'
+  SETUP = 'setup',
+  FEEDBACK = 'feedback'
 }
 
 export type GeminiVoice = 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr';
