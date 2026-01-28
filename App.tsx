@@ -18,6 +18,42 @@ const VOICES: Array<{ id: GeminiVoice; name: string; description: string }> = [
   { id: 'Fenrir', name: 'Fenrir', description: 'Gravelly & Intense' },
 ];
 
+const THEMES = {
+  adventures: {
+    bg: 'bg-[#020205]',
+    glow1: 'bg-indigo-600/10',
+    glow2: 'bg-purple-600/10',
+    accent: 'text-indigo-400',
+    tabActive: 'bg-indigo-600 text-white',
+    cardBorder: 'hover:border-indigo-500/30',
+    heroTitle: 'Live Saga Engine',
+    heroDesc: 'Infinite interactive audio adventures. Your choices weave the reality.',
+    font: 'font-sans'
+  },
+  files: {
+    bg: 'bg-[#040502]',
+    glow1: 'bg-emerald-900/10',
+    glow2: 'bg-amber-900/10',
+    accent: 'text-emerald-400',
+    tabActive: 'bg-emerald-600 text-white',
+    cardBorder: 'hover:border-emerald-500/30',
+    heroTitle: 'The Story Vault',
+    heroDesc: 'Archived chronicles and deep-sleep narratives. Cinematic focus sessions.',
+    font: 'font-fantasy'
+  },
+  custom: {
+    bg: 'bg-[#050505]',
+    glow1: 'bg-cyan-900/10',
+    glow2: 'bg-slate-900/10',
+    accent: 'text-cyan-400',
+    tabActive: 'bg-cyan-600 text-white',
+    cardBorder: 'hover:border-cyan-500/30',
+    heroTitle: 'Creative Studio',
+    heroDesc: 'Architect your own productions. Multi-voice mapping and script direction.',
+    font: 'font-scifi'
+  }
+};
+
 const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.HOME);
   const [activeTab, setActiveTab] = useState<'adventures' | 'files' | 'custom'>('adventures');
@@ -27,6 +63,8 @@ const App: React.FC = () => {
   const [audioState, setAudioState] = useState<'suspended' | 'running' | 'closed'>('suspended');
   const [initialHistory, setInitialHistory] = useState<Array<{role: 'user' | 'model', text: string}>>([]);
   const [savedSession, setSavedSession] = useState<{config: AdventureConfig, transcriptions: any[]} | null>(null);
+
+  const theme = THEMES[activeTab];
 
   useEffect(() => {
     const checkAudio = () => {
@@ -98,110 +136,132 @@ const App: React.FC = () => {
   };
 
   const renderHome = () => (
-    <div className="min-h-screen bg-[#020202] text-white overflow-x-hidden relative">
+    <div className={`min-h-screen ${theme.bg} text-white transition-colors duration-1000 overflow-x-hidden relative ${theme.font}`}>
       {/* Immersive Background Gradients */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-5%] w-[50%] h-[50%] bg-indigo-900/10 blur-[150px] rounded-full animate-float"></div>
-        <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-purple-900/10 blur-[150px] rounded-full animate-float" style={{animationDelay: '-3s'}}></div>
-        <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-blue-900/5 blur-[120px] rounded-full animate-float" style={{animationDelay: '-6s'}}></div>
+        <div className={`absolute top-[-10%] left-[-5%] w-[60%] h-[60%] ${theme.glow1} blur-[180px] rounded-full animate-float transition-colors duration-1000`}></div>
+        <div className={`absolute bottom-[-10%] right-[-5%] w-[50%] h-[50%] ${theme.glow2} blur-[180px] rounded-full animate-float transition-colors duration-1000`} style={{animationDelay: '-3s'}}></div>
       </div>
 
-      {/* Main Container */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-12 md:py-24 flex flex-col items-center">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 py-8 md:py-16 flex flex-col items-center">
         
-        {/* Header Section */}
-        <header className="w-full mb-16 flex flex-col items-center text-center">
-          <div className="flex items-center gap-3 mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
-            <div className={`w-2 h-2 rounded-full ${audioState === 'running' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-red-500 shadow-[0_0_10px_#ef4444]'}`}></div>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">
-              {audioState === 'running' ? 'Neural Signal Clear' : 'Neural Signal Suspended'}
-            </span>
-            <button onClick={handleFixAudio} className="ml-4 p-1.5 glass rounded-full hover:bg-white/10 transition-all">
-              <i className="fas fa-bolt text-[10px] text-yellow-500"></i>
-            </button>
+        {/* Top bar with audio status */}
+        <div className="w-full flex justify-between items-center mb-16 px-4">
+          <div className="flex items-center gap-3 glass px-4 py-2 rounded-full border-white/5">
+             <div className={`w-2 h-2 rounded-full ${audioState === 'running' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-red-500 shadow-[0_0_10px_#ef4444]'}`}></div>
+             <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40">
+               Signal: {audioState === 'running' ? 'Active' : 'Muted'}
+             </span>
+             <button onClick={handleFixAudio} className="ml-2 hover:scale-110 transition-transform">
+               <i className="fas fa-bolt text-[10px] text-yellow-500"></i>
+             </button>
           </div>
-          
-          <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-4 text-glow bg-clip-text text-transparent bg-gradient-to-b from-white to-white/40 uppercase font-scifi">
+
+          <button 
+            onClick={() => setViewMode(ViewMode.FEEDBACK)}
+            className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors"
+          >
+            Send Feedback <i className="fas fa-arrow-right ml-1"></i>
+          </button>
+        </div>
+
+        {/* Hero Section */}
+        <header className="w-full mb-12 flex flex-col items-center text-center">
+          <h1 className="text-7xl md:text-9xl font-black tracking-tighter mb-4 text-glow bg-clip-text text-transparent bg-gradient-to-b from-white to-white/30 uppercase leading-none">
             StoryScape
           </h1>
-          <p className="max-w-xl text-lg text-white/40 font-light leading-relaxed mb-12">
-            The multiverse of infinite interactive audio adventures. Powered by advanced neural narration and real-time generation.
-          </p>
+          <div className={`h-1 w-24 mb-8 bg-gradient-to-r from-transparent via-white/20 to-transparent`}></div>
+          
+          <div className="flex flex-col items-center gap-2 mb-12">
+            <h2 className={`text-xl md:text-2xl font-bold uppercase tracking-widest ${theme.accent} transition-colors duration-1000`}>
+              {theme.heroTitle}
+            </h2>
+            <p className="max-w-lg text-sm text-white/40 font-medium leading-relaxed opacity-80 uppercase tracking-tight">
+              {theme.heroDesc}
+            </p>
+          </div>
 
-          {/* New Modern Mode Selector */}
+          {/* Segmented Tab Control */}
           <div className="glass p-1.5 rounded-full flex gap-1 mb-16 border-white/5 adventure-card-shadow animate-in fade-in zoom-in-95 duration-700">
             <ModeTab 
               active={activeTab === 'adventures'} 
               onClick={() => setActiveTab('adventures')}
-              label="Live Adventures"
+              label="Adventures"
               icon="fa-wand-sparkles"
+              activeClass={theme.tabActive}
             />
             <ModeTab 
               active={activeTab === 'files'} 
               onClick={() => setActiveTab('files')}
-              label="Story Vault"
-              icon="fa-box-archive"
+              label="Chronicles"
+              icon="fa-scroll"
+              activeClass={theme.tabActive}
             />
             <ModeTab 
               active={activeTab === 'custom'} 
               onClick={() => setActiveTab('custom')}
-              label="Creative Studio"
-              icon="fa-pen-nib"
+              label="Studio"
+              icon="fa-clapperboard"
+              activeClass={theme.tabActive}
             />
           </div>
         </header>
 
-        {/* Saved Session Alert */}
+        {/* Saved Session Notification */}
         {savedSession && (
           <div className="w-full max-w-2xl mb-16 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="glass p-8 rounded-[2.5rem] border-indigo-500/20 bg-indigo-500/5 relative overflow-hidden group flex flex-col sm:flex-row items-center gap-6">
-              <div className="w-14 h-14 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
-                <i className="fas fa-clock-rotate-left text-indigo-400"></i>
+            <div className={`glass p-8 rounded-[2.5rem] border-white/10 bg-white/[0.02] relative overflow-hidden group flex flex-col sm:flex-row items-center gap-6`}>
+              <div className={`w-12 h-12 rounded-full bg-white/5 flex items-center justify-center shrink-0 ${theme.accent}`}>
+                <i className="fas fa-history"></i>
               </div>
               <div className="flex-1 text-center sm:text-left">
-                <h3 className="text-sm font-black uppercase tracking-widest mb-1">Unfinished Narrative Found</h3>
-                <p className="text-xs text-white/40 uppercase tracking-widest">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-50">Stored Memory Fragment</h3>
+                <p className="text-sm font-bold uppercase tracking-widest">
                   {savedSession.config.genre} • {savedSession.config.topic}
                 </p>
               </div>
               <div className="flex gap-2">
-                <button onClick={resumeSession} className="px-6 py-3 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Resume</button>
-                <button onClick={discardSavedSession} className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">Dismiss</button>
+                <button onClick={resumeSession} className="px-6 py-3 bg-white text-black rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all">Restore</button>
+                <button onClick={discardSavedSession} className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">Dismiss</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Genre Grid */}
-        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
+        {/* Dynamic Content Display */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
           {activeTab === 'adventures' ? (
             <>
               <GenreTile 
                 genre={Genre.FANTASY} 
                 icon="fa-dragon" 
-                desc="Magic realms, ancient dragons, and legendary quests."
+                desc="Magic realms, dragons, and legendary quests."
                 accent="amber"
+                theme={theme}
                 onStart={() => handleStartSetup(Genre.FANTASY)}
               />
               <GenreTile 
                 genre={Genre.SCIFI} 
                 icon="fa-user-astronaut" 
-                desc="Quantum futures, AI singularities, and void exploration."
+                desc="Quantum futures and void exploration."
                 accent="cyan"
+                theme={theme}
                 onStart={() => handleStartSetup(Genre.SCIFI)}
               />
               <GenreTile 
                 genre={Genre.MYSTERY} 
                 icon="fa-magnifying-glass" 
-                desc="Noir cities, cryptic puzzles, and shifting shadows."
+                desc="Noir cities and cryptic puzzles."
                 accent="indigo"
+                theme={theme}
                 onStart={() => handleStartSetup(Genre.MYSTERY)}
               />
               <GenreTile 
                 genre={Genre.HORROR} 
                 icon="fa-ghost" 
-                desc="Eldritch terrors and psychological descents into dark."
+                desc="Eldritch terrors and dark descents."
                 accent="red"
+                theme={theme}
                 onStart={() => handleStartSetup(Genre.HORROR)}
               />
             </>
@@ -209,65 +269,60 @@ const App: React.FC = () => {
             <>
               <GenreTile 
                 genre={Genre.FANTASY} 
-                icon="fa-scroll" 
-                desc="Long-form mythical histories for deep immersion."
+                icon="fa-book-atlas" 
+                desc="Long-form mythical histories."
                 accent="emerald"
+                theme={theme}
                 onStart={() => handleStartSetup(Genre.FANTASY)}
               />
               <GenreTile 
                 genre={Genre.SCIFI} 
                 icon="fa-microchip" 
-                desc="Extended technical logs from the fringe of space."
+                desc="Extended technical space logs."
                 accent="blue"
+                theme={theme}
                 onStart={() => handleStartSetup(Genre.SCIFI)}
               />
               <GenreTile 
                 genre={Genre.MYSTERY} 
-                icon="fa-folder-open" 
-                desc="Complete archival investigations and cold cases."
+                icon="fa-file-signature" 
+                desc="Complete archival investigations."
                 accent="slate"
+                theme={theme}
                 onStart={() => handleStartSetup(Genre.MYSTERY)}
               />
               <GenreTile 
                 genre={Genre.HORROR} 
                 icon="fa-book-dead" 
-                desc="Extended auditory descents into the occult."
+                desc="Occult auditory journals."
                 accent="orange"
+                theme={theme}
                 onStart={() => handleStartSetup(Genre.HORROR)}
               />
             </>
           ) : (
             <div className="col-span-1 sm:col-span-2 lg:col-span-4 flex flex-col items-center">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-4xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 w-full max-w-4xl">
                  <GenreTile 
                     genre={Genre.FANTASY} 
                     icon="fa-feather-pointed" 
-                    desc="Full creative control over fantasy world-building."
+                    desc="Creative control over mythic narratives."
                     accent="violet"
+                    theme={theme}
                     onStart={() => setViewMode(ViewMode.SETUP)}
                   />
                   <GenreTile 
                     genre={Genre.SCIFI} 
                     icon="fa-atom" 
-                    desc="Architect detailed sci-fi scripts with custom voices."
+                    desc="Architect complex sci-fi scenarios."
                     accent="sky"
+                    theme={theme}
                     onStart={() => setViewMode(ViewMode.SETUP)}
                   />
               </div>
             </div>
           )}
         </div>
-
-        {/* Floating Footer Navigation */}
-        <footer className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-          <button 
-            onClick={() => setViewMode(ViewMode.FEEDBACK)}
-            className="flex items-center gap-3 glass px-8 py-4 rounded-full border-white/10 hover:bg-white hover:text-black hover:scale-105 active:scale-95 transition-all shadow-2xl group"
-          >
-            <i className="fas fa-comment-dots text-sm opacity-50 group-hover:opacity-100"></i>
-            <span className="text-[10px] font-black uppercase tracking-widest">Feedback</span>
-          </button>
-        </footer>
       </div>
     </div>
   );
@@ -322,19 +377,20 @@ interface ModeTabProps {
   onClick: () => void;
   label: string;
   icon: string;
+  activeClass: string;
 }
 
-const ModeTab: React.FC<ModeTabProps> = ({ active, onClick, label, icon }) => (
+const ModeTab: React.FC<ModeTabProps> = ({ active, onClick, label, icon, activeClass }) => (
   <button 
     onClick={onClick}
-    className={`px-6 py-4 rounded-full flex items-center gap-3 transition-all duration-300 ${
+    className={`px-8 py-3.5 rounded-full flex items-center gap-3 transition-all duration-500 ${
       active 
-        ? 'bg-white text-black shadow-xl scale-[1.05] z-10' 
-        : 'text-white/30 hover:text-white/60 hover:bg-white/5'
+        ? `${activeClass} shadow-2xl scale-[1.05] z-10` 
+        : 'text-white/20 hover:text-white/40 hover:bg-white/5'
     }`}
   >
-    <i className={`fas ${icon} text-sm`}></i>
-    <span className="text-[10px] font-black uppercase tracking-widest hidden sm:block">
+    <i className={`fas ${icon} text-xs`}></i>
+    <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:block">
       {label}
     </span>
   </button>
@@ -345,37 +401,38 @@ interface GenreTileProps {
   icon: string;
   desc: string;
   accent: string;
+  theme: any;
   onStart: () => void;
 }
 
-const GenreTile: React.FC<GenreTileProps> = ({ genre, icon, desc, accent, onStart }) => {
+const GenreTile: React.FC<GenreTileProps> = ({ genre, icon, desc, accent, theme, onStart }) => {
   const accentMap: Record<string, string> = {
-    amber: 'group-hover:text-amber-400 group-hover:bg-amber-400/10 border-amber-500/0 hover:border-amber-500/20',
-    cyan: 'group-hover:text-cyan-400 group-hover:bg-cyan-400/10 border-cyan-500/0 hover:border-cyan-500/20',
-    indigo: 'group-hover:text-indigo-400 group-hover:bg-indigo-400/10 border-indigo-500/0 hover:border-indigo-500/20',
-    red: 'group-hover:text-red-400 group-hover:bg-red-400/10 border-red-500/0 hover:border-red-500/20',
-    emerald: 'group-hover:text-emerald-400 group-hover:bg-emerald-400/10 border-emerald-500/0 hover:border-emerald-500/20',
-    blue: 'group-hover:text-blue-400 group-hover:bg-blue-400/10 border-blue-500/0 hover:border-blue-500/20',
-    slate: 'group-hover:text-slate-400 group-hover:bg-slate-400/10 border-slate-500/0 hover:border-slate-500/20',
-    orange: 'group-hover:text-orange-400 group-hover:bg-orange-400/10 border-orange-500/0 hover:border-orange-500/20',
-    violet: 'group-hover:text-violet-400 group-hover:bg-violet-400/10 border-violet-500/0 hover:border-violet-500/20',
-    sky: 'group-hover:text-sky-400 group-hover:bg-sky-400/10 border-sky-500/0 hover:border-sky-500/20',
+    amber: 'group-hover:text-amber-400 group-hover:bg-amber-400/10 border-amber-500/0 hover:border-amber-500/30',
+    cyan: 'group-hover:text-cyan-400 group-hover:bg-cyan-400/10 border-cyan-500/0 hover:border-cyan-500/30',
+    indigo: 'group-hover:text-indigo-400 group-hover:bg-indigo-400/10 border-indigo-500/0 hover:border-indigo-500/30',
+    red: 'group-hover:text-red-400 group-hover:bg-red-400/10 border-red-500/0 hover:border-red-500/30',
+    emerald: 'group-hover:text-emerald-400 group-hover:bg-emerald-400/10 border-emerald-500/0 hover:border-emerald-500/30',
+    blue: 'group-hover:text-blue-400 group-hover:bg-blue-400/10 border-blue-500/0 hover:border-blue-500/30',
+    slate: 'group-hover:text-slate-400 group-hover:bg-slate-400/10 border-slate-500/0 hover:border-slate-500/30',
+    orange: 'group-hover:text-orange-400 group-hover:bg-orange-400/10 border-orange-500/0 hover:border-orange-500/30',
+    violet: 'group-hover:text-violet-400 group-hover:bg-violet-400/10 border-violet-500/0 hover:border-violet-500/30',
+    sky: 'group-hover:text-sky-400 group-hover:bg-sky-400/10 border-sky-500/0 hover:border-sky-500/30',
   };
 
   return (
     <button 
       onClick={onStart} 
-      className={`group p-10 glass rounded-[3rem] transition-all duration-500 flex flex-col items-center text-center relative hover:scale-[1.02] active:scale-95 border ${accentMap[accent]} adventure-card-shadow`}
+      className={`group p-8 glass rounded-[3rem] transition-all duration-700 flex flex-col items-center text-center relative hover:scale-[1.03] active:scale-95 border ${accentMap[accent]} adventure-card-shadow bg-white/[0.01]`}
     >
-      <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 flex items-center justify-center mb-8 transition-all duration-500 shadow-inner group-hover:scale-110">
-        <i className={`fas ${icon} text-2xl opacity-60 group-hover:opacity-100`}></i>
+      <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 flex items-center justify-center mb-8 transition-all duration-700 shadow-inner group-hover:scale-110">
+        <i className={`fas ${icon} text-2xl opacity-40 group-hover:opacity-100`}></i>
       </div>
       
-      <h3 className="text-2xl font-black mb-3 tracking-tighter uppercase">{genre}</h3>
-      <p className="text-[11px] text-white/30 leading-relaxed font-medium uppercase tracking-widest">{desc}</p>
+      <h3 className="text-2xl font-black mb-3 tracking-tighter uppercase leading-none">{genre}</h3>
+      <p className="text-[10px] text-white/20 leading-relaxed font-bold uppercase tracking-widest line-clamp-2">{desc}</p>
       
-      <div className="mt-10 w-full py-4 rounded-2xl bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-[0.3em] group-hover:bg-white group-hover:text-black transition-all">
-        Launch Portal
+      <div className="mt-8 w-full py-4 rounded-2xl bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-[0.3em] group-hover:bg-white group-hover:text-black transition-all">
+        Initiate Link
       </div>
     </button>
   );
@@ -402,16 +459,16 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
       <div className="max-w-3xl w-full glass p-8 md:p-14 rounded-[4rem] border-white/5 space-y-12 z-10 animate-in fade-in zoom-in-95 duration-500">
         <div className="text-center space-y-3">
           <div className="inline-block px-4 py-1.5 rounded-full bg-white/5 border border-white/5 mb-2">
-            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">{genre} Config</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">{genre} Matrix</span>
           </div>
           <h2 className="text-5xl font-black uppercase tracking-tighter">
-            {origin === 'files' ? 'Archive Protocol' : 'Forge Destiny'}
+            {origin === 'files' ? 'Seal Protocol' : 'Forge Reality'}
           </h2>
         </div>
 
         <div className="space-y-8">
           <div className="space-y-3">
-            <label className="text-[10px] uppercase font-black opacity-30 ml-4 tracking-[0.3em]">Chronicle Seed (Optional)</label>
+            <label className="text-[10px] uppercase font-black opacity-30 ml-4 tracking-[0.3em]">Temporal Seed (Optional)</label>
             <input 
               type="text" 
               value={topic} 
@@ -424,7 +481,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
           {origin === 'files' && (
             <div className="space-y-6 glass p-8 rounded-[3rem] border-white/5 bg-white/[0.01]">
               <div className="flex justify-between items-center mb-2">
-                <label className="text-[10px] uppercase font-black opacity-30 ml-2 tracking-widest">Chronicle Duration</label>
+                <label className="text-[10px] uppercase font-black opacity-30 ml-2 tracking-widest">Chronicle Span</label>
                 <span className="text-xl font-black text-indigo-400">{duration} Minutes</span>
               </div>
               <input 
@@ -436,7 +493,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
                 onChange={e => setDuration(parseInt(e.target.value))}
                 className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-indigo-500"
               />
-              <p className="text-[9px] opacity-20 uppercase tracking-[0.2em] text-center">Engine optimized for long-form synthesis</p>
+              <p className="text-[9px] opacity-20 uppercase tracking-[0.2em] text-center">Optimized for long-form neural synthesis</p>
             </div>
           )}
 
@@ -457,15 +514,15 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
               </div>
             </div>
             <div className="space-y-3">
-              <label className="text-[10px] uppercase font-black opacity-30 ml-4 tracking-widest">Vocal Arrangement</label>
+              <label className="text-[10px] uppercase font-black opacity-30 ml-4 tracking-widest">Narrative Mode</label>
               <div className="relative">
                 <select 
                   value={mode} 
                   onChange={e => setMode(e.target.value as NarratorMode)}
                   className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] px-8 py-5 outline-none text-xs font-black uppercase tracking-widest appearance-none cursor-pointer hover:bg-white/10 transition-all"
                 >
-                  <option value={NarratorMode.SINGLE} className="bg-black">Solo Narrator</option>
-                  <option value={NarratorMode.MULTI} className="bg-black">Cast Ensemble</option>
+                  <option value={NarratorMode.SINGLE} className="bg-black">Solo Guide</option>
+                  <option value={NarratorMode.MULTI} className="bg-black">Full Ensemble</option>
                 </select>
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
                   <i className="fas fa-chevron-down text-xs"></i>
@@ -475,7 +532,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
           </div>
 
           <div className="space-y-5">
-            <label className="text-[10px] uppercase font-black opacity-30 ml-4 tracking-widest">Select Neural Voice Core</label>
+            <label className="text-[10px] uppercase font-black opacity-30 ml-4 tracking-widest">Select Neural Core</label>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {VOICES.map(v => (
                 <button
@@ -491,12 +548,12 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 pt-4">
-          <button onClick={onBack} className="flex-1 py-6 rounded-[1.5rem] bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-white/10 transition-all active:scale-95">Cancel</button>
+          <button onClick={onBack} className="flex-1 py-6 rounded-[1.5rem] bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-white/10 transition-all active:scale-95">Return</button>
           <button 
             onClick={() => onConfirm({ genre, topic, language, voice, mode, durationMinutes: origin === 'files' ? duration : undefined })} 
             className="flex-[2] py-6 rounded-[1.5rem] bg-white text-black text-[10px] font-black uppercase tracking-[0.3em] hover:scale-[1.02] transition-all shadow-2xl active:scale-95"
           >
-            {origin === 'files' ? 'Seal Protocol' : `Enter ${genre} Realm`}
+            {origin === 'files' ? 'Seal Archive' : `Launch ${genre}`}
           </button>
         </div>
       </div>
