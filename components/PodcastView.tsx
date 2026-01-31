@@ -127,10 +127,11 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
   };
 
   const cleanText = (text: string): string => {
+    // Advanced cleaning to catch labels like "मेज़बान:", "Narrator:", etc.
     return text
       .replace(/\([^)]*\)/g, '') 
       .replace(/\[[^\]]*\]/g, '') 
-      .replace(/^[^:]+:\s*/, '') 
+      .replace(/^[\w\u0900-\u097F]+[:：]\s*/, '') // Removes speaker labels in English and Hindi/Devanagari
       .replace(/\s+/g, ' ')
       .trim();
   };
@@ -163,20 +164,22 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     setLore(fetchedLore);
     setConnectingProgress(45);
     
-    const customInstruction = `You are the host of a world-renowned investigative podcast in ${advConfig.language}. 
-    STYLE: Inspired by AJ from "The Why Files". You are witty, deeply researched, and highly entertaining. 
+    const customInstruction = `You are the host of a professional investigative podcast in ${advConfig.language}. 
+    STYLE: Inspired by high-production shows like "The Why Files". 
 
-    STRICT PERFORMANCE RULES:
-    1. NEVER speak stage directions like "(deep breath)", "(sighs)", or "(laughs)". 
-    2. PERFORM the sounds vocally. If the script calls for a sigh, actually sigh into the microphone modality. If it calls for a deep breath, actually take one. DO NOT say the words "Deep breath".
-    3. NEVER output speaker labels like "Host:", "Mezban:", or "Sidekick:". Speak naturally as the person.
-    4. NO TEXTUAL ARTIFACTS: Do not include bracketed text in your speech or text output.
+    CRITICAL PRODUCTION RULES:
+    1. NEVER speak or write speaker labels (e.g., "Host:", "मेज़बान:", "Narrator:", "AJ:"). Start speaking directly.
+    2. NEVER speak or write stage directions in brackets or parentheses. 
+       - Do NOT say "(deep breath)" or "(गहरी साँस)". Instead, actually TAKE a deep breath into the microphone.
+       - Do NOT say "(conspiratorial voice)" or "(साजिश भरी आवाज़)". Instead, actually perform the lines with that vocal tone.
+    3. YOUR GOAL is to be the character, not describe the character's actions in text.
+    4. NO TEXTUAL ARTIFACTS: Your output must only contain the spoken words. If an emotion is intended, convey it through your voice modality.
 
     LORE MANIFEST (Ground the show in these facts):
     ${fetchedLore.manifest}
 
-    THE FISH SIDEKICK: Occasionally interact with a witty, skeptical sidekick. Use distinct vocal characterization.
-    TOPIC: Deep dive into: "${advConfig.topic}". Use cinematic pacing and dramatic delivery.`;
+    THE FISH SIDEKICK: Occasionally interact with a witty sidekick. Shift your voice personality to indicate the change in speaker. NEVER announce the change with text labels.
+    TOPIC: Deep dive into: "${advConfig.topic}". Use cinematic pacing.`;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
@@ -200,7 +203,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("Keep the show moving. Take us to the next phase of the investigation. Make it thrilling and mysterious.");
+          service.sendTextChoice("Continue the broadcast with perfect flow. Avoid all speaker labels and bracketed directions.");
           startBuffering();
         }
       },
