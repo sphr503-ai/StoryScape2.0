@@ -1,8 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Genre, AdventureConfig } from '../types';
-import { StoryScapeService, LoreData } from '../services/geminiLiveService';
-import { audioBufferToWav } from '../utils/audioUtils';
+import { Genre, AdventureConfig, GeminiVoice } from '../types';
+import { StoryScapeService } from '../services/geminiLiveService';
 import Visualizer from './Visualizer';
 
 interface LanguageTutorViewProps {
@@ -30,6 +29,10 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
   const timerRef = useRef<number | null>(null);
   const bufferIntervalRef = useRef<number | null>(null);
 
+  // Buffers to fix the "only last word" bug
+  const modelTextBuffer = useRef('');
+  const userTextBuffer = useRef('');
+
   const startBuffering = () => {
     setIsBuffering(true);
     setBufferPercent(0);
@@ -52,14 +55,10 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
       try {
         await serviceRef.current.setMicActive(newMode === 'mic');
       } catch (err) {
-        alert("Microphone access denied. Please check browser permissions.");
+        alert("Microphone access denied. Check browser permissions.");
         setInputMode('text');
       }
     }
-  };
-
-  const cleanText = (text: string): string => {
-    return text.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').trim();
   };
 
   const initService = async (advConfig: AdventureConfig) => {
@@ -70,49 +69,51 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
     serviceRef.current = service;
 
     setConnectingProgress(15);
+    
     const tutorInstruction = `
-# Role: AI Language Teacher (Hinglish Support)
-You are an advanced, empathetic, and interactive AI Language Tutor.
+# Role: Meta AI Style Language Tutor
+You are a friendly, helpful AI tutor. You communicate in a specific bilingual style.
 
-## Objective
-Engage the user in conversation in ${advConfig.language}. 
+## Interaction Style:
+1. **Bilingual Responses**: For every sentence you speak in ${advConfig.language}, provide the Hindi translation in brackets immediately after.
+   Example: "Hi! (नमस्ते!) How's your day going so far? (आपका दिन अब तक कैसा चल रहा है?)"
 
-## 🛑 Hindi/Hinglish Correction Protocol (MANDATORY):
-If the user makes ANY grammar, spelling, or tense mistake, STOP the conversation flow.
-You MUST explain the mistake in HINDI (written in Roman script/Hinglish) so they understand.
-
-Example of your explanation style:
-"🛑 **Correction Needed:**
-- **Incorrect:** "I has a car."
-- **Correct:** "I have a car."
-- **Samajhiye (Explanation):** Aapko 'has' ki jagha 'have' use karna chahiye kyunki 'I' ke saath hamesha 'have' lagta hai. Iska matlab ye hai ki main ek car rakhta hoon. 'I has' bolne se sentence galat ho jata hai.
+2. **Correction Protocol**: If the user makes a mistake (grammar/spelling/phrasing), follow this format:
+   - "Your sentence is almost perfect! Here's a small correction:
    
-🎙️ **Action:** Ab please sahi sentence repeat kijiye."
+     Instead of '[User's Mistake]', we can say '[Correct Version]' ([Hindi Translation])
+     
+     Does that sound better? (क्या यह बेहतर लग रहा है?)"
 
-## General Behavior:
-- Main conversation: ${advConfig.language}.
-- Corrections: Hinglish/Hindi as shown above.
-- Be concise. Max 3 sentences per response.
+3. **Tone**: High-tech, empathetic, and encouraging.
+4. **Primary Language**: ${advConfig.language}.
+5. **Support Language**: Hindi.
 `;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
         if (!text && !isFinal) return;
-        const processedText = cleanText(text);
+        
         if (role === 'model') {
+          modelTextBuffer.current += text;
+          setCurrentModelText(modelTextBuffer.current);
+          
           if (isFinal) {
-            setTranscriptions(prev => [...prev, { role: 'model', text: processedText }]);
+            const msg = modelTextBuffer.current.trim();
+            if (msg) setTranscriptions(prev => [...prev, { role: 'model', text: msg }]);
             setCurrentModelText('');
+            modelTextBuffer.current = '';
             stopBuffering();
-          } else {
-            setCurrentModelText(processedText);
           }
         } else {
+          userTextBuffer.current += text;
+          setCurrentUserText(userTextBuffer.current);
+
           if (isFinal) {
-            setTranscriptions(prev => [...prev, { role: 'user', text: processedText }]);
+            const msg = userTextBuffer.current.trim();
+            if (msg) setTranscriptions(prev => [...prev, { role: 'user', text: msg }]);
             setCurrentUserText('');
-          } else {
-            setCurrentUserText(processedText);
+            userTextBuffer.current = '';
           }
         }
       },
@@ -144,8 +145,7 @@ Example of your explanation style:
 
   useEffect(() => {
     if (scrollRef.current) {
-      const scrollContainer = scrollRef.current;
-      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [transcriptions, currentModelText, currentUserText]);
 
@@ -166,74 +166,77 @@ Example of your explanation style:
   };
 
   return (
-    <div className="h-screen bg-[#0b141a] text-[#e9edef] font-sans flex flex-col overflow-hidden relative">
-      <div className="absolute inset-0 opacity-[0.06] pointer-events-none bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-repeat"></div>
-      
-      <header className="bg-[#202c33] px-3 py-2 flex items-center justify-between z-20 border-b border-[#ffffff10] shadow-md shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={onExit} className="text-[#aebac1] hover:text-white p-2">
-            <i className="fas fa-arrow-left text-lg"></i>
+    <div className="h-screen bg-gradient-to-b from-indigo-950/40 to-black text-white font-sans flex flex-col p-4 md:p-8 transition-colors duration-1000 overflow-hidden relative">
+      <Visualizer 
+        inputAnalyser={analysers.in} 
+        outputAnalyser={analysers.out} 
+        genre="TUTOR" 
+        customInputColor="#ef4444" 
+        customOutputColor="#3b82f6"
+        isPaused={isPaused}
+      />
+
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 z-20 shrink-0">
+        <div className="flex items-center gap-4">
+          <button onClick={onExit} className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10">
+            <i className="fas fa-arrow-left"></i>
           </button>
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-full bg-[#3b82f6] flex items-center justify-center text-white text-xl shadow-inner border border-white/10">
-                <i className="fas fa-robot"></i>
-             </div>
-             <div className="flex flex-col">
-                <h1 className="text-[15px] font-bold leading-tight truncate max-w-[150px] md:max-w-xs">{config.topic} (Tutor)</h1>
-                <p className="text-[11px] text-[#00a884] font-medium leading-tight mt-0.5">online • {config.language}</p>
-             </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight uppercase flex items-center gap-2">
+              Neural Tutor: {config.topic}
+              <i className="fas fa-check-circle text-blue-500 text-xs"></i>
+            </h1>
+            <p className="text-[10px] opacity-60 uppercase tracking-widest font-black mt-0.5">
+              Fluency Protocol • {config.language} • {formatTime(secondsRemaining)}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-[#aebac1]">
-           <span className="text-xs font-mono text-white/60 bg-white/5 px-2 py-1 rounded">{formatTime(secondsRemaining)}</span>
-           <button onClick={() => {
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button 
+            onClick={() => {
               localStorage.setItem('storyscape_saved_session', JSON.stringify({ config, transcriptions }));
               onExit();
-           }} className="hover:text-white p-2" title="Save Draft">
-              <i className="fas fa-archive"></i>
-           </button>
+            }} 
+            className="px-6 py-3 rounded-full bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all flex items-center gap-2"
+          >
+            <i className="fas fa-save"></i> Save Draft
+          </button>
+          <button onClick={onExit} className="px-8 py-3 rounded-full bg-white text-black font-black text-[10px] uppercase tracking-widest shadow-2xl shrink-0">End Session</button>
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 flex flex-col relative z-10">
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-3 custom-scrollbar scroll-smooth">
+      <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-white/10 z-10 bg-black/20">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative bg-black/20">
           
           {(connectingProgress < 100 || isBuffering) && (
-            <div className="sticky top-0 z-50 flex justify-center mb-4 pointer-events-none">
-               <div className="bg-[#182229] border border-white/5 px-4 py-1.5 rounded-full shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                 <div className="w-3 h-3 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin"></div>
-                 <span className="text-[10px] font-bold text-[#8696a0] uppercase tracking-widest">
-                   {isBuffering ? `Tutor thinking...` : `Syncing Neural Lab...`}
-                 </span>
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col items-center justify-center gap-8 text-center px-12">
+               <div className="relative">
+                 <div className="w-32 h-32 border-[6px] border-white/5 border-t-white rounded-full animate-spin"></div>
+                 <div className="absolute inset-0 flex items-center justify-center font-black text-2xl">{isBuffering ? bufferPercent : connectingProgress}%</div>
                </div>
+               <h3 className="text-sm font-black uppercase tracking-[0.3em]">Syncing Neural Lab...</h3>
             </div>
           )}
 
-          <div className="flex justify-center mb-6">
-             <div className="bg-[#182229] text-[#ffd279] text-[11px] px-3 py-1.5 rounded-lg text-center max-w-[85%] border border-[#ffd27910] shadow-sm">
-                <i className="fas fa-user-graduate text-[9px] mr-2"></i>
-                Neural Language Immersion Active. Practice freely.
-             </div>
-          </div>
-
           {transcriptions.map((t, i) => (
-            <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'} w-full`}>
-              <div className={`max-w-[85%] md:max-w-[70%] p-2.5 px-3 rounded-lg shadow-sm relative group ${
+            <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'} w-full items-end gap-2`}>
+              <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-[1.8rem] shadow-xl relative ${
                 t.role === 'user' 
-                  ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' 
-                  : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'
+                  ? 'bg-emerald-600/80 text-white rounded-tr-none border border-white/10' 
+                  : 'bg-white/10 text-white rounded-tl-none border border-white/5'
               }`}>
-                <div className={`absolute top-0 w-3 h-4 ${
-                  t.role === 'user' ? 'right-[-8px] text-[#005c4b]' : 'left-[-8px] text-[#202c33]'
-                }`}>
-                   <svg viewBox="0 0 8 13" className="w-full h-full fill-current">
+                {/* Bubble Tail for extra chat-app feel */}
+                <div className={`absolute top-0 ${t.role === 'user' ? 'right-[-6px]' : 'left-[-6px]'}`}>
+                   <svg viewBox="0 0 8 13" className={`w-3 h-4 fill-current ${t.role === 'user' ? 'text-emerald-600/80' : 'text-white/10'}`}>
                      <path d={t.role === 'user' ? "M0 0v13l8-13H0z" : "M8 0v13l-8-13h8z"} />
                    </svg>
                 </div>
-                <div className="text-[14.5px] leading-[1.4] whitespace-pre-wrap break-words">{t.text}</div>
-                <div className="flex items-center justify-end gap-1 mt-1">
-                   <span className="text-[9px] text-[#ffffff40] leading-none uppercase">{t.role === 'user' ? 'Me' : 'Tutor'}</span>
-                   {t.role === 'user' && <i className="fas fa-check-double text-[9px] text-[#53bdeb]"></i>}
+                <div className="text-[15px] md:text-[17px] leading-relaxed whitespace-pre-wrap break-words">{t.text}</div>
+                <div className={`flex items-center gap-1 mt-2 ${t.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                   <span className="text-[9px] opacity-40 uppercase tracking-widest font-black">
+                     {t.role === 'user' ? 'Explorer' : 'Meta AI'}
+                   </span>
+                   {t.role === 'user' && <i className="fas fa-check-double text-[9px] text-blue-400"></i>}
                 </div>
               </div>
             </div>
@@ -241,57 +244,81 @@ Example of your explanation style:
 
           {(currentModelText || currentUserText) && (
             <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'} w-full`}>
-              <div className={`max-w-[85%] md:max-w-[70%] p-2.5 px-3 rounded-lg shadow-sm relative animate-pulse ${
-                currentUserText ? 'bg-[#005c4b]/50 rounded-tr-none' : 'bg-[#202c33]/50 rounded-tl-none'
+              <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-[1.8rem] animate-pulse ${
+                currentUserText ? 'bg-emerald-600/30 rounded-tr-none' : 'bg-white/5 rounded-tl-none'
               }`}>
-                <div className="text-[14.5px] leading-[1.4] whitespace-pre-wrap break-words italic opacity-70">
+                <div className="text-[15px] md:text-[17px] leading-relaxed italic opacity-60">
                   {currentModelText || currentUserText}
                 </div>
               </div>
             </div>
           )}
-          <div className="h-6"></div>
+          <div className="h-4"></div>
         </div>
 
-        <div className="bg-[#202c33] px-2 py-3 flex flex-col gap-2 z-20 shrink-0 border-t border-white/5 shadow-2xl">
-          <div className="h-16 relative glass-dark rounded-xl overflow-hidden mb-2 bg-black/20">
-             <Visualizer 
-                inputAnalyser={analysers.in} 
-                outputAnalyser={analysers.out} 
-                genre="TUTOR" 
-                customInputColor="#ef4444" 
-                customOutputColor="#3b82f6"
-             />
-             <div className="absolute inset-x-4 top-2 flex justify-between pointer-events-none">
-                <span className="text-[8px] font-black uppercase tracking-widest text-[#ef4444] opacity-80">User Spectrum (Red)</span>
-                <span className="text-[8px] font-black uppercase tracking-widest text-[#3b82f6] opacity-80">Tutor Spectrum (Blue)</span>
-             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center bg-[#2a3942] rounded-full px-4 py-1 border border-transparent focus-within:shadow-md transition-all">
-              <button onClick={() => setIsPaused(!isPaused)} className={`p-2 transition-colors ${isPaused ? 'text-[#00a884]' : 'text-[#8696a0]'}`}>
-                <i className={`fas ${isPaused ? 'fa-play' : 'fa-graduation-cap'} text-xl`}></i>
+        {/* Improved Adventure-Style Footer */}
+        <div className="p-8 md:p-10 glass border-t border-white/10 flex flex-col gap-6 bg-black/40 shrink-0">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={handleMicToggle} 
+                className={`flex items-center gap-4 px-8 py-4 rounded-full border transition-all shrink-0 ${
+                  inputMode === 'mic' 
+                    ? 'bg-red-600 border-red-400 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)]' 
+                    : 'bg-white/5 border-white/10 text-white/40 hover:text-white'
+                }`}
+              >
+                <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-keyboard'}`}></i>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                  {inputMode === 'mic' ? 'Mic Active' : 'Text Mode'}
+                </span>
               </button>
-              {inputMode === 'text' ? (
-                <form onSubmit={handleTextSubmit} className="flex-1 flex items-center">
-                  <input type="text" value={textChoice} onChange={(e) => setTextChoice(e.target.value)} placeholder="Type a message" disabled={isPaused} className="w-full bg-transparent outline-none py-2 px-2 text-[15px] placeholder-[#8696a0] disabled:opacity-30" />
-                  <button type="submit" disabled={!textChoice.trim() || isPaused} className={`p-2 transition-all ${!textChoice.trim() ? 'opacity-0' : 'opacity-100 text-[#00a884]'}`}><i className="fas fa-paper-plane text-lg"></i></button>
-                </form>
-              ) : (
-                <div className="flex-1 h-10 flex items-center px-4 gap-3 overflow-hidden text-[#00a884] font-bold text-[10px] uppercase animate-pulse">
-                   Listening for your voice...
-                </div>
-              )}
+              
+              <div className="h-8 w-px bg-white/10 hidden md:block"></div>
+              
+              <div className="flex items-center gap-4">
+                 <div className={`w-2.5 h-2.5 rounded-full ${!isPaused ? 'bg-blue-500 animate-pulse' : 'bg-white/20'}`}></div>
+                 <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-40">System: Ready</span>
+              </div>
             </div>
-            <button onClick={handleMicToggle} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shrink-0 shadow-md ${inputMode === 'mic' ? 'bg-[#ef4444] text-white scale-110 shadow-[0_0_15px_rgba(239,68,68,0.4)]' : 'bg-[#3b82f6] text-white'}`}>
-              <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-microphone'} text-xl`}></i>
+
+            <button 
+              onClick={() => setIsPaused(!isPaused)} 
+              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                isPaused ? 'bg-blue-600 text-white shadow-xl' : 'glass border-white/10 hover:bg-white/5'
+              }`}
+            >
+              <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
             </button>
           </div>
+
+          {inputMode === 'text' && (
+            <form onSubmit={handleTextSubmit} className="relative flex items-center gap-3">
+              <input 
+                type="text" 
+                value={textChoice} 
+                onChange={(e) => setTextChoice(e.target.value)} 
+                disabled={isPaused}
+                placeholder={isPaused ? "Immersion Paused..." : "Respond to the tutor..."} 
+                className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-8 py-5 outline-none focus:border-white/30 text-lg font-light transition-all disabled:opacity-30" 
+              />
+              <button 
+                type="submit" 
+                disabled={!textChoice.trim() || isPaused} 
+                className="px-10 py-5 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shrink-0 transition-transform active:scale-95 disabled:opacity-20"
+              >
+                Send
+              </button>
+            </form>
+          )}
         </div>
       </main>
 
-      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }` }} />
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; } 
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } 
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+      ` }} />
     </div>
   );
 };
