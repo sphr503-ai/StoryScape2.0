@@ -2,8 +2,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, GeminiVoice, AdventureConfig, NarratorMode } from '../types';
 import { StoryScapeService, LoreData } from '../services/geminiLiveService';
-import { audioBufferToWav } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
+
+interface Message {
+  role: 'user' | 'model';
+  text: string;
+  timestamp: string;
+}
 
 interface AdventureViewProps {
   config: AdventureConfig;
@@ -20,19 +25,20 @@ const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.DOCUMENTARY]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
 };
 
-type InputMode = 'text' | 'mic';
-
 const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHistory = [] }) => {
-  const [transcriptions, setTranscriptions] = useState<Array<{ role: 'user' | 'model'; text: string }>>(initialHistory);
+  const [messages, setMessages] = useState<Message[]>(
+    initialHistory.map(h => ({
+      ...h,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }))
+  );
+  
   const [currentModelText, setCurrentModelText] = useState('');
   const [currentUserText, setCurrentUserText] = useState('');
   const [textChoice, setTextChoice] = useState('');
-  const [inputMode, setInputMode] = useState<InputMode>('text');
-  const [isMuted, setIsMuted] = useState(false);
+  const [inputMode, setInputMode] = useState<'text' | 'mic'>('text');
   const [ambientVolume, setAmbientVolume] = useState(0.25);
   const [isPaused, setIsPaused] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
   
   const [isOutputActive, setIsOutputActive] = useState(false);
   const [isInputActive, setIsInputActive] = useState(false);
@@ -40,11 +46,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
   const [bufferPercent, setBufferPercent] = useState(0);
   const [isBuffering, setIsBuffering] = useState(false);
   const [lore, setLore] = useState<LoreData | null>(null);
-  const [showLore, setShowLore] = useState(false);
-
-  const [showFinishConfirmation, setShowFinishConfirmation] = useState(false);
-  const [isSummarizing, setIsSummarizing] = useState(false);
-  const [summary, setSummary] = useState<string | null>(null);
   
   const [analysers, setAnalysers] = useState<{in: AnalyserNode | null, out: AnalyserNode | null}>({in: null, out: null});
   
@@ -96,10 +97,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
     if (bufferIntervalRef.current) clearInterval(bufferIntervalRef.current);
   };
 
-  const cleanText = (text: string): string => {
-    return text.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').replace(/^[^:]+:\s*/, '').replace(/\s+/g, ' ').trim();
-  };
-
   const handleMicToggle = async () => {
     const newMode = inputMode === 'text' ? 'mic' : 'text';
     setInputMode(newMode);
@@ -128,23 +125,22 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
         if (!text && !isFinal) return;
-        const processedText = cleanText(text);
-        if (!processedText && !isFinal) return;
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         if (role === 'model') {
           if (isFinal) {
-            setTranscriptions(prev => [...prev, { role: 'model', text: processedText }]);
+            setMessages(prev => [...prev, { role: 'model', text, timestamp }]);
             setCurrentModelText('');
             stopBuffering();
           } else {
-            setCurrentModelText(processedText);
+            setCurrentModelText(text);
           }
         } else {
           if (isFinal) {
-            setTranscriptions(prev => [...prev, { role: 'user', text: processedText }]);
+            setMessages(prev => [...prev, { role: 'user', text, timestamp }]);
             setCurrentUserText('');
           } else {
-            setCurrentUserText(processedText);
+            setCurrentUserText(text);
           }
         }
       },
@@ -153,7 +149,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
         setTimeout(() => initService(config), 5000);
       },
       onClose: () => onExit(),
-    }, transcriptions, fetchedLore).then(() => {
+    }, messages.map(m => ({role: m.role, text: m.text})), fetchedLore).then(() => {
       setConnectingProgress(100);
       setAnalysers({ in: service.inputAnalyser, out: service.outputAnalyser });
     });
@@ -175,25 +171,16 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [transcriptions, currentModelText, currentUserText]);
+  }, [messages, currentModelText, currentUserText]);
 
   const handleTextSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!textChoice.trim() || !serviceRef.current || isPaused) return;
-    setTranscriptions(prev => [...prev, { role: 'user', text: textChoice.trim() }]);
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setMessages(prev => [...prev, { role: 'user', text: textChoice.trim(), timestamp }]);
     serviceRef.current.sendTextChoice(textChoice.trim());
     setTextChoice('');
     startBuffering();
-  };
-
-  const handleSaveDraft = () => {
-    localStorage.setItem('storyscape_saved_session', JSON.stringify({ config, transcriptions }));
-    onExit();
-  };
-
-  const handleExitAndClear = () => {
-    localStorage.removeItem('storyscape_saved_session');
-    onExit();
   };
 
   const getGenreStyles = () => {
@@ -207,78 +194,134 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
   };
 
   return (
-    <div className={`h-screen bg-gradient-to-b ${getGenreStyles()} flex flex-col p-4 md:p-8 transition-colors duration-1000 overflow-hidden relative`}>
+    <div className={`h-screen bg-gradient-to-b ${getGenreStyles()} flex flex-col transition-colors duration-1000 overflow-hidden relative`}>
       <Visualizer inputAnalyser={analysers.in} outputAnalyser={analysers.out} genre={config.genre} isPaused={isPaused} />
 
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 z-10 shrink-0">
+      {/* HEADER */}
+      <header className="px-6 py-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 z-20 shrink-0 border-b border-white/5 bg-black/40 backdrop-blur-md">
         <div className="flex items-center gap-4">
+          <button onClick={onExit} className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors">
+            <i className="fas fa-arrow-left"></i>
+          </button>
           <div className="flex flex-col">
-            <h1 className="text-2xl font-bold tracking-tight">{config.genre}: {config.topic}</h1>
-            <div className="flex items-center gap-3 mt-0.5">
-               <div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-               <p className="text-[10px] opacity-60 uppercase tracking-widest font-black">{config.language} • {config.mode}</p>
+            <h1 className="text-xl font-bold tracking-tight uppercase leading-none">{config.topic}</h1>
+            <div className="flex items-center gap-3 mt-1.5">
+               <div className={`w-2 h-2 rounded-full ${isOutputActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+               <p className="text-[9px] opacity-60 uppercase tracking-widest font-black">{config.genre} • {config.language}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <button onClick={handleSaveDraft} className="px-6 py-3 rounded-full bg-white/10 border border-white/10 text-xs font-black uppercase tracking-[0.2em] hover:bg-white/20 transition-all flex items-center gap-2">
-            <i className="fas fa-save text-[10px]"></i> Save Draft
+          <button 
+            onClick={() => {
+              localStorage.setItem('storyscape_saved_session', JSON.stringify({ config, transcriptions: messages }));
+              onExit();
+            }} 
+            className="hidden sm:flex px-6 py-2 rounded-full glass text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all gap-2"
+          >
+            <i className="fas fa-save"></i> Save Draft
           </button>
-          <button onClick={() => setShowFinishConfirmation(true)} className="px-8 py-3 rounded-full bg-white text-black font-black text-xs uppercase tracking-[0.2em] shadow-2xl shrink-0">Finish</button>
-          <button onClick={handleExitAndClear} className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center shrink-0"><i className="fas fa-stop"></i></button>
+          <button onClick={onExit} className="flex-1 sm:flex-none px-8 py-2 rounded-full bg-white text-black font-black text-[10px] uppercase tracking-widest shadow-2xl transition-transform active:scale-95">End Saga</button>
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-white/10 z-10 bg-black/20">
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative bg-black/20">
+      {/* CHAT AREA */}
+      <main className="flex-1 min-h-0 flex flex-col relative z-10">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-6 py-10 space-y-8 custom-scrollbar scroll-smooth">
           
           {(connectingProgress < 100 || isBuffering) && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col items-center justify-center gap-8 text-center px-12 pointer-events-none">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center gap-6 text-center px-12 pointer-events-none">
                <div className="relative">
-                 <div className="w-40 h-40 border-[6px] border-white/5 border-t-white rounded-full animate-spin"></div>
-                 <div className="absolute inset-0 flex items-center justify-center font-black text-3xl">{isBuffering ? bufferPercent : connectingProgress}%</div>
+                 <div className="w-24 h-24 border-[4px] border-white/5 border-t-white rounded-full animate-spin"></div>
+                 <div className="absolute inset-0 flex items-center justify-center font-black text-xl">{isBuffering ? bufferPercent : connectingProgress}%</div>
                </div>
-               <h3 className="text-xl font-black uppercase tracking-[0.3em]">Connecting to Oracle...</h3>
+               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Gathering Chronicle Lore...</h3>
             </div>
           )}
 
-          {transcriptions.map((t, i) => (
-            <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
-              <div className={`max-w-[85%] p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-xl ${t.role === 'user' ? 'bg-white/10 border border-white/10 rounded-tr-none' : 'bg-black/40 border border-white/5 rounded-tl-none'}`}>
-                <p className={`text-[9px] opacity-30 mb-2 uppercase tracking-[0.3em] font-black ${t.role === 'user' ? 'text-right' : 'text-left'}`}>{t.role === 'user' ? 'The Wanderer' : 'The Oracle'}</p>
-                <p className="text-xl md:text-2xl leading-relaxed font-light break-words hyphens-auto">{t.text}</p>
+          {messages.map((m, i) => (
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} w-full items-end gap-2 animate-in fade-in slide-in-from-bottom-2`}>
+              <div className={`max-w-[85%] md:max-w-[70%] p-5 md:p-6 rounded-2xl shadow-xl relative ${
+                m.role === 'user' 
+                  ? 'bg-red-600/80 text-white rounded-tr-none border border-white/10' 
+                  : 'bg-blue-600/80 text-white rounded-tl-none border border-white/5'
+              }`}>
+                {/* Bubble Tail */}
+                <div className={`absolute top-0 ${m.role === 'user' ? 'right-[-6px]' : 'left-[-6px]'}`}>
+                   <svg viewBox="0 0 8 13" className={`w-3 h-4 fill-current ${m.role === 'user' ? 'text-red-600/80' : 'text-blue-600/80'}`}>
+                     <path d={m.role === 'user' ? "M0 0v13l8-13H0z" : "M8 0v13l-8-13h8z"} />
+                   </svg>
+                </div>
+                <div className="text-[16px] md:text-xl leading-relaxed whitespace-pre-wrap break-words">{m.text}</div>
+                <div className={`flex items-center gap-2 mt-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                   <span className="text-[9px] opacity-40 uppercase tracking-widest font-black">
+                     {m.timestamp} — {m.role === 'user' ? 'The Wanderer' : 'The Oracle'}
+                   </span>
+                   {m.role === 'user' && <i className="fas fa-check-double text-[10px] text-blue-400 opacity-60"></i>}
+                </div>
               </div>
             </div>
           ))}
 
           {(currentModelText || currentUserText) && (
-            <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] ${currentUserText ? 'bg-white/10 rounded-tr-none' : 'bg-black/40 rounded-tl-none'} animate-pulse`}>
-                <p className="text-xl md:text-2xl leading-relaxed italic opacity-60 break-words hyphens-auto">{currentModelText || currentUserText}</p>
+            <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'} w-full`}>
+              <div className={`max-w-[85%] md:max-w-[70%] p-6 rounded-2xl animate-pulse ${
+                currentUserText ? 'bg-red-600/30 rounded-tr-none' : 'bg-blue-600/30 rounded-tl-none'
+              }`}>
+                <div className="text-[16px] md:text-xl leading-relaxed italic opacity-60">
+                  {currentModelText || currentUserText}
+                </div>
               </div>
             </div>
           )}
+          <div className="h-4"></div>
         </div>
 
-        <div className="p-8 md:p-10 glass border-t border-white/10 flex flex-col gap-6 bg-black/40 shrink-0">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <button onClick={handleMicToggle} className={`flex items-center gap-4 px-8 py-4 rounded-full border transition-all shrink-0 ${inputMode === 'mic' ? 'bg-blue-600 border-blue-400 text-white shadow-2xl' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}>
-                <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-keyboard'}`}></i>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">{inputMode === 'mic' ? 'Mic Active' : 'Text Mode'}</span>
-            </button>
-            <button onClick={() => setIsPaused(!isPaused)} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shrink-0 ${isPaused ? 'bg-green-600 text-white shadow-2xl' : 'glass border-white/10 hover:bg-white/5'}`}>
-                <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
-            </button>
-          </div>
+        {/* INPUT FOOTER */}
+        <div className="p-4 md:p-8 bg-black/60 border-t border-white/5 backdrop-blur-xl flex flex-col gap-6 z-20 shrink-0">
+          <div className="max-w-5xl mx-auto w-full flex flex-col md:flex-row items-center gap-6">
+            <div className="flex items-center gap-4 w-full md:w-auto">
+              <button 
+                onClick={handleMicToggle} 
+                className={`flex-1 md:w-16 md:h-16 h-14 rounded-2xl md:rounded-full border transition-all flex items-center justify-center gap-3 md:gap-0 ${
+                  inputMode === 'mic' 
+                    ? 'bg-red-600 border-red-400 text-white shadow-2xl animate-pulse' 
+                    : 'glass border-white/10 text-white/40 hover:text-white'
+                }`}
+              >
+                <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-microphone-slash'} text-xl`}></i>
+                <span className="md:hidden text-[10px] font-black uppercase tracking-widest">{inputMode === 'mic' ? 'Mic Active' : 'Text Only'}</span>
+              </button>
+              
+              <button onClick={() => setIsPaused(!isPaused)} className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl md:rounded-full flex items-center justify-center transition-all ${isPaused ? 'bg-green-600 text-white shadow-2xl' : 'glass border-white/10 hover:bg-white/10'}`}>
+                  <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'} text-xl`}></i>
+              </button>
+            </div>
 
-          {inputMode === 'text' && (
-            <form onSubmit={handleTextSubmit} className="relative flex items-center gap-3">
-              <input type="text" value={textChoice} onChange={(e) => setTextChoice(e.target.value)} disabled={isPaused} placeholder={isPaused ? "Saga Paused..." : "Describe your intent..."} className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-8 py-5 outline-none focus:border-white/30 text-lg font-light transition-all disabled:opacity-30" />
-              <button type="submit" disabled={!textChoice.trim() || isPaused} className="px-10 py-5 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-xs shadow-2xl shrink-0">Send</button>
-            </form>
-          )}
+            {inputMode === 'text' && (
+              <form onSubmit={handleTextSubmit} className="flex-1 flex items-center gap-3 w-full">
+                <input 
+                  type="text" 
+                  value={textChoice} 
+                  onChange={(e) => setTextChoice(e.target.value)} 
+                  disabled={isPaused} 
+                  placeholder={isPaused ? "Saga Paused..." : "Respond to the destiny..."} 
+                  className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:border-white/30 text-base md:text-lg font-light transition-all disabled:opacity-30" 
+                />
+                <button 
+                  type="submit" 
+                  disabled={!textChoice.trim() || isPaused} 
+                  className="w-14 h-14 md:px-10 md:w-auto rounded-2xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-2xl transition-all active:scale-95 disabled:opacity-20 flex items-center justify-center"
+                >
+                  <span className="hidden md:block">Send</span>
+                  <i className="fas fa-paper-plane md:hidden"></i>
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       </main>
+
       <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }` }} />
     </div>
   );

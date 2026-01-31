@@ -78,18 +78,18 @@ const THEMES = {
     tag: 'MODE: EXPLAINER'
   },
   tutor: {
-    bg: 'bg-[#020512]',
-    glow1: 'bg-indigo-600/20',
-    glow2: 'bg-blue-900/15',
-    accent: 'text-indigo-400',
-    border: 'border-indigo-500/20',
-    tabActive: 'bg-indigo-600 text-white shadow-[0_0_25px_#6366f1]',
+    bg: 'bg-[#020202]',
+    glow1: 'bg-[#00ff41]/5',
+    glow2: 'bg-[#00ff41]/2',
+    accent: 'text-[#00ff41]',
+    border: 'border-[#00ff41]/30',
+    tabActive: 'bg-[#00ff41] text-black shadow-[0_0_20px_#00ff41]',
     heroTitle: 'NEURAL_TUTOR',
-    heroSub: 'FLUENCY ACCELERATOR PROTOCOL',
-    font: 'font-sans',
-    icon: 'fa-graduation-cap',
-    card: 'glass border-indigo-500/10 hover:border-indigo-400/50 hover:shadow-[0_0_35px_rgba(99,102,241,0.15)]',
-    tag: 'MODE: LANGUAGE LAB'
+    heroSub: 'CORE_SYLLABUS_OVERRIDE_V4',
+    font: 'font-hacker',
+    icon: 'fa-terminal',
+    card: 'bg-black border-[#00ff41]/20 hover:border-[#00ff41]/60 hover:shadow-[0_0_30px_rgba(0,255,65,0.1)]',
+    tag: 'STATUS: ROOT_ACCESS'
   }
 };
 
@@ -126,7 +126,7 @@ const App: React.FC = () => {
         console.error("Failed to parse saved session", e);
       }
     }
-  }, [viewMode]); // Re-check when returning home
+  }, [viewMode]);
 
   const handleFixAudio = async () => {
     const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -208,6 +208,8 @@ const App: React.FC = () => {
 
   const renderHome = () => (
     <div className={`min-h-screen ${theme.bg} ${theme.font} transition-all duration-1000 flex flex-col items-center overflow-x-hidden relative`}>
+      {activeTab === 'tutor' && <div className="absolute inset-0 pointer-events-none z-50 opacity-[0.03] scanlines"></div>}
+      
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className={`absolute top-[-20%] left-[-5%] w-[80%] h-[80%] ${theme.glow1} blur-[250px] rounded-full animate-float transition-colors duration-1000`}></div>
         <div className={`absolute bottom-[-15%] right-[-5%] w-[70%] h-[70%] ${theme.glow2} blur-[250px] rounded-full animate-float transition-colors duration-1000`} style={{animationDelay: '-6s'}}></div>
@@ -227,7 +229,7 @@ const App: React.FC = () => {
             <TabItem active={activeTab === 'files'} onClick={() => setActiveTab('files')} label="VAULT" icon="fa-moon" activeClass={THEMES.files.tabActive} />
             <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-microphone-lines" activeClass={THEMES.broadcast.tabActive} />
             <TabItem active={activeTab === 'explainer'} onClick={() => setActiveTab('explainer')} label="CINE" icon="fa-film" activeClass={THEMES.explainer.tabActive} />
-            <TabItem active={activeTab === 'tutor'} onClick={() => setActiveTab('tutor')} label="TUTOR" icon="fa-graduation-cap" activeClass={THEMES.tutor.tabActive} />
+            <TabItem active={activeTab === 'tutor'} onClick={() => setActiveTab('tutor')} label="TUTOR" icon="fa-terminal" activeClass={THEMES.tutor.tabActive} />
           </div>
 
           <button onClick={handleFixAudio} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all border-white/5">
@@ -243,31 +245,13 @@ const App: React.FC = () => {
                 {theme.tag}
               </span>
            </div>
-           <h2 className="text-7xl md:text-[9rem] font-black tracking-tighter mb-4 text-glow bg-clip-text text-transparent bg-gradient-to-b from-white to-white/40 uppercase leading-[0.85] py-2">
+           <h2 className={`text-7xl md:text-[9rem] font-black tracking-tighter mb-4 text-glow bg-clip-text text-transparent bg-gradient-to-b ${activeTab === 'tutor' ? 'from-[#00ff41] to-[#004d13]' : 'from-white to-white/40'} uppercase leading-[0.85] py-2`}>
               {theme.heroTitle}
            </h2>
            <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.6em] ${theme.accent} opacity-90 mt-4 max-w-2xl mx-auto leading-relaxed`}>
               {theme.heroSub}
            </p>
         </header>
-
-        {savedSession && (
-          <div className="w-full max-w-3xl mb-16 animate-in fade-in zoom-in-95 duration-700">
-            <div className={`p-8 rounded-[3rem] border ${theme.border} bg-white/[0.03] flex flex-col sm:flex-row items-center gap-8 backdrop-blur-md shadow-2xl`}>
-              <div className={`w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center ${theme.accent} text-2xl border border-white/5`}>
-                <i className="fas fa-history"></i>
-              </div>
-              <div className="flex-1 text-center sm:text-left">
-                <h3 className="text-xl font-black uppercase tracking-tight mb-1">Active Memory Node</h3>
-                <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">{savedSession.config.genre} — {savedSession.config.topic}</p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={resumeSession} className="px-8 py-4 bg-white text-black rounded-xl font-black uppercase tracking-widest text-[10px] hover:scale-105 transition-all shadow-xl">Re-Link</button>
-                <button onClick={discardSavedSession} className="px-8 py-4 bg-white/5 border border-white/10 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all">Abort</button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-24">
           {activeTab === 'adventures' ? (
@@ -300,51 +284,14 @@ const App: React.FC = () => {
             </>
           ) : (
             <>
-              <PortalCard genre={Genre.DOCUMENTARY} icon="fa-book" label="Academy" theme={theme} onStart={() => handleStartSetup(Genre.DOCUMENTARY)} />
-              <PortalCard genre={Genre.SCIFI} icon="fa-briefcase" label="Business" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
-              <PortalCard genre={Genre.FANTASY} icon="fa-heart" label="Dating" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
-              <PortalCard genre={Genre.THRILLER} icon="fa-comments" label="Fluency" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
+              <PortalCard genre={Genre.DOCUMENTARY} icon="fa-keyboard" label="Terminal A" theme={theme} onStart={() => handleStartSetup(Genre.DOCUMENTARY)} />
+              <PortalCard genre={Genre.SCIFI} icon="fa-code" label="Terminal B" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
+              <PortalCard genre={Genre.FANTASY} icon="fa-bug" label="Terminal C" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
+              <PortalCard genre={Genre.THRILLER} icon="fa-shield-halved" label="Terminal D" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
             </>
           )}
         </div>
-
-        <footer className="w-full max-w-3xl flex items-center justify-between border-t border-white/5 pt-12 opacity-30">
-           <button onClick={() => setViewMode(ViewMode.FEEDBACK)} className="text-[10px] font-black uppercase tracking-[0.5em] hover:opacity-100 transition-opacity">Submit Intel</button>
-           <div className="flex gap-6 items-center">
-              <i className="fab fa-github hover:opacity-100 cursor-pointer"></i>
-              <i className="fab fa-discord hover:opacity-100 cursor-pointer"></i>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] ml-4">v2.1.5_LIVE</span>
-           </div>
-        </footer>
       </main>
-
-      {/* Draft Selection Modal */}
-      {showDraftPrompt && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-2xl animate-in fade-in duration-300">
-           <div className={`max-w-xl w-full glass-dark p-12 rounded-[4rem] border ${theme.border} text-center space-y-10 shadow-[0_0_100px_rgba(0,0,0,1)]`}>
-              <div className={`w-20 h-20 rounded-[2rem] bg-white/5 flex items-center justify-center mx-auto border border-white/10 ${theme.accent} text-3xl`}>
-                <i className="fas fa-history"></i>
-              </div>
-              <div className="space-y-3">
-                 <h3 className="text-3xl font-black uppercase tracking-tight">Draft Detected</h3>
-                 <p className="text-sm opacity-50 uppercase tracking-widest leading-relaxed">
-                   You have an active memory node. Would you like to resume your progress or start a new session?
-                 </p>
-              </div>
-              <div className="flex flex-col gap-4">
-                 <button onClick={resumeSession} className="w-full py-6 rounded-[2rem] bg-white text-black font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-xl">
-                   Continue Draft
-                 </button>
-                 <button onClick={() => startNewSession(showDraftPrompt)} className="w-full py-6 rounded-[2rem] bg-white/5 border border-white/10 font-black uppercase tracking-widest hover:bg-white/10 transition-all">
-                   Start New Session
-                 </button>
-                 <button onClick={() => setShowDraftPrompt(null)} className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 hover:opacity-100 pt-4">
-                   Cancel Selection
-                 </button>
-              </div>
-           </div>
-        </div>
-      )}
     </div>
   );
 
@@ -440,6 +387,89 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
 
   const currentTheme = THEMES[origin as keyof typeof THEMES] || THEMES.adventures;
 
+  // Dedicated Terminal Setup UI for Tutor mode
+  if (origin === 'tutor') {
+    return (
+      <div className="min-h-screen bg-black text-[#00ff41] font-hacker flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none z-50 opacity-[0.03] scanlines"></div>
+        <div className="max-w-2xl w-full border border-[#00ff41]/30 bg-black p-8 md:p-12 space-y-8 animate-in fade-in zoom-in-95 duration-500 relative">
+          <div className="border-b border-[#00ff41]/30 pb-4 flex justify-between items-end">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tighter uppercase">CONFIG_INIT: TUTOR_PROTOCOL</h2>
+              <p className="text-[10px] opacity-60">SYSTEM_TIME: {new Date().toLocaleTimeString()}</p>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] block opacity-40">PORT: 8080</span>
+              <span className="text-[10px] block opacity-40">ENCRYPTION: AES-256</span>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase block opacity-40">> ENTER_SESSION_TOPIC_STRING:</label>
+              <input 
+                type="text" 
+                value={topic} 
+                onChange={e => setTopic(e.target.value)}
+                placeholder="e.g. DAILY_ROUTINE"
+                className="w-full bg-transparent border-b border-[#00ff41]/20 py-2 outline-none focus:border-[#00ff41] text-[#00ff41] placeholder-[#00ff41]/20"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase block opacity-40">> SELECT_LANGUAGE:</label>
+                <select 
+                  value={language} 
+                  onChange={e => setLanguage(e.target.value)}
+                  className="w-full bg-black border border-[#00ff41]/20 p-2 outline-none focus:border-[#00ff41] text-xs uppercase"
+                >
+                  {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase block opacity-40">> SELECT_SENSEI_VOICE:</label>
+                <select 
+                  value={voice} 
+                  onChange={e => setVoice(e.target.value as GeminiVoice)}
+                  className="w-full bg-black border border-[#00ff41]/20 p-2 outline-none focus:border-[#00ff41] text-xs uppercase"
+                >
+                  {VOICES.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4">
+              <div className="flex justify-between items-center text-xs">
+                <span className="opacity-40 uppercase font-bold">> DURATION_LIMIT:</span>
+                <span className="font-bold">{duration}m</span>
+              </div>
+              <input 
+                type="range" min="5" max="60" step="5" value={duration} onChange={e => setDuration(parseInt(e.target.value))}
+                className="w-full h-1 bg-[#00ff41]/10 rounded-lg appearance-none cursor-pointer accent-[#00ff41]"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-4 pt-6">
+            <button onClick={onBack} className="flex-1 py-3 border border-[#00ff41]/30 text-xs font-bold uppercase hover:bg-[#00ff41]/10 transition-all">
+              [ESC] ABORT
+            </button>
+            <button 
+              onClick={() => onConfirm({ genre, topic, language, voice, mode, isOriginalScript: isOriginal, durationMinutes: duration })} 
+              className="flex-[2] py-3 bg-[#00ff41] text-black text-xs font-bold uppercase hover:bg-[#00ff41]/80 transition-all shadow-[0_0_20px_rgba(0,255,65,0.2)]"
+            >
+              [ENTER] START_IMMERSION
+            </button>
+          </div>
+          <div className="pt-4 text-[8px] opacity-20 text-center uppercase tracking-widest animate-pulse">
+            Warning: Protocol bypass active. Monitoring neural pathways...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen flex items-center justify-center p-6 ${currentTheme.bg} ${currentTheme.font} relative overflow-hidden`}>
       <div className={`absolute top-[-20%] right-[-10%] w-[60%] h-[60%] ${currentTheme.glow1} blur-[200px] rounded-full`}></div>
@@ -448,64 +478,27 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
         <div className="text-center space-y-4">
           <p className={`${currentTheme.accent} uppercase tracking-[0.6em] text-[10px] font-black`}>Link Verification</p>
           <h2 className="text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none">
-            {origin === 'broadcast' ? 'Initiate Cast' : origin === 'files' ? 'Seal Vault' : origin === 'explainer' ? 'Initiate Decoder' : origin === 'tutor' ? 'Language Lab' : 'Forge Saga'}
+            {origin === 'broadcast' ? 'Initiate Cast' : origin === 'files' ? 'Seal Vault' : origin === 'explainer' ? 'Initiate Decoder' : 'Forge Saga'}
           </h2>
         </div>
 
         <div className="space-y-10">
           <div className="space-y-4">
             <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">
-                {origin === 'explainer' ? (isOriginal ? 'Original Movie Title' : 'Existing Movie Name') : origin === 'tutor' ? 'Session Focus' : 'Chronicle Seed (Optional)'}
+                {origin === 'explainer' ? (isOriginal ? 'Original Movie Title' : 'Existing Movie Name') : 'Chronicle Seed (Optional)'}
             </label>
             <input 
               type="text" 
               value={topic} 
               onChange={e => setTopic(e.target.value)}
-              placeholder={origin === 'explainer' ? "e.g. Inception..." : origin === 'tutor' ? "e.g. Office Talk, Dating Tips..." : "Leave empty for AI choice..."}
+              placeholder={origin === 'explainer' ? "e.g. Inception..." : "Leave empty for AI choice..."}
               className="w-full bg-white/5 border border-white/10 rounded-[3rem] px-10 py-8 outline-none focus:border-white/30 transition-all text-2xl font-light placeholder:opacity-10 shadow-inner"
             />
           </div>
 
-          {origin === 'explainer' && (
-             <div className="flex items-center gap-6 glass p-8 rounded-[2rem] border-emerald-500/10 bg-emerald-500/5">
-                <button 
-                  onClick={() => setIsOriginal(!isOriginal)}
-                  className={`w-14 h-8 rounded-full transition-all relative shrink-0 ${isOriginal ? 'bg-emerald-500 shadow-[0_0_15px_#10b981]' : 'bg-white/10'}`}
-                >
-                  <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${isOriginal ? 'left-7' : 'left-1'}`}></div>
-                </button>
-                <div className="flex-1">
-                   <div className="flex items-center gap-2">
-                     <span className="text-[10px] font-black uppercase tracking-widest block">YOUR DESIRE</span>
-                   </div>
-                   <p className="text-[8px] opacity-40 uppercase tracking-tighter mt-1">AI will invent a RAW, UNFILTERED plot based on your title. Unrestricted narrative protocols active.</p>
-                </div>
-             </div>
-          )}
-
-          {(origin === 'files' || origin === 'broadcast' || origin === 'explainer' || origin === 'tutor') && (
-            <div className="space-y-8 bg-white/[0.02] p-10 rounded-[4rem] border border-white/5 shadow-2xl">
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-[10px] uppercase font-black opacity-30 ml-2 tracking-widest">
-                    {origin === 'tutor' ? 'Immersion Time' : 'Duration'}
-                </label>
-                <span className={`text-2xl font-black ${currentTheme.accent}`}>{duration} Minutes</span>
-              </div>
-              <input 
-                type="range" 
-                min="5" 
-                max="60" 
-                step="5"
-                value={duration} 
-                onChange={e => setDuration(parseInt(e.target.value))}
-                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white"
-              />
-            </div>
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">{origin === 'tutor' ? 'Target Language' : 'Narrator Language'}</label>
+              <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">Narrator Language</label>
               <div className="relative">
                 <select 
                   value={language} 
@@ -520,7 +513,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
               </div>
             </div>
             <div className="space-y-4">
-              <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">{origin === 'tutor' ? 'Tutor Voice' : 'Persona'}</label>
+              <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">Persona</label>
               <div className="relative">
                 <select 
                   value={voice} 
@@ -543,7 +536,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
             onClick={() => onConfirm({ genre, topic, language, voice, mode, isOriginalScript: isOriginal, durationMinutes: duration })} 
             className="flex-[2] py-8 rounded-[3rem] bg-white text-black text-[10px] font-black uppercase tracking-[0.5em] hover:scale-[1.03] transition-all shadow-2xl active:scale-95"
           >
-            {origin === 'tutor' ? 'Start Immersion' : origin === 'explainer' ? 'Start Recap' : `Launch Protocol`}
+            {origin === 'explainer' ? 'Start Recap' : `Launch Protocol`}
           </button>
         </div>
       </div>

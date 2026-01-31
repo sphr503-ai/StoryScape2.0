@@ -16,7 +16,7 @@ export interface LoreData {
 
 export class StoryScapeService {
   private ai: GoogleGenAI;
-  private session: any;
+  private sessionPromise: Promise<any> | null = null;
   private inputAudioContext: AudioContext | null = null;
   private outputAudioContext: AudioContext | null = null;
   private nextStartTime = 0;
@@ -73,6 +73,7 @@ export class StoryScapeService {
     lore?: LoreData,
     customSystemInstruction?: string
   ) {
+    // Initialize AudioContexts - will need resume() on user gesture
     this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
@@ -81,7 +82,7 @@ export class StoryScapeService {
     this.inputAnalyser.fftSize = 256;
     this.outputAnalyser.fftSize = 256;
 
-    const { genre, topic, language, voice, mode } = config;
+    const { genre, topic, language, voice } = config;
     const lastTurn = history && history.length > 0 ? history[history.length - 1].text : "";
     const contextSummary = lastTurn 
       ? `The session is in progress. Last exchange: "${lastTurn}". Resume immediately.`
@@ -89,7 +90,7 @@ export class StoryScapeService {
 
     const systemInstruction = customSystemInstruction || `Narrate a ${genre} tale about ${topic} in ${language}. Use ${voice} voice.`;
 
-    const sessionPromise = this.ai.live.connect({
+    this.sessionPromise = this.ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
       config: {
         responseModalities: [Modality.AUDIO],
@@ -100,7 +101,7 @@ export class StoryScapeService {
       },
       callbacks: {
         onopen: () => {
-          sessionPromise.then(s => s.sendRealtimeInput({ text: contextSummary }));
+          this.sessionPromise?.then(session => session.sendRealtimeInput({ text: contextSummary }));
         },
         onmessage: async (message: LiveServerMessage) => {
           if (this.isPaused) return;
@@ -116,15 +117,20 @@ export class StoryScapeService {
       },
     });
 
-    this.session = await sessionPromise;
+    await this.sessionPromise;
   }
 
   public async setMicActive(active: boolean) {
     this.isMicActive = active;
+    
     if (!this.inputAudioContext) return;
     
+    // Crucial: Resume AudioContext on user gesture
     if (this.inputAudioContext.state === 'suspended') {
       await this.inputAudioContext.resume();
+    }
+    if (this.outputAudioContext && this.outputAudioContext.state === 'suspended') {
+      await this.outputAudioContext.resume();
     }
 
     if (active) {
@@ -133,10 +139,18 @@ export class StoryScapeService {
           this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           const source = this.inputAudioContext.createMediaStreamSource(this.stream);
           this.scriptProcessor = this.inputAudioContext.createScriptProcessor(4096, 1, 1);
+          
           this.scriptProcessor.onaudioprocess = (e) => {
-            if (this.isPaused || !this.isMicActive) return;
-            if (this.session) this.session.sendRealtimeInput({ media: this.createBlob(e.inputBuffer.getChannelData(0)) });
+            if (this.isPaused || !this.isMicActive || !this.sessionPromise) return;
+            const inputData = e.inputBuffer.getChannelData(0);
+            const pcmBlob = this.createBlob(inputData);
+            
+            // Strictly follow the sessionPromise.then pattern to avoid race conditions/stale closures
+            this.sessionPromise.then((session) => {
+              session.sendRealtimeInput({ media: pcmBlob });
+            });
           };
+
           source.connect(this.inputAnalyser!);
           this.inputAnalyser!.connect(this.scriptProcessor);
           this.scriptProcessor.connect(this.inputAudioContext.destination);
@@ -145,21 +159,39 @@ export class StoryScapeService {
           throw err;
         }
       }
+    } else {
+      // Logic to actually stop tracks to clear browser "recording" icon
+      if (this.stream) {
+        this.stream.getTracks().forEach(track => track.stop());
+        this.stream = null;
+      }
+      if (this.scriptProcessor) {
+        this.scriptProcessor.disconnect();
+        this.scriptProcessor = null;
+      }
     }
   }
 
   private createBlob(data: Float32Array): any {
     const l = data.length;
     const int16 = new Int16Array(l);
-    for (let i = 0; i < l; i++) int16[i] = data[i] * 32768;
-    return { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' };
+    for (let i = 0; i < l; i++) {
+      int16[i] = Math.max(-1, Math.min(1, data[i])) * 32768;
+    }
+    return { 
+      data: encode(new Uint8Array(int16.buffer)), 
+      mimeType: 'audio/pcm;rate=16000' 
+    };
   }
 
   public static async generateSummary(genre: Genre, history: Array<{role: 'user' | 'model', text: string}>): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const transcript = history.map(h => `${h.role}: ${h.text}`).join('\n');
     try {
-      const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: `Summarize this exchange: \n${transcript}` });
+      const response = await ai.models.generateContent({ 
+        model: 'gemini-3-flash-preview', 
+        contents: `Summarize this exchange: \n${transcript}` 
+      });
       return response.text || "Conclusion reached.";
     } catch (err) {
       return "The session ends.";
@@ -190,7 +222,10 @@ export class StoryScapeService {
   }
 
   async stopAdventure() {
-    if (this.session) await this.session.close();
+    if (this.sessionPromise) {
+      const session = await this.sessionPromise;
+      await session.close();
+    }
     if (this.stream) this.stream.getTracks().forEach(t => t.stop());
     this.stopAllAudio();
     if (this.inputAudioContext) await this.inputAudioContext.close();
@@ -198,7 +233,9 @@ export class StoryScapeService {
   }
 
   public sendTextChoice(text: string) { 
-    if (this.session) this.session.sendRealtimeInput({ text }); 
+    if (this.sessionPromise) {
+      this.sessionPromise.then(session => session.sendRealtimeInput({ text }));
+    }
   }
   
   public setPaused(paused: boolean) { 
