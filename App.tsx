@@ -12,12 +12,12 @@ const LANGUAGES = [
   "Hindi", "English", "Spanish", "French", "German", "Japanese", "Arabic", "Russian", "Portuguese", "Italian", "Korean", "Chinese", "Bengali", "Turkish", "Vietnamese", "Urdu", "Marathi", "Telugu", "Tamil"
 ];
 
-const VOICES: Array<{ id: GeminiVoice; name: string; description: string }> = [
-  { id: 'Zephyr', name: 'Zephyr', description: 'Deep & Commanding' },
-  { id: 'Puck', name: 'Puck', description: 'Energetic & Witty' },
-  { id: 'Charon', name: 'Charon', description: 'Stoic & Wise' },
-  { id: 'Kore', name: 'Kore', description: 'Calm & Graceful' },
-  { id: 'Fenrir', name: 'Fenrir', description: 'Gravelly & Intense' },
+const VOICES: Array<{ id: GeminiVoice; name: string; description: string; gender: 'Male' | 'Female' | 'Neutral' }> = [
+  { id: 'Zephyr', name: 'Zephyr', description: 'Deep & Commanding', gender: 'Male' },
+  { id: 'Puck', name: 'Puck', description: 'Energetic & Witty', gender: 'Neutral' },
+  { id: 'Charon', name: 'Charon', description: 'Stoic & Wise', gender: 'Male' },
+  { id: 'Kore', name: 'Kore', description: 'Calm & Graceful', gender: 'Female' },
+  { id: 'Fenrir', name: 'Fenrir', description: 'Gravelly & Intense', gender: 'Male' },
 ];
 
 const THEMES = {
@@ -406,7 +406,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
 
           <div className="space-y-6">
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase block opacity-40">{">"} ENTER_SESSION_TOPIC_STRING:</label>
+              <label className="text-xs font-bold uppercase block opacity-40">{" > "} ENTER_SESSION_TOPIC_STRING:</label>
               <input 
                 type="text" 
                 value={topic} 
@@ -418,7 +418,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
 
             <div className="grid grid-cols-2 gap-8">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase block opacity-40">{">"} SELECT_LANGUAGE:</label>
+                <label className="text-xs font-bold uppercase block opacity-40">{" > "} SELECT_LANGUAGE:</label>
                 <select 
                   value={language} 
                   onChange={e => setLanguage(e.target.value)}
@@ -427,21 +427,42 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
                   {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
+
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase block opacity-40">{">"} SELECT_SENSEI_VOICE:</label>
+                <label className="text-xs font-bold uppercase block opacity-40">{" > "} SELECT_SENSEI_GENDER:</label>
+                <div className="flex gap-2">
+                   <button 
+                     onClick={() => setVoice('Zephyr')} 
+                     className={`flex-1 py-2 border text-[10px] font-bold uppercase transition-all ${VOICES.find(v => v.id === voice)?.gender === 'Male' ? 'bg-[#00ff41] text-black border-[#00ff41]' : 'border-[#00ff41]/30 text-[#00ff41] hover:bg-[#00ff41]/5'}`}
+                   >
+                     MALE
+                   </button>
+                   <button 
+                     onClick={() => setVoice('Kore')} 
+                     className={`flex-1 py-2 border text-[10px] font-bold uppercase transition-all ${VOICES.find(v => v.id === voice)?.gender === 'Female' ? 'bg-[#00ff41] text-black border-[#00ff41]' : 'border-[#00ff41]/30 text-[#00ff41] hover:bg-[#00ff41]/5'}`}
+                   >
+                     FEMALE
+                   </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-2 col-span-2">
+                <label className="text-xs font-bold uppercase block opacity-40">{" > "} SELECT_SENSEI_VOICE:</label>
                 <select 
                   value={voice} 
                   onChange={e => setVoice(e.target.value as GeminiVoice)}
                   className="w-full bg-black border border-[#00ff41]/20 p-2 outline-none focus:border-[#00ff41] text-xs uppercase"
                 >
-                  {VOICES.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                  {VOICES.map(v => <option key={v.id} value={v.id}>{v.name} ({v.gender}) - {v.description}</option>)}
                 </select>
               </div>
             </div>
 
             <div className="space-y-4 pt-4">
               <div className="flex justify-between items-center text-xs">
-                <span className="opacity-40 uppercase font-bold">{">"} DURATION_LIMIT:</span>
+                <span className="opacity-40 uppercase font-bold">{" > "} DURATION_LIMIT:</span>
                 <span className="font-bold">{duration}m</span>
               </div>
               <input 
