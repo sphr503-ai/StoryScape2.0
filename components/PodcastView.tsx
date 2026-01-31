@@ -21,16 +21,14 @@ const PODCAST_AMBIENTS: Record<string, string> = {
 const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistory = [] }) => {
   const [transcriptions, setTranscriptions] = useState<Array<{ role: 'user' | 'model'; text: string }>>(initialHistory);
   const [currentModelText, setCurrentModelText] = useState('');
-  const [ambientVolume, setAmbientVolume] = useState(0.2);
+  const [ambientVolume, setAmbientVolume] = useState(0.15);
   const [isPaused, setIsPaused] = useState(false);
   const [connectingProgress, setConnectingProgress] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
   const [bufferPercent, setBufferPercent] = useState(0);
   const [lore, setLore] = useState<LoreData | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-
+  
   const [secondsRemaining, setSecondsRemaining] = useState((config.durationMinutes || 15) * 60);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -68,9 +66,9 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     bufferIntervalRef.current = window.setInterval(() => {
       setBufferPercent(p => {
         if (p >= 99) return 99;
-        return p + Math.floor(Math.random() * 4) + 1;
+        return p + Math.floor(Math.random() * 5) + 2;
       });
-    }, 500);
+    }, 450);
   };
 
   const stopBuffering = () => {
@@ -107,17 +105,23 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     setLore(fetchedLore);
     setConnectingProgress(45);
     
-    const customInstruction = `You are the host of a high-production, incredibly engaging investigative podcast in ${advConfig.language}. 
-    Style: Inspired by AJ from "The Why Files". You are witty, deeply researched, suspenseful, and highly entertaining. 
+    // ENHANCED PROMPT: Specifically designed to emulate "The Why Files" (AJ & Hecklefish style)
+    const customInstruction = `You are the host of a world-renowned, high-production investigative podcast in ${advConfig.language}. 
+    STYLE: Inspired by AJ from "The Why Files". You are witty, deeply researched, skeptical but open-minded, and highly entertaining. 
     
-    LORE MANIFEST (Incorporate these facts with cinematic flair):
+    SPECIAL INSTRUCTION: Occasionally, simulate an interaction with your skeptical, witty sidekick (like Hecklefish). 
+    - You (AJ style): Serious, narrative-driven, providing facts.
+    - Sidekick: Sarcastic, скеptical, adding humor or asking the "dumb" questions.
+    Keep the sidekick interruptions brief but punchy.
+
+    LORE MANIFEST (This is your research data. Ground the story in THESE facts):
     ${fetchedLore.manifest}
 
-    STRICT PERFORMANCE RULES:
-    1. DYNAMIC DELIVERY: Vary your tone. Use hooks, cliffhangers, and insightful observations.
-    2. THE "FISH" SIDEKICK: Occasionally include a witty interaction with an imaginary, skeptical sidekick for humor and pacing.
-    3. BROADCAST QUALITY: No repetitions. No stuttering. No merged words.
-    4. IMMERSIVE INVESTIGATION: Focus on real-world mystery, crime, or mind-blowing knowledge related to: ${advConfig.topic}.`;
+    STRICT BROADCAST RULES:
+    1. PROFESSIONAL PACING: Build suspense. Use dramatic pauses.
+    2. THE "HOOK": Every segment must leave the listener wanting more.
+    3. BROADCAST CLARITY: No repetitive phrasing. Perfect spacing between words.
+    4. TOPIC FOCUS: Deep dive into the mystery or crime of: "${advConfig.topic}". Use real-world grounding provided in the Lore Manifest.`;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
@@ -138,7 +142,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("Keep the broadcast going. Dive deeper into the next phase of the investigation. Make it thrilling.");
+          service.sendTextChoice("Keep the show moving. Transition to the next fascinating discovery or crime detail. Involve the sidekick for a quick witty retort before diving back into the facts.");
           startBuffering();
         }
       },
@@ -155,7 +159,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
 
   useEffect(() => {
     initService(config);
-    const ambientUrl = PODCAST_AMBIENTS[config.genre] || PODCAST_AMBIENTS['Documentary'];
+    const ambientUrl = PODCAST_AMBIENTS[config.genre as string] || PODCAST_AMBIENTS['Documentary'];
     const audio = new Audio(ambientUrl);
     audio.loop = true;
     audio.volume = ambientVolume;
@@ -200,122 +204,133 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
   };
 
   return (
-    <div className={`h-screen bg-[#050510] text-violet-50 font-sans flex flex-col p-4 md:p-8 transition-colors duration-1000 overflow-hidden relative`}>
+    <div className={`h-screen bg-[#050512] text-violet-50 font-sans flex flex-col p-4 md:p-10 transition-colors duration-1000 overflow-hidden relative`}>
       <Visualizer inputAnalyser={null} outputAnalyser={analysers.out} genre={config.genre} isPaused={isPaused} />
 
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 z-10 shrink-0">
+      {/* Decorative Broadcast Elements */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-violet-500/50 to-transparent opacity-30"></div>
+
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 z-10 shrink-0">
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-tighter text-violet-400">EPISODE: {config.topic}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-violet-500 animate-pulse' : 'bg-red-500'}`}></div>
-            <p className="text-[10px] opacity-60 uppercase tracking-[0.3em] font-black">BROADCASTING • {config.genre}</p>
+          <h1 className="text-3xl font-black uppercase tracking-tighter text-violet-400 leading-none">THE BROADCAST: {config.topic}</h1>
+          <div className="flex items-center gap-3 mt-3">
+            <div className={`flex items-center gap-2 glass px-3 py-1 rounded-full border-violet-500/20`}>
+              <div className={`w-2 h-2 rounded-full ${isOutputActive ? 'bg-violet-500 shadow-[0_0_10px_#8b5cf6] animate-pulse' : 'bg-red-600'}`}></div>
+              <span className="text-[9px] font-black uppercase tracking-widest">{isOutputActive ? 'LIVE' : 'ON AIR'}</span>
+            </div>
+            <p className="text-[10px] opacity-40 uppercase tracking-[0.3em] font-bold">{config.genre} • {config.language}</p>
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-violet-500/20">
-            <i className="fas fa-headphones text-violet-400 text-xs"></i>
-            <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-violet-900/30 rounded-lg appearance-none cursor-pointer accent-violet-500" />
+          <div className="flex items-center gap-4 glass px-6 py-3 rounded-full flex-1 md:flex-none border-violet-500/10">
+            <i className="fas fa-sliders text-violet-400 text-xs"></i>
+            <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-violet-900/40 rounded-lg appearance-none cursor-pointer accent-violet-500" />
           </div>
-          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-6 py-2.5 rounded-full bg-violet-600 text-white font-black text-xs uppercase tracking-widest shadow-[0_0_15px_rgba(139,92,246,0.5)]">END SHOW</button>
-          <button onClick={onExit} className="w-10 h-10 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center transition-all"><i className="fas fa-times"></i></button>
+          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-10 py-3.5 rounded-full bg-violet-600 text-white font-black text-xs uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(139,92,246,0.4)] hover:scale-105 transition-all">END BROADCAST</button>
+          <button onClick={onExit} className="w-12 h-12 rounded-full bg-white/5 text-white/40 border border-white/5 flex items-center justify-center hover:text-red-400 transition-all"><i className="fas fa-times"></i></button>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-violet-500/10 z-10 bg-black/40 min-h-0">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 md:p-12 space-y-10 scroll-smooth custom-scrollbar relative">
-          {(connectingProgress < 100 || isBuffering || isDownloading) && (
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-50 flex flex-col items-center justify-center gap-6 text-center px-12">
+      <main className="flex-1 flex flex-col max-w-6xl mx-auto w-full glass rounded-[4rem] overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] relative border-violet-500/10 z-10 bg-black/40 min-h-0">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 md:p-16 space-y-12 scroll-smooth custom-scrollbar relative">
+          
+          {(connectingProgress < 100 || isBuffering) && (
+            <div className="absolute inset-0 bg-black/90 backdrop-blur-2xl z-50 flex flex-col items-center justify-center gap-10 text-center px-16">
                <div className="relative">
-                 <div className={`w-36 h-36 border-[6px] border-violet-900/20 border-t-violet-500 rounded-full animate-spin`}></div>
-                 <div className="absolute inset-0 flex items-center justify-center font-black text-2xl text-violet-400">
+                 <div className={`w-40 h-40 border-[4px] border-violet-900/20 border-t-violet-500 rounded-full animate-spin`}></div>
+                 <div className="absolute inset-0 flex items-center justify-center font-black text-3xl text-violet-400">
                    {connectingProgress < 100 ? connectingProgress : bufferPercent}%
                  </div>
                </div>
-               <div className="space-y-2">
-                 <p className="text-xs font-black uppercase tracking-[0.5em] text-violet-400">
-                   {connectingProgress < 100 ? 'SYNCING BROADCAST...' : 'RESEARCHING NEXT SEGMENT...'}
-                 </p>
-                 <p className="text-[10px] opacity-40 uppercase tracking-widest">Live from the StoryScape Studio</p>
+               <div className="space-y-4">
+                 <h3 className="text-xl font-black uppercase tracking-[0.5em] text-violet-400">
+                   {connectingProgress < 100 ? 'SYNCING SATELLITE LINK...' : 'GATHERING INTELLIGENCE...'}
+                 </h3>
+                 <p className="text-[10px] opacity-30 uppercase tracking-[0.2em] max-w-sm mx-auto">Accessing neural archives and grounding the narrative in verified data.</p>
                </div>
             </div>
           )}
           
           {transcriptions.length === 0 && !isBuffering && connectingProgress === 100 && (
-            <div className="h-full flex flex-col items-center justify-center opacity-20 text-center space-y-4">
-              <i className="fas fa-microphone-lines text-6xl"></i>
-              <p className="text-sm font-black uppercase tracking-[0.5em]">Waiting for transmission...</p>
+            <div className="h-full flex flex-col items-center justify-center opacity-10 text-center space-y-6">
+              <i className="fas fa-microphone-lines text-8xl"></i>
+              <p className="text-sm font-black uppercase tracking-[1em]">Standby for Transmission</p>
             </div>
           )}
 
           {transcriptions.map((t, i) => (
-            <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="max-w-[90%] p-8 rounded-[2.5rem] bg-violet-950/10 border border-violet-500/10 rounded-tl-none shadow-xl">
-                <p className="text-[9px] text-violet-400 mb-3 uppercase tracking-[0.4em] font-black flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"></span> THE HOST
+            <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-6 duration-700">
+              <div className="max-w-[92%] p-10 rounded-[3rem] bg-violet-950/[0.08] border border-violet-500/10 rounded-tl-none shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-violet-500/20"></div>
+                <p className="text-[10px] text-violet-500/60 mb-4 uppercase tracking-[0.5em] font-black flex items-center gap-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"></span> SYSTEM NARRATOR
                 </p>
-                <p className="text-xl md:text-2xl leading-relaxed font-light text-violet-50/90">{t.text}</p>
+                <p className="text-2xl md:text-3xl leading-relaxed font-light text-violet-50/90 tracking-tight">{t.text}</p>
               </div>
             </div>
           ))}
 
           {currentModelText && (
             <div className="flex justify-start">
-              <div className="max-w-[90%] p-8 rounded-[2.5rem] bg-violet-950/5 border border-dashed border-violet-500/20 rounded-tl-none animate-pulse">
-                <p className="text-xl md:text-2xl leading-relaxed italic text-violet-300/70">{currentModelText}</p>
+              <div className="max-w-[92%] p-10 rounded-[3rem] bg-violet-500/[0.02] border border-dashed border-violet-500/20 rounded-tl-none animate-pulse">
+                <p className="text-2xl md:text-3xl leading-relaxed italic text-violet-400/60">{currentModelText}</p>
               </div>
             </div>
           )}
         </div>
 
-        <div className="p-8 glass-dark border-t border-violet-500/10 flex flex-col gap-6 bg-black/60 shrink-0">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-8">
+        {/* Control Footer */}
+        <div className="p-10 glass-dark border-t border-violet-500/10 flex flex-col gap-8 bg-black/60 shrink-0">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-10">
+            <div className="flex items-center gap-12">
               <div className="flex flex-col">
-                <span className="text-[8px] font-black uppercase tracking-widest opacity-30 mb-1">On Air</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.3em] opacity-30 mb-2">Signal Status</span>
                 <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${isOutputActive ? 'bg-violet-500 shadow-[0_0_15px_#8b5cf6]' : 'bg-white/10'}`}></div>
-                  <span className="text-xs font-black uppercase tracking-[0.2em]">{isOutputActive ? 'Transmitting' : 'Idle'}</span>
+                  <div className={`w-3.5 h-3.5 rounded-full ${isOutputActive ? 'bg-violet-500 shadow-[0_0_20px_#8b5cf6]' : 'bg-white/5'}`}></div>
+                  <span className="text-xs font-black uppercase tracking-widest">{isOutputActive ? 'TRANSMITTING' : 'IDLE'}</span>
                 </div>
               </div>
-              <div className="h-10 w-px bg-violet-500/20 hidden md:block"></div>
+              <div className="h-10 w-px bg-violet-500/10 hidden lg:block"></div>
               <div className="flex flex-col">
-                <span className="text-[8px] font-black uppercase tracking-widest opacity-30 mb-1">Show Timer</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.3em] opacity-30 mb-2">Episode Clock</span>
                 <div className="flex items-center gap-3 text-violet-400">
-                  <i className="fas fa-clock text-xs"></i>
-                  <span className="text-sm font-black tracking-widest">{formatTime(secondsRemaining)}</span>
+                  <i className="fas fa-stopwatch text-xs"></i>
+                  <span className="text-base font-black tracking-[0.2em]">{formatTime(secondsRemaining)}</span>
                 </div>
               </div>
             </div>
             
-            <button onClick={togglePause} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isPaused ? 'bg-violet-600 text-white shadow-2xl' : 'glass border-violet-500/20 hover:bg-violet-500/10'}`}>
-              <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
-            </button>
+            <div className="flex items-center gap-6">
+               <button onClick={togglePause} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl ${isPaused ? 'bg-violet-600 text-white' : 'glass border-violet-500/20 hover:bg-violet-500/10'}`}>
+                 <i className={`fas ${isPaused ? 'fa-play translate-x-0.5' : 'fa-pause'} text-xl`}></i>
+               </button>
+            </div>
           </div>
           <div className="w-full h-1.5 bg-violet-950/40 rounded-full overflow-hidden">
-            <div className="h-full bg-violet-500 transition-all duration-1000 shadow-[0_0_15px_#8b5cf6]" style={{ width: `${(secondsRemaining / ((config.durationMinutes || 15) * 60)) * 100}%` }}></div>
+            <div className="h-full bg-violet-500 transition-all duration-1000 shadow-[0_0_20px_#8b5cf6]" style={{ width: `${(secondsRemaining / ((config.durationMinutes || 15) * 60)) * 100}%` }}></div>
           </div>
         </div>
       </main>
 
       {summary && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-3xl overflow-y-auto">
-          <div className="max-w-4xl w-full my-auto space-y-16 py-20 animate-in fade-in slide-in-from-bottom-12">
-            <div className="text-center space-y-4">
-              <p className="text-violet-400 uppercase tracking-[1em] text-xs font-black">Post-Show Wrap Up</p>
-              <h2 className="text-7xl md:text-9xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-600 uppercase">WRAP</h2>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-8 bg-black/98 backdrop-blur-3xl overflow-y-auto">
+          <div className="max-w-5xl w-full my-auto space-y-16 py-20 animate-in fade-in slide-in-from-bottom-12">
+            <div className="text-center space-y-6">
+              <p className="text-violet-500 uppercase tracking-[1.2em] text-[10px] font-black">Episode Conclusion</p>
+              <h2 className="text-8xl md:text-[10rem] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-violet-400 to-violet-900 uppercase leading-none">THE END</h2>
             </div>
-            <div className="glass p-16 rounded-[5rem] border-violet-500/20 bg-violet-950/5 relative">
-              <i className="fas fa-quote-left absolute top-10 left-10 text-violet-500/20 text-6xl"></i>
-              <p className="text-3xl font-light italic text-center leading-relaxed text-violet-100">"{summary}"</p>
+            <div className="glass p-16 rounded-[5rem] border-violet-500/20 bg-violet-950/5 relative shadow-2xl">
+              <i className="fas fa-quote-left absolute top-12 left-12 text-violet-500/10 text-8xl"></i>
+              <p className="text-3xl md:text-4xl font-light italic text-center leading-relaxed text-violet-100/90 font-serif">"{summary}"</p>
             </div>
-            <div className="flex justify-center pt-8">
-              <button onClick={onExit} className="px-16 py-8 rounded-[3rem] bg-white text-black font-black uppercase tracking-[0.3em] shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:scale-110 transition-transform">Back to Studio</button>
+            <div className="flex justify-center pt-10">
+              <button onClick={onExit} className="px-16 py-8 rounded-[3rem] bg-white text-black font-black uppercase tracking-[0.4em] shadow-[0_0_50px_rgba(255,255,255,0.2)] hover:scale-110 transition-transform active:scale-95">BACK TO STUDIO</button>
             </div>
           </div>
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.2); border-radius: 10px; }` }} />
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 5px; } .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.2); border-radius: 10px; }` }} />
     </div>
   );
 };
