@@ -105,23 +105,20 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     setLore(fetchedLore);
     setConnectingProgress(45);
     
-    // ENHANCED PROMPT: Specifically designed to emulate "The Why Files" (AJ & Hecklefish style)
-    const customInstruction = `You are the host of a world-renowned, high-production investigative podcast in ${advConfig.language}. 
-    STYLE: Inspired by AJ from "The Why Files". You are witty, deeply researched, skeptical but open-minded, and highly entertaining. 
-    
-    SPECIAL INSTRUCTION: Occasionally, simulate an interaction with your skeptical, witty sidekick (like Hecklefish). 
-    - You (AJ style): Serious, narrative-driven, providing facts.
-    - Sidekick: Sarcastic, скеptical, adding humor or asking the "dumb" questions.
-    Keep the sidekick interruptions brief but punchy.
+    const customInstruction = `You are the host of a world-renowned investigative podcast in ${advConfig.language}. 
+    STYLE: Inspired by AJ from "The Why Files". You are witty, deeply researched, and highly entertaining. 
 
-    LORE MANIFEST (This is your research data. Ground the story in THESE facts):
+    STRICT PERFORMANCE RULES:
+    1. NEVER speak stage directions like "(deep breath)", "(sighs)", or "(laughs)". 
+    2. PERFORM the sounds vocally. If the script calls for a sigh, actually sigh into the microphone modality. If it calls for a deep breath, actually take one. DO NOT say the words "Deep breath".
+    3. NEVER output speaker labels like "Host:", "Mezban:", or "Sidekick:". Speak naturally as the person.
+    4. NO TEXTUAL ARTIFACTS: Do not include bracketed text in your speech.
+
+    LORE MANIFEST (Ground the show in these facts):
     ${fetchedLore.manifest}
 
-    STRICT BROADCAST RULES:
-    1. PROFESSIONAL PACING: Build suspense. Use dramatic pauses.
-    2. THE "HOOK": Every segment must leave the listener wanting more.
-    3. BROADCAST CLARITY: No repetitive phrasing. Perfect spacing between words.
-    4. TOPIC FOCUS: Deep dive into the mystery or crime of: "${advConfig.topic}". Use real-world grounding provided in the Lore Manifest.`;
+    THE FISH SIDEKICK: Occasionally interact with a witty, skeptical sidekick. Use distinct vocal characterization.
+    TOPIC: Deep dive into: "${advConfig.topic}". Use cinematic pacing and dramatic delivery.`;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
@@ -142,7 +139,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("Keep the show moving. Transition to the next fascinating discovery or crime detail. Involve the sidekick for a quick witty retort before diving back into the facts.");
+          service.sendTextChoice("Keep the show moving. Take us to the next phase of the investigation. Make it thrilling and mysterious.");
           startBuffering();
         }
       },
@@ -207,7 +204,6 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     <div className={`h-screen bg-[#050512] text-violet-50 font-sans flex flex-col p-4 md:p-10 transition-colors duration-1000 overflow-hidden relative`}>
       <Visualizer inputAnalyser={null} outputAnalyser={analysers.out} genre={config.genre} isPaused={isPaused} />
 
-      {/* Decorative Broadcast Elements */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-violet-500/50 to-transparent opacity-30"></div>
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 z-10 shrink-0">
@@ -251,13 +247,6 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
             </div>
           )}
           
-          {transcriptions.length === 0 && !isBuffering && connectingProgress === 100 && (
-            <div className="h-full flex flex-col items-center justify-center opacity-10 text-center space-y-6">
-              <i className="fas fa-microphone-lines text-8xl"></i>
-              <p className="text-sm font-black uppercase tracking-[1em]">Standby for Transmission</p>
-            </div>
-          )}
-
           {transcriptions.map((t, i) => (
             <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-6 duration-700">
               <div className="max-w-[92%] p-10 rounded-[3rem] bg-violet-950/[0.08] border border-violet-500/10 rounded-tl-none shadow-2xl relative overflow-hidden group">
@@ -279,7 +268,6 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
           )}
         </div>
 
-        {/* Control Footer */}
         <div className="p-10 glass-dark border-t border-violet-500/10 flex flex-col gap-8 bg-black/60 shrink-0">
           <div className="flex flex-col md:flex-row items-center justify-between gap-10">
             <div className="flex items-center gap-12">
