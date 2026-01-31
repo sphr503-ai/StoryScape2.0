@@ -106,6 +106,15 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
     if (bufferIntervalRef.current) clearInterval(bufferIntervalRef.current);
   };
 
+  const cleanText = (text: string): string => {
+    return text
+      .replace(/\([^)]*\)/g, '')
+      .replace(/\[[^\]]*\]/g, '')
+      .replace(/^[^:]+:\s*/, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   const smartAppend = (prev: string, next: string): string => {
     if (!prev) return next.trim();
     if (!next) return prev;
@@ -129,38 +138,39 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
     const service = new StoryScapeService();
     serviceRef.current = service;
 
-    // STEP 1: High Data Fetching (Grounding)
     setConnectingProgress(15);
     const fetchedLore = await service.fetchLore(advConfig);
     setLore(fetchedLore);
     setConnectingProgress(45);
 
-    // STEP 2: Generate and Tell
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
         if (!text && !isFinal) return;
+        const processedText = cleanText(text);
+        if (!processedText && !isFinal) return;
+
         if (role === 'model') {
           if (isFinal) {
             setTranscriptions(prev => {
-              const fullText = smartAppend(currentModelText, text).replace(/\s+/g, ' ').trim();
+              const fullText = smartAppend(currentModelText, processedText).replace(/\s+/g, ' ').trim();
               if (prev.length > 0 && prev[prev.length - 1].role === 'model' && prev[prev.length - 1].text === fullText) return prev;
               return [...prev, { role: 'model', text: fullText }];
             });
             setCurrentModelText('');
             stopBuffering();
           } else {
-            setCurrentModelText(prev => smartAppend(prev, text));
+            setCurrentModelText(prev => smartAppend(prev, processedText));
           }
         } else {
           if (isFinal) {
             setTranscriptions(prev => {
-              const fullText = smartAppend(currentUserText, text).replace(/\s+/g, ' ').trim();
+              const fullText = smartAppend(currentUserText, processedText).replace(/\s+/g, ' ').trim();
               if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === fullText) return prev;
               return [...prev, { role: 'user', text: fullText }];
             });
             setCurrentUserText('');
           } else {
-            setCurrentUserText(prev => smartAppend(prev, text));
+            setCurrentUserText(prev => smartAppend(prev, processedText));
           }
         }
       },

@@ -42,6 +42,16 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
   const timerRef = useRef<number | null>(null);
   const bufferIntervalRef = useRef<number | null>(null);
 
+  // Persistence logic: Save progress to localStorage
+  useEffect(() => {
+    if (transcriptions.length > 0) {
+      localStorage.setItem('storyscape_saved_session', JSON.stringify({
+        config,
+        transcriptions
+      }));
+    }
+  }, [transcriptions, config]);
+
   useEffect(() => {
     let anim: number;
     const checkSignal = () => {
@@ -75,6 +85,15 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     setIsBuffering(false);
     setBufferPercent(0);
     if (bufferIntervalRef.current) clearInterval(bufferIntervalRef.current);
+  };
+
+  const cleanText = (text: string): string => {
+    return text
+      .replace(/\([^)]*\)/g, '') // Remove bracketed directions like (deep breath)
+      .replace(/\[[^\]]*\]/g, '') // Remove square brackets directions
+      .replace(/^[^:]+:\s*/, '') // Remove speaker prefixes like "Host: " or "Mezban: "
+      .replace(/\s+/g, ' ')
+      .trim();
   };
 
   const smartAppend = (prev: string, next: string): string => {
@@ -112,7 +131,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     1. NEVER speak stage directions like "(deep breath)", "(sighs)", or "(laughs)". 
     2. PERFORM the sounds vocally. If the script calls for a sigh, actually sigh into the microphone modality. If it calls for a deep breath, actually take one. DO NOT say the words "Deep breath".
     3. NEVER output speaker labels like "Host:", "Mezban:", or "Sidekick:". Speak naturally as the person.
-    4. NO TEXTUAL ARTIFACTS: Do not include bracketed text in your speech.
+    4. NO TEXTUAL ARTIFACTS: Do not include bracketed text in your speech or text output.
 
     LORE MANIFEST (Ground the show in these facts):
     ${fetchedLore.manifest}
@@ -123,17 +142,20 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
         if (!text && !isFinal) return;
+        const processedText = cleanText(text);
+        if (!processedText && !isFinal) return;
+
         if (role === 'model') {
           if (isFinal) {
             setTranscriptions(prev => {
-              const fullText = smartAppend(currentModelText, text).replace(/\s+/g, ' ').trim();
+              const fullText = smartAppend(currentModelText, processedText).replace(/\s+/g, ' ').trim();
               if (prev.length > 0 && prev[prev.length - 1].role === 'model' && prev[prev.length - 1].text === fullText) return prev;
               return [...prev, { role: 'model', text: fullText }];
             });
             setCurrentModelText('');
             stopBuffering();
           } else {
-            setCurrentModelText(prev => smartAppend(prev, text));
+            setCurrentModelText(prev => smartAppend(prev, processedText));
           }
         }
       },
