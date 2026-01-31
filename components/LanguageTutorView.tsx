@@ -40,11 +40,7 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
 
   // Helper to parse the AI's tagged text into styled JSX
   const renderFormattedText = (text: string) => {
-    // Regex matches:
-    // <sea>(...)</sea> -> Sea Blue
-    // <fail>...</fail> -> Red
-    // <pass>...</pass> -> Neon Green
-    // <p>(...)</p>     -> Neon Green (Pronunciation)
+    // Regex matches tags for fail (red), pass (neon), sea (sea blue), and p (pronunciation neon)
     const parts = text.split(/(<sea>.*?<\/sea>|<fail>.*?<\/fail>|<pass>.*?<\/pass>|<p>.*?<\/p>)/g);
 
     return parts.map((part, index) => {
@@ -53,9 +49,9 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
       } else if (part.startsWith('<fail>')) {
         return <span key={index} className="text-[#ff3e3e] font-bold line-through opacity-90">{part.replace(/<\/?fail>/g, '')}</span>;
       } else if (part.startsWith('<pass>')) {
-        return <span key={index} className="text-[#00ff41] font-bold drop-shadow-[0_0_5px_rgba(0,255,65,0.5)]">{part.replace(/<\/?pass>/g, '')}</span>;
+        return <span key={index} className="text-[#00ff41] font-bold drop-shadow-[0_0_8px_rgba(0,255,65,0.4)]">{part.replace(/<\/?pass>/g, '')}</span>;
       } else if (part.startsWith('<p>')) {
-        return <span key={index} className="text-[#00ff41] text-[0.8em] opacity-80 ml-1 italic">{part.replace(/<\/?p>/g, '')}</span>;
+        return <span key={index} className="text-[#00ff41] text-[0.85em] opacity-90 ml-1 italic font-mono">{part.replace(/<\/?p>/g, '')}</span>;
       }
       return <span key={index}>{part}</span>;
     });
@@ -85,27 +81,31 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
 # Role: Neural Language Sensei (Terminal Protocol)
 You are a highly advanced AI language tutor operating within a terminal environment. 
 
-## Communication & Formatting Protocol:
-- Primary language: ${advConfig.language}.
-- Support language: Hindi/Hinglish.
-- **MANDATORY TAGS for visual feedback**:
-  1. Use \`<sea>(Translation)</sea>\` for all translations in the native language (Hindi).
-  2. Use \`<fail>Incorrect Word/Sentence</fail>\` to highlight user mistakes in RED.
-  3. Use \`<pass>Correct Word/Sentence</pass>\` to highlight corrections in NEON GREEN.
-  4. Use \`<p>(Pronunciation)</p>\` to show how to say a corrected word.
+## Identity:
+- You are ${advConfig.voice}. 
+- Gender: Your character is a ${advConfig.voice === 'Kore' ? 'Female' : 'Male'}.
 
-## 🛑 CORRECTION LOGIC:
-If the user makes a mistake, respond EXACTLY like this:
-"Aapko <fail>[Incorrect]</fail> ki jagah <pass>[Correct]</pass> <p>([Pronunciation])</p> use karna chahiye. 
-Iska matlab ye hai: <sea>([Hindi Explanation])</sea>.
-Incorrect: <fail>'[User Sentence]'</fail>
-Correct: <pass>'[Fixed Sentence]'</pass> <sea>([Hindi Translation])</sea>
+## Communication & Formatting Protocol:
+- Primary teaching language: ${advConfig.language}.
+- Support language: Hindi/Hinglish for feedback.
+- **MANDATORY TAGS for terminal rendering**:
+  1. \`<sea>(Hindi Translation)</sea>\` -> Rendered in Sea Blue.
+  2. \`<fail>Incorrect Word/Sentence</fail>\` -> Rendered in RED (strikethrough).
+  3. \`<pass>Correct Word/Sentence</pass>\` -> Rendered in NEON GREEN.
+  4. \`<p>(Pronunciation)</p>\` -> Rendered in NEON brackets next to words.
+
+## 🛑 CORRECTION LOGIC (Mandatory):
+Whenever the user makes a mistake (grammar, vocab, tense):
+"Aapko <fail>[User's Mistake]</fail> ki jagah <pass>[Correct Word]</pass> <p>([Pronunciation])</p> use karna chahiye. 
+Iska matlab ye hai: <sea>([Simple Hindi Explanation])</sea>.
+Incorrect: <fail>'[Full Original User Sentence]'</fail>
+Correct: <pass>'[Fixed Full Sentence]'</pass> <sea>([Full Hindi Translation])</sea>
 
 Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronunciation])</p>"
 
-## Regular Conversation:
-- Always follow every sentence in ${advConfig.language} with its translation in <sea>(Hindi)</sea>.
-- Keep sentences concise.
+## Regular Dialogue Rules:
+- For every sentence you speak in ${advConfig.language}, follow it immediately with its translation in <sea>(Hindi)</sea>.
+- Stay in character as a futuristic neural tutor. Keep responses concise and focused.
 `;
 
     service.startAdventure(advConfig, {
@@ -174,30 +174,31 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
           <div className="h-4 w-px bg-[#00ff41]/20 mx-2"></div>
           <div>
             <h2 className="text-xs font-bold tracking-widest uppercase flex items-center gap-2">
-              <span className="animate-pulse">●</span> SESSION_TERMINAL: {config.topic}
+              <span className="animate-pulse text-red-500">●</span> SESSION_TERMINAL: {config.topic}
             </h2>
-            <p className="text-[10px] opacity-60 uppercase">Protocol: {config.language} • Status: Connected</p>
+            <p className="text-[10px] opacity-60 uppercase tracking-tighter">Protocol: {config.language} • Audio: {config.voice} (Online)</p>
           </div>
         </div>
         <div className="flex items-center gap-6">
-           <button onClick={() => setIsPaused(!isPaused)} className={`text-xs ${isPaused ? 'text-amber-500' : 'text-[#00ff41]'}`}>
-             [{isPaused ? 'RESUME' : 'PAUSE'}]
+           <button onClick={() => setIsPaused(!isPaused)} className={`text-xs font-bold tracking-widest ${isPaused ? 'text-amber-500' : 'text-[#00ff41]'}`}>
+             [{isPaused ? 'RESUME_PROCESS' : 'PAUSE_PROCESS'}]
            </button>
-           <div className="hidden md:flex items-center gap-2 text-[10px] opacity-40">
-             <span>CPU: 12%</span>
-             <span>MEM: 256MB</span>
+           <div className="hidden md:flex items-center gap-4 text-[10px] opacity-40 font-mono">
+             <span>BIT_RATE: 24kHz</span>
+             <span>SYS_LOAD: 0.12</span>
            </div>
         </div>
       </header>
 
       {/* CHAT TERMINAL AREA */}
-      <main className="flex-1 min-h-0 relative flex flex-col p-2 md:p-4 overflow-hidden">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
+      <main className="flex-1 min-h-0 relative flex flex-col p-2 md:p-6 overflow-hidden">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
           
-          <div className="text-[10px] opacity-40 border-b border-[#00ff41]/10 pb-2 mb-4">
-            *** INITIALIZING LANGUAGE_TUTOR_V3.1.5 ***<br/>
-            *** ENCRYPTED_CHANNEL: ACTIVE ***<br/>
-            *** TARGET_LANG: {config.language.toUpperCase()} ***
+          <div className="text-[10px] opacity-30 border-b border-[#00ff41]/10 pb-2 mb-6 font-mono leading-relaxed">
+            *** INITIALIZING LANGUAGE_TUTOR_NEURAL_LINK ***<br/>
+            *** TARGET_SYLLABUS: {config.topic.toUpperCase()} ***<br/>
+            *** ENCRYPTION_LAYER: AES-256-GCM ***<br/>
+            *** READY. ***
           </div>
 
           {connectingProgress < 100 && (
@@ -207,19 +208,19 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
           )}
 
           {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} w-full animate-in fade-in slide-in-from-bottom-1 duration-300`}>
-              <div className={`max-w-[90%] md:max-w-[80%] flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <div className="flex items-center gap-2 mb-1 px-1">
-                  <span className={`text-[10px] font-bold ${m.role === 'user' ? 'text-amber-500' : 'text-blue-400'}`}>
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} w-full animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+              <div className={`max-w-[95%] md:max-w-[85%] flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className="flex items-center gap-2 mb-1.5 px-1">
+                  <span className={`text-[10px] font-bold tracking-tight ${m.role === 'user' ? 'text-amber-500' : 'text-blue-400'}`}>
                     {m.role === 'user' ? 'Explorer' : 'Sensei'}@StoryScape:~$
                   </span>
-                  <span className="text-[8px] opacity-30">[{m.timestamp}]</span>
+                  <span className="text-[8px] opacity-25 font-mono">[{m.timestamp}]</span>
                 </div>
                 
-                <div className={`p-3 md:p-4 border ${
-                  m.role === 'user' ? 'bg-amber-950/10 border-amber-500/30 text-amber-100' : 'bg-blue-950/10 border-blue-500/30 text-[#e9edef]'
-                } rounded-sm shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
-                  <p className="text-sm md:text-base leading-relaxed break-words whitespace-pre-wrap">
+                <div className={`p-4 md:p-5 border shadow-2xl ${
+                  m.role === 'user' ? 'bg-amber-950/5 border-amber-500/20 text-amber-100' : 'bg-blue-950/5 border-blue-500/20 text-[#e9edef]'
+                } rounded-sm`}>
+                  <p className="text-sm md:text-base leading-relaxed break-words whitespace-pre-wrap font-mono">
                     {m.role === 'model' ? renderFormattedText(m.text) : m.text}
                   </p>
                 </div>
@@ -227,67 +228,78 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
             </div>
           ))}
 
-          {/* STREAMING OUTPUT */}
+          {/* STREAMING BUFFER (USER INPUT VISUALIZER) */}
           {(currentModelText || currentUserText) && (
             <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'} w-full`}>
-               <div className="max-w-[90%] p-3 border border-dashed border-[#00ff41]/20 bg-[#00ff41]/5">
-                  <span className="text-[10px] block mb-1 animate-pulse">{currentUserText ? 'USER_INPUT_BUFFERING...' : 'SENSEI_THINKING...'}</span>
-                  <p className="text-sm md:text-base italic opacity-70">
-                    {currentUserText ? currentUserText : renderFormattedText(currentModelText)}<span className="inline-block w-2 h-4 bg-[#00ff41] animate-blink ml-1"></span>
+               <div className="max-w-[95%] md:max-w-[85%] p-4 border border-dashed border-[#00ff41]/30 bg-[#00ff41]/5 rounded-sm">
+                  <span className="text-[10px] font-black block mb-3 animate-pulse text-[#00ff41]">
+                    {currentUserText ? 'USER_INPUT_BUFFERING...' : 'SENSEI_THINKING_NEURAL_RESPONSE...'}
+                  </span>
+                  <p className="text-sm md:text-base italic opacity-80 font-mono leading-relaxed break-words">
+                    {currentUserText ? currentUserText : renderFormattedText(currentModelText)}
+                    <span className="inline-block w-2.5 h-5 bg-[#00ff41] animate-blink ml-1 align-middle"></span>
                   </p>
                </div>
             </div>
           )}
-          <div className="h-20"></div> {/* Visualizer Space */}
+          <div className="h-32"></div> {/* Space for visualizer/input */}
         </div>
 
         {/* VISUALIZER DOCKED */}
-        <div className="absolute bottom-2 left-0 right-0 h-16 pointer-events-none z-20 flex items-center justify-center opacity-40">
+        <div className="absolute bottom-4 left-0 right-0 h-16 pointer-events-none z-20 flex items-center justify-center opacity-40">
            <Visualizer inputAnalyser={analysers.in} outputAnalyser={analysers.out} genre="TUTOR" customInputColor="#f59e0b" customOutputColor="#60a5fa" />
         </div>
       </main>
 
-      {/* COMMAND LINE INPUT */}
-      <div className="bg-[#0a0a0a] border-t border-[#00ff41]/20 p-2 md:p-4 z-40 shrink-0">
-        <div className="max-w-5xl mx-auto flex flex-col gap-2">
+      {/* COMMAND LINE INPUT AREA */}
+      <div className="bg-[#0a0a0a] border-t border-[#00ff41]/20 p-3 md:p-5 z-40 shrink-0">
+        <div className="max-w-6xl mx-auto flex flex-col gap-3">
           
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-bold text-[#00ff41]/50 tracking-tighter">MODE: {inputMode.toUpperCase()}</span>
-            {inputMode === 'mic' && <span className="text-[10px] text-red-500 animate-pulse font-bold tracking-tighter">● RECORDING</span>}
+          <div className="flex items-center gap-3 mb-1 px-1">
+            <span className="text-[10px] font-black text-[#00ff41]/40 tracking-widest uppercase">INPUT_MODE: {inputMode.toUpperCase()}</span>
+            {inputMode === 'mic' && (
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>
+                <span className="text-[10px] text-red-500 font-black tracking-widest uppercase">CAPTURING_VOICE_DATA</span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="hidden sm:block text-[#00ff41] text-sm font-bold opacity-60">
+          <div className="flex items-center gap-3 md:gap-6">
+            <div className="hidden sm:block text-[#00ff41]/60 text-sm font-bold font-mono">
               user@storyscape:~$
             </div>
             
             <div className="flex-1 relative">
               {inputMode === 'text' ? (
-                <form onSubmit={handleTextSubmit} className="flex-1 flex items-center gap-2">
+                <form onSubmit={handleTextSubmit} className="flex-1 flex items-center gap-3">
                   <input 
                     type="text" 
                     value={textChoice} 
                     onChange={(e) => setTextChoice(e.target.value)} 
                     disabled={isPaused}
                     autoFocus
-                    placeholder={isPaused ? "PROCESS_HALTED" : "Type command or response..."} 
-                    className="w-full bg-transparent text-[#00ff41] border-b border-[#00ff41]/20 px-2 py-2 outline-none focus:border-[#00ff41] placeholder-[#00ff41]/20 text-sm md:text-base" 
+                    placeholder={isPaused ? "TERMINAL_HALTED" : "Type neural response command..."} 
+                    className="w-full bg-transparent text-[#00ff41] border-b border-[#00ff41]/20 px-3 py-3 outline-none focus:border-[#00ff41] placeholder-[#00ff41]/20 text-sm md:text-base font-mono" 
                   />
                   <button 
                     type="submit" 
                     disabled={!textChoice.trim() || isPaused} 
-                    className="px-4 py-2 border border-[#00ff41]/30 hover:bg-[#00ff41]/10 text-[#00ff41] text-xs font-bold transition-all disabled:opacity-20"
+                    className="px-6 py-3 border border-[#00ff41]/30 hover:bg-[#00ff41]/10 text-[#00ff41] text-xs font-black tracking-widest transition-all disabled:opacity-10 active:scale-95"
                   >
-                    SEND
+                    EXECUTE
                   </button>
                 </form>
               ) : (
-                <div className="w-full bg-[#00ff41]/5 border border-dashed border-[#00ff41]/30 px-4 py-2 flex items-center justify-between">
-                   <span className="text-[10px] font-bold animate-pulse text-[#00ff41]">LISTENING_FOR_VOICE_INPUT...</span>
-                   <div className="flex gap-1">
-                     <div className="w-1 h-3 bg-[#00ff41] animate-bounce [animation-delay:0.1s]"></div>
-                     <div className="w-1 h-5 bg-[#00ff41] animate-bounce [animation-delay:0.2s]"></div>
-                     <div className="w-1 h-3 bg-[#00ff41] animate-bounce [animation-delay:0.3s]"></div>
+                <div className="w-full bg-[#00ff41]/10 border border-dashed border-[#00ff41]/40 px-5 py-3 flex items-center justify-between rounded-sm">
+                   <div className="flex items-center gap-3">
+                      <i className="fas fa-satellite-dish text-xs animate-bounce text-[#00ff41]"></i>
+                      <span className="text-[10px] font-black text-[#00ff41] tracking-[0.2em]">LISTENING_FOR_VOCAL_SYNTHESIS...</span>
+                   </div>
+                   <div className="flex gap-1.5 h-4 items-end">
+                     {[0.1, 0.4, 0.2, 0.8, 0.3].map((d, i) => (
+                       <div key={i} className="w-1 bg-[#00ff41] animate-bounce" style={{ height: `${20 + Math.random() * 80}%`, animationDelay: `${d}s` }}></div>
+                     ))}
                    </div>
                 </div>
               )}
@@ -295,12 +307,14 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
 
             <button 
               onClick={handleMicToggle}
-              className={`w-10 h-10 md:w-12 md:h-12 border flex items-center justify-center transition-all ${
-                inputMode === 'mic' ? 'bg-red-900/40 border-red-500 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'border-[#00ff41]/30 text-[#00ff41] hover:bg-[#00ff41]/10'
+              className={`w-12 h-12 md:w-14 md:h-14 border flex items-center justify-center transition-all duration-300 rounded-sm ${
+                inputMode === 'mic' 
+                  ? 'bg-red-900/30 border-red-500 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)]' 
+                  : 'border-[#00ff41]/30 text-[#00ff41] hover:bg-[#00ff41]/10 hover:border-[#00ff41]/60'
               }`}
-              title="Toggle Mic Input"
+              title={inputMode === 'mic' ? "Disable Microphone" : "Enable Microphone"}
             >
-              <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-microphone'} text-sm md:text-base`}></i>
+              <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-microphone'} text-base md:text-lg`}></i>
             </button>
           </div>
         </div>
@@ -308,10 +322,11 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-        .animate-blink { animation: blink 1s infinite; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; } 
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 255, 65, 0.05); } 
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 255, 65, 0.2); }
+        .animate-blink { animation: blink 1s step-end infinite; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; } 
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 255, 65, 0.02); } 
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 255, 65, 0.15); border-radius: 2px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 255, 65, 0.3); }
       ` }} />
     </div>
   );
