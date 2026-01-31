@@ -222,12 +222,12 @@ You are a friendly, helpful AI tutor. You communicate in a specific bilingual st
             <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'} w-full items-end gap-2`}>
               <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-[1.8rem] shadow-xl relative ${
                 t.role === 'user' 
-                  ? 'bg-emerald-600/80 text-white rounded-tr-none border border-white/10' 
+                  ? 'bg-red-600/90 text-white rounded-tr-none border border-white/10' 
                   : 'bg-white/10 text-white rounded-tl-none border border-white/5'
               }`}>
-                {/* Bubble Tail for extra chat-app feel */}
+                {/* Bubble Tail */}
                 <div className={`absolute top-0 ${t.role === 'user' ? 'right-[-6px]' : 'left-[-6px]'}`}>
-                   <svg viewBox="0 0 8 13" className={`w-3 h-4 fill-current ${t.role === 'user' ? 'text-emerald-600/80' : 'text-white/10'}`}>
+                   <svg viewBox="0 0 8 13" className={`w-3 h-4 fill-current ${t.role === 'user' ? 'text-red-600/90' : 'text-white/10'}`}>
                      <path d={t.role === 'user' ? "M0 0v13l8-13H0z" : "M8 0v13l-8-13h8z"} />
                    </svg>
                 </div>
@@ -245,7 +245,7 @@ You are a friendly, helpful AI tutor. You communicate in a specific bilingual st
           {(currentModelText || currentUserText) && (
             <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'} w-full`}>
               <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-[1.8rem] animate-pulse ${
-                currentUserText ? 'bg-emerald-600/30 rounded-tr-none' : 'bg-white/5 rounded-tl-none'
+                currentUserText ? 'bg-red-600/30 rounded-tr-none' : 'bg-white/5 rounded-tl-none'
               }`}>
                 <div className="text-[15px] md:text-[17px] leading-relaxed italic opacity-60">
                   {currentModelText || currentUserText}
