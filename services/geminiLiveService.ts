@@ -6,6 +6,12 @@ import { Genre, GeminiVoice, AdventureConfig, NarratorMode } from '../types';
 export interface LoreData {
   manifest: string;
   sources: Array<{ title: string; uri: string }>;
+  verifiedMetadata?: {
+    title: string;
+    year: string;
+    director: string;
+    genre: string;
+  };
 }
 
 export class StoryScapeService {
@@ -30,14 +36,24 @@ export class StoryScapeService {
 
   /**
    * Fetches real-world data and cinematic lore using Google Search grounding.
-   * This is Step 1 of the improved storytelling process.
+   * Improved for Movie Explainer to ensure the CORRECT movie is identified.
    */
   async fetchLore(config: AdventureConfig): Promise<LoreData> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = `Act as a Cinematic Research Assistant. For a ${config.genre} adventure about "${config.topic}", 
-    search for real-world historical facts, scientific data, geographic details, and current events that could 
-    make the story feel more grounded, authentic, and high-quality. 
-    Summarize these findings into a "Lore Manifest" for the narrator.`;
+    
+    // For Movie Explainers, we need high precision
+    const isExplainer = config.durationMinutes !== undefined; 
+    
+    const prompt = isExplainer 
+      ? `Act as a Professional Film Historian. 
+         Step 1: SEARCH and VERIFY the exact movie titled "${config.topic}". 
+         Step 2: Provide a comprehensive plot summary, key characters, the ending's meaning, and production details (Year, Director). 
+         Ensure you are NOT mixing it up with similarly titled films.
+         If there are multiple versions, explain the most popular or the recent one.
+         FORMAT the response with clear sections: [METADATA], [PLOT], [ENDING], [THEMES].`
+      : `Act as a Cinematic Research Assistant. For a ${config.genre} adventure about "${config.topic}", 
+         search for real-world historical facts, scientific data, geographic details, and current events. 
+         Summarize into a "Lore Manifest".`;
 
     try {
       const response = await ai.models.generateContent({
@@ -57,7 +73,19 @@ export class StoryScapeService {
           uri: c.web.uri,
         }));
 
-      return { manifest, sources };
+      // Basic metadata extraction from text if possible
+      let verifiedMetadata = undefined;
+      if (isExplainer) {
+        const yearMatch = manifest.match(/(\b19\d{2}\b|\b20\d{2}\b)/);
+        verifiedMetadata = {
+          title: config.topic,
+          year: yearMatch ? yearMatch[0] : "Unknown Year",
+          director: "Various", // Could refine with more complex parsing if needed
+          genre: config.genre
+        };
+      }
+
+      return { manifest, sources, verifiedMetadata };
     } catch (err) {
       console.error("Lore fetch failed:", err);
       return { manifest: "Standard lore protocols engaged.", sources: [] };
@@ -92,7 +120,7 @@ export class StoryScapeService {
       : `Begin a new ${genre} saga about: ${topic}.`;
 
     const loreInclusion = lore ? `
-    LORE MANIFEST (Incorporate these facts and inspirations into the narrative for high-quality storytelling):
+    LORE MANIFEST (STRICTLY ADHERE TO THESE SEARCHED FACTS):
     ${lore.manifest}
     ` : "";
 

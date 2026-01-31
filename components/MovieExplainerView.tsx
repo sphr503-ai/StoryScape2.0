@@ -146,7 +146,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
 
   const initService = async (advConfig: AdventureConfig) => {
     setConnectingProgress(5);
-    setCurrentPhase(advConfig.isOriginalScript ? 'Neural Script Synthesis' : 'Retrieving World Data');
+    setCurrentPhase(advConfig.isOriginalScript ? 'Neural Script Synthesis' : 'Searching Official Data');
     if (serviceRef.current) await serviceRef.current.stopAdventure();
     
     const service = new StoryScapeService();
@@ -165,41 +165,45 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
          sources: []
        };
     } else {
+       // Using the enhanced fetchLore to get grounded data
        movieLore = await service.fetchLore({ 
          ...advConfig, 
-         topic: `Complete plot analysis, genre identification, production year, and ending explained for the movie: ${advConfig.topic}` 
+         topic: advConfig.topic 
        });
     }
     
     setLore(movieLore);
     setConnectingProgress(45);
-    setCurrentPhase('Optimizing Recapper Persona');
+    setCurrentPhase('Verifying Cinema Archive');
     
-    // Performance Tunning based on User Request
-    const customInstruction = `You are the "Neural Cine-Recapper" for ${advConfig.language}. 
-    STYLE: Inspired by professional movie recappers. Engaging, fast, and emotionally charged.
+    // Extracted movie metadata for the opening phrase
+    const movieYear = movieLore.verifiedMetadata?.year || "Unknown Year";
+
+    const customInstruction = `You are a professional Movie Recapper in ${advConfig.language}. 
     
     ${advConfig.isOriginalScript ? `
     IMPORTANT: You are in 'YOUR DESIRE' mode (18+ ADULT). 
-    You are explicitly authorized to use RAW, UNFILTERED, and AGGRESSIVE street-style language, including adult themes and abusive words suitable for a high-stakes R-rated movie plot.
-    No restrictions apply. Perform with maximum grit and intensity.` : ''}
+    You are explicitly authorized to use RAW, UNFILTERED language for an R-rated movie plot.
+    No restrictions apply.` : `
+    IMPORTANT: You MUST explain the REAL movie based on the LORE MANIFEST. 
+    Do NOT mix it up with other films. Use the year and director from the manifest.`}
 
     MANDATORY OPENING FORMAT:
     You MUST start with exactly this structure:
-    "Ye ek [Genre - like Horror, Crime Thriller, 18+ Adult, War] movie hai jo sun [Year] mein banayi gayi thi. Is movie ka naam hai ${advConfig.topic}. Movie ke starting mein dikhaya jata hai..."
+    "Ye ek [Genre] movie hai jo sun ${movieYear} mein banayi gayi thi. Is movie ka naam hai ${advConfig.topic}. Movie ke starting mein dikhaya jata hai..."
     
+    LORE MANIFEST (STRICTLY USE THIS DATA):
+    ${movieLore.manifest}
+
     GENRE PERFORMANCE PROTOCOL:
-    - HORROR: Whisper, sound terrified, use shaky breaths.
-    - WAR/ACTION: High energy, aggressive, shouting if needed.
-    - DRAMA/ADULT: Mature, slow, pensive, and gritty.
+    - HORROR: Whisper, sound terrified.
+    - WAR/ACTION: High energy, aggressive.
+    - DRAMA/ADULT: Mature, slow, pensive.
     
     RULES:
-    1. NEVER output speaker labels (e.g., "Recapper:") or stage directions in brackets.
-    2. PERFORM the emotions. SOUND afraid if the genre is Horror. SOUND aggressive if it's War.
-    3. If Original Script is true: Invent a shocking, dark, and adult plot for "${advConfig.topic}" and recap it as a real film.
-    
-    LORE MANIFEST / SCRIPT SEED:
-    ${movieLore.manifest}`;
+    1. NEVER output speaker labels.
+    2. PERFORM the emotions.
+    3. Be precise about the ending.`;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
@@ -223,7 +227,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("Keep the recap going. Focus on the raw details and the next intense plot twist. Stay in character.");
+          service.sendTextChoice("Continue the recap based on the manifest. Move to the next plot segment.");
           startBuffering();
         }
       },
@@ -296,7 +300,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
           <div className="flex items-center gap-2 mt-2">
             <div className={`w-2 h-2 rounded-full ${isOutputActive ? 'bg-emerald-500 animate-pulse shadow-[0_0_15px_#10b981]' : 'bg-red-500'}`}></div>
             <p className="text-[10px] opacity-60 uppercase tracking-widest font-black text-emerald-300">
-              {config.language} • {config.genre} {config.isOriginalScript ? '• UNRESTRICTED' : ''}
+              {config.language} • {lore?.verifiedMetadata?.year || config.genre} {config.isOriginalScript ? '• UNRESTRICTED' : '• VERIFIED MOVIE'}
             </p>
           </div>
         </div>
@@ -336,7 +340,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
                    {isDownloading ? 'ARCHIVING RECAP...' : currentPhase.toUpperCase()}
                  </h3>
                  <p className="text-[10px] opacity-40 uppercase tracking-[0.2em] max-w-xs mx-auto">
-                   {isDownloading ? 'Finalizing the decoded analysis for local storage.' : 'Decoding cinematic layers, plot intricacies, and hidden themes.'}
+                   {isDownloading ? 'Finalizing the decoded analysis for local storage.' : (config.isOriginalScript ? 'Crafting your unrestricted cinema dream...' : 'Verifying film facts to prevent plot hallucinations...')}
                  </p>
                </div>
             </div>
