@@ -45,15 +45,6 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
   const bufferIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (transcriptions.length > 0) {
-      localStorage.setItem('storyscape_saved_session', JSON.stringify({
-        config,
-        transcriptions
-      }));
-    }
-  }, [transcriptions, config]);
-
-  useEffect(() => {
     let anim: number;
     const checkSignal = () => {
       if (analysers.out) {
@@ -123,6 +114,19 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
       setIsDownloading(false);
       setDownloadProgress(0);
     }
+  };
+
+  const handleSaveDraft = () => {
+    localStorage.setItem('storyscape_saved_session', JSON.stringify({
+      config,
+      transcriptions
+    }));
+    onExit();
+  };
+
+  const handleExitAndClear = () => {
+    localStorage.removeItem('storyscape_saved_session');
+    onExit();
   };
 
   const cleanText = (text: string): string => {
@@ -284,13 +288,13 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
             <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-violet-500" />
           </div>
 
+          <button onClick={handleSaveDraft} className="px-5 py-2.5 rounded-full bg-white/10 border border-white/10 font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all flex items-center gap-2">
+            <i className="fas fa-save text-[10px]"></i> Save Draft
+          </button>
+
           <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-8 py-3 rounded-full bg-white text-black font-black text-xs uppercase tracking-widest shadow-2xl shrink-0">Finish</button>
           
-          <button onClick={onExit} title="Continue Later" className="w-12 h-12 rounded-full bg-violet-500/20 text-violet-400 border border-violet-500/10 flex items-center justify-center hover:bg-violet-500/30 transition-all shrink-0">
-            <i className="fas fa-bookmark text-sm"></i>
-          </button>
-          
-          <button onClick={onExit} title="Abort Show" className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center hover:bg-red-500/30 transition-all shrink-0">
+          <button onClick={handleExitAndClear} title="Abort Show" className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center hover:bg-red-500/30 transition-all shrink-0">
             <i className="fas fa-stop text-sm"></i>
           </button>
         </div>

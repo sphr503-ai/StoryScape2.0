@@ -102,6 +102,7 @@ const App: React.FC = () => {
   const [audioState, setAudioState] = useState<'suspended' | 'running' | 'closed'>('suspended');
   const [initialHistory, setInitialHistory] = useState<Array<{role: 'user' | 'model', text: string}>>([]);
   const [savedSession, setSavedSession] = useState<{config: AdventureConfig, transcriptions: any[]} | null>(null);
+  const [showDraftPrompt, setShowDraftPrompt] = useState<Genre | null>(null);
 
   const theme = THEMES[activeTab as keyof typeof THEMES];
 
@@ -125,7 +126,7 @@ const App: React.FC = () => {
         console.error("Failed to parse saved session", e);
       }
     }
-  }, []);
+  }, [viewMode]); // Re-check when returning home
 
   const handleFixAudio = async () => {
     const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -138,9 +139,13 @@ const App: React.FC = () => {
   };
 
   const handleStartSetup = (genre: Genre) => {
-    setSelectedGenre(genre);
-    setSessionOrigin(activeTab);
-    setViewMode(ViewMode.SETUP);
+    if (savedSession) {
+      setShowDraftPrompt(genre);
+    } else {
+      setSelectedGenre(genre);
+      setSessionOrigin(activeTab);
+      setViewMode(ViewMode.SETUP);
+    }
   };
 
   const finalizeSetup = (config: AdventureConfig) => {
@@ -152,7 +157,7 @@ const App: React.FC = () => {
         [Genre.MYSTERY]: ["The Shadow in the Library", "Protocol 09: Broken Ground", "The Unseen Witness"],
         [Genre.HORROR]: ["The Crawling Mist", "Mirror to the Void", "Silence in the Ward"],
         [Genre.THRILLER]: ["The Midnight Cipher", "Double Agent's Gamble", "The Concrete Labyrinth"],
-        [Genre.DOCUMENTARY]: ["The Truth Behind Project Stargate", "Hidden Depths of the Mariana Trench", "The Great Library Conspiracy"]
+        [Genre.DOCUMENTARY]: ["The Truth Behind Project Stargate", "Hidden Depth", "The Great Library Conspiracy"]
       };
       const genreTopics = randomTopics[config.genre as string] || ["A Narrative Anomaly"];
       finalTopic = genreTopics[Math.floor(Math.random() * genreTopics.length)];
@@ -182,12 +187,23 @@ const App: React.FC = () => {
       setSessionOrigin(origin);
       setViewMode(ViewMode.ADVENTURE);
       setSavedSession(null);
+      setShowDraftPrompt(null);
     }
+  };
+
+  const startNewSession = (genre: Genre) => {
+    localStorage.removeItem('storyscape_saved_session');
+    setSavedSession(null);
+    setShowDraftPrompt(null);
+    setSelectedGenre(genre);
+    setSessionOrigin(activeTab);
+    setViewMode(ViewMode.SETUP);
   };
 
   const discardSavedSession = () => {
     localStorage.removeItem('storyscape_saved_session');
     setSavedSession(null);
+    setShowDraftPrompt(null);
   };
 
   const renderHome = () => (
@@ -301,6 +317,34 @@ const App: React.FC = () => {
            </div>
         </footer>
       </main>
+
+      {/* Draft Selection Modal */}
+      {showDraftPrompt && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/90 backdrop-blur-2xl animate-in fade-in duration-300">
+           <div className={`max-w-xl w-full glass-dark p-12 rounded-[4rem] border ${theme.border} text-center space-y-10 shadow-[0_0_100px_rgba(0,0,0,1)]`}>
+              <div className={`w-20 h-20 rounded-[2rem] bg-white/5 flex items-center justify-center mx-auto border border-white/10 ${theme.accent} text-3xl`}>
+                <i className="fas fa-history"></i>
+              </div>
+              <div className="space-y-3">
+                 <h3 className="text-3xl font-black uppercase tracking-tight">Draft Detected</h3>
+                 <p className="text-sm opacity-50 uppercase tracking-widest leading-relaxed">
+                   You have an active memory node. Would you like to resume your progress or start a new session?
+                 </p>
+              </div>
+              <div className="flex flex-col gap-4">
+                 <button onClick={resumeSession} className="w-full py-6 rounded-[2rem] bg-white text-black font-black uppercase tracking-widest hover:scale-[1.02] transition-all shadow-xl">
+                   Continue Draft
+                 </button>
+                 <button onClick={() => startNewSession(showDraftPrompt)} className="w-full py-6 rounded-[2rem] bg-white/5 border border-white/10 font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+                   Start New Session
+                 </button>
+                 <button onClick={() => setShowDraftPrompt(null)} className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 hover:opacity-100 pt-4">
+                   Cancel Selection
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 

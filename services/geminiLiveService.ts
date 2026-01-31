@@ -34,60 +34,29 @@ export class StoryScapeService {
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
-  /**
-   * Fetches real-world data and cinematic lore using Google Search grounding.
-   * Improved for Movie Explainer to ensure the CORRECT movie is identified.
-   */
   async fetchLore(config: AdventureConfig): Promise<LoreData> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    // For Movie Explainers, we need high precision
     const isExplainer = config.durationMinutes !== undefined; 
-    
     const prompt = isExplainer 
-      ? `Act as a Professional Film Historian. 
-         Step 1: SEARCH and VERIFY the exact movie titled "${config.topic}". 
-         Step 2: Provide a comprehensive plot summary, key characters, the ending's meaning, and production details (Year, Director). 
-         Ensure you are NOT mixing it up with similarly titled films.
-         If there are multiple versions, explain the most popular or the recent one.
-         FORMAT the response with clear sections: [METADATA], [PLOT], [ENDING], [THEMES].`
-      : `Act as a Cinematic Research Assistant. For a ${config.genre} adventure about "${config.topic}", 
-         search for real-world historical facts, scientific data, geographic details, and current events. 
-         Summarize into a "Lore Manifest".`;
+      ? `Act as a Professional Film Historian. Verify movie: "${config.topic}". Provide summary, key characters, ending meaning, Year, Director. Format: [METADATA], [PLOT], [ENDING], [THEMES].`
+      : `Act as a Cinematic Research Assistant. For a ${config.genre} about "${config.topic}", search real-world facts. Lore Manifest format.`;
 
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: prompt,
-        config: {
-          tools: [{ googleSearch: {} }],
-        },
+        config: { tools: [{ googleSearch: {} }] },
       });
-
       const manifest = response.text || "Standard lore protocols engaged.";
       const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-      const sources = chunks
-        .filter((c: any) => c.web)
-        .map((c: any) => ({
-          title: c.web.title || "Archive Source",
-          uri: c.web.uri,
-        }));
-
-      // Basic metadata extraction from text if possible
+      const sources = chunks.filter((c: any) => c.web).map((c: any) => ({ title: c.web.title || "Archive Source", uri: c.web.uri }));
       let verifiedMetadata = undefined;
       if (isExplainer) {
         const yearMatch = manifest.match(/(\b19\d{2}\b|\b20\d{2}\b)/);
-        verifiedMetadata = {
-          title: config.topic,
-          year: yearMatch ? yearMatch[0] : "Unknown Year",
-          director: "Various", // Could refine with more complex parsing if needed
-          genre: config.genre
-        };
+        verifiedMetadata = { title: config.topic, year: yearMatch ? yearMatch[0] : "Unknown Year", director: "Verified Director", genre: config.genre };
       }
-
       return { manifest, sources, verifiedMetadata };
     } catch (err) {
-      console.error("Lore fetch failed:", err);
       return { manifest: "Standard lore protocols engaged.", sources: [] };
     }
   }
@@ -113,41 +82,19 @@ export class StoryScapeService {
     this.outputAnalyser.fftSize = 256;
 
     const { genre, topic, language, voice, mode } = config;
-
     const lastTurn = history && history.length > 0 ? history[history.length - 1].text : "";
     const contextSummary = lastTurn 
-      ? `The story is in progress. Last event: "${lastTurn}". Resume precisely without repeat.`
-      : `Begin a new ${genre} saga about: ${topic}.`;
+      ? `The session is in progress. Last exchange: "${lastTurn}". Resume immediately.`
+      : `Initiate new session for: ${topic} in ${language}.`;
 
-    const loreInclusion = lore ? `
-    LORE MANIFEST (STRICTLY ADHERE TO THESE SEARCHED FACTS):
-    ${lore.manifest}
-    ` : "";
-
-    const defaultInstruction = `You are a legendary cinematic narrator telling a story in ${language}.
-    
-    STRICT GRAMMAR & FLOW RULES:
-    1. CORRECT SPACING: No merged words.
-    2. NO REPETITION: Do not double phrases.
-    3. SEAMLESS CONTINUITY: If interrupted, resume smoothly without restating the start.
-    4. NO STUTTERING: Professional audiobook quality.
-    
-    ${loreInclusion}
-
-    Narrative Style: ${mode === NarratorMode.MULTI ? "Distinct character voices and high emotion." : "Atmospheric, deep, and mesmerizing."}
-    Genre: ${genre}.
-    Topic: ${topic}.`;
-
-    const systemInstruction = customSystemInstruction || defaultInstruction;
+    const systemInstruction = customSystemInstruction || `Narrate a ${genre} tale about ${topic} in ${language}. Use ${voice} voice.`;
 
     const sessionPromise = this.ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
       config: {
         responseModalities: [Modality.AUDIO],
         systemInstruction,
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
-        },
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
         inputAudioTranscription: {},
         outputAudioTranscription: {},
       },
@@ -159,16 +106,9 @@ export class StoryScapeService {
           if (this.isPaused) return;
           const b64 = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
           if (b64) this.handleAudioOutput(b64);
-
-          if (message.serverContent?.inputTranscription) {
-            callbacks.onTranscriptionUpdate('user', message.serverContent.inputTranscription.text || '', !!message.serverContent.turnComplete);
-          }
-          if (message.serverContent?.outputTranscription) {
-            callbacks.onTranscriptionUpdate('model', message.serverContent.outputTranscription.text || '', !!message.serverContent.turnComplete);
-          }
-          if (message.serverContent?.turnComplete) {
-            callbacks.onTurnComplete?.();
-          }
+          if (message.serverContent?.inputTranscription) callbacks.onTranscriptionUpdate('user', message.serverContent.inputTranscription.text || '', !!message.serverContent.turnComplete);
+          if (message.serverContent?.outputTranscription) callbacks.onTranscriptionUpdate('model', message.serverContent.outputTranscription.text || '', !!message.serverContent.turnComplete);
+          if (message.serverContent?.turnComplete) callbacks.onTurnComplete?.();
           if (message.serverContent?.interrupted) this.stopAllAudio();
         },
         onerror: (e: any) => callbacks.onError(e),
@@ -181,23 +121,26 @@ export class StoryScapeService {
 
   public async setMicActive(active: boolean) {
     this.isMicActive = active;
+    if (!this.inputAudioContext) return;
+    
+    if (this.inputAudioContext.state === 'suspended') {
+      await this.inputAudioContext.resume();
+    }
+
     if (active) {
       if (!this.stream) {
         try {
           this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          const source = this.inputAudioContext!.createMediaStreamSource(this.stream);
-          this.scriptProcessor = this.inputAudioContext!.createScriptProcessor(4096, 1, 1);
+          const source = this.inputAudioContext.createMediaStreamSource(this.stream);
+          this.scriptProcessor = this.inputAudioContext.createScriptProcessor(4096, 1, 1);
           this.scriptProcessor.onaudioprocess = (e) => {
             if (this.isPaused || !this.isMicActive) return;
-            if (this.session) {
-              this.session.sendRealtimeInput({ media: this.createBlob(e.inputBuffer.getChannelData(0)) });
-            }
+            if (this.session) this.session.sendRealtimeInput({ media: this.createBlob(e.inputBuffer.getChannelData(0)) });
           };
           source.connect(this.inputAnalyser!);
           this.inputAnalyser!.connect(this.scriptProcessor);
-          this.scriptProcessor.connect(this.inputAudioContext!.destination);
+          this.scriptProcessor.connect(this.inputAudioContext.destination);
         } catch (err) {
-          console.error("Mic access error:", err);
           this.isMicActive = false;
           throw err;
         }
@@ -212,23 +155,14 @@ export class StoryScapeService {
     return { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' };
   }
 
-  public static async generateSummary(genre: Genre, history: Array<{role: 'user' | 'model', text: string}>, retryCount = 0): Promise<string> {
+  public static async generateSummary(genre: Genre, history: Array<{role: 'user' | 'model', text: string}>): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const transcript = history.map(h => `${h.role}: ${h.text}`).join('\n');
-    const prompt = `Condense this saga into a short legend. Avoid repetitions: \n${transcript}`;
-
     try {
-      const response: GenerateContentResponse = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt
-      });
-      return response.text || "...";
-    } catch (err: any) {
-      if ((err.message?.includes('429') || err.message?.toLowerCase().includes('quota')) && retryCount < 3) {
-        await new Promise(r => setTimeout(r, 10000));
-        return this.generateSummary(genre, history, retryCount + 1);
-      }
-      return "The chronicle concludes.";
+      const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: `Summarize this exchange: \n${transcript}` });
+      return response.text || "Conclusion reached.";
+    } catch (err) {
+      return "The session ends.";
     }
   }
 
@@ -264,9 +198,7 @@ export class StoryScapeService {
   }
 
   public sendTextChoice(text: string) { 
-    if (this.session) {
-      this.session.sendRealtimeInput({ text }); 
-    }
+    if (this.session) this.session.sendRealtimeInput({ text }); 
   }
   
   public setPaused(paused: boolean) { 

@@ -54,15 +54,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
   const bufferIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (transcriptions.length > 0) {
-      localStorage.setItem('storyscape_saved_session', JSON.stringify({
-        config,
-        transcriptions
-      }));
-    }
-  }, [transcriptions, config]);
-
-  useEffect(() => {
     let anim: number;
     const checkSignal = () => {
       if (analysers.out) {
@@ -106,28 +97,20 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
   };
 
   const cleanText = (text: string): string => {
-    return text
-      .replace(/\([^)]*\)/g, '')
-      .replace(/\[[^\]]*\]/g, '')
-      .replace(/^[^:]+:\s*/, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return text.replace(/\([^)]*\)/g, '').replace(/\[[^\]]*\]/g, '').replace(/^[^:]+:\s*/, '').replace(/\s+/g, ' ').trim();
   };
 
-  const smartAppend = (prev: string, next: string): string => {
-    if (!prev) return next.trim();
-    if (!next) return prev;
-    const cleanPrev = prev.trim();
-    const cleanNext = next.trim();
-    if (cleanPrev.endsWith(cleanNext)) return prev;
-    const maxOverlap = Math.min(cleanPrev.length, cleanNext.length);
-    for (let len = maxOverlap; len >= 2; len--) {
-      const suffix = cleanPrev.slice(-len);
-      const prefix = cleanNext.slice(0, len);
-      if (suffix === prefix) return cleanPrev + cleanNext.slice(len);
+  const handleMicToggle = async () => {
+    const newMode = inputMode === 'text' ? 'mic' : 'text';
+    setInputMode(newMode);
+    if (serviceRef.current) {
+      try {
+        await serviceRef.current.setMicActive(newMode === 'mic');
+      } catch (err) {
+        alert("Microphone activation failed.");
+        setInputMode('text');
+      }
     }
-    const needsSpace = !prev.endsWith(' ') && !next.startsWith(' ') && !/^[।.,!?]/.test(cleanNext);
-    return prev + (needsSpace ? ' ' : '') + next;
   };
 
   const initService = async (advConfig: AdventureConfig) => {
@@ -150,38 +133,26 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
 
         if (role === 'model') {
           if (isFinal) {
-            setTranscriptions(prev => {
-              const fullText = smartAppend(currentModelText, processedText).replace(/\s+/g, ' ').trim();
-              if (prev.length > 0 && prev[prev.length - 1].role === 'model' && prev[prev.length - 1].text === fullText) return prev;
-              return [...prev, { role: 'model', text: fullText }];
-            });
+            setTranscriptions(prev => [...prev, { role: 'model', text: processedText }]);
             setCurrentModelText('');
             stopBuffering();
           } else {
-            setCurrentModelText(prev => smartAppend(prev, processedText));
+            setCurrentModelText(processedText);
           }
         } else {
           if (isFinal) {
-            setTranscriptions(prev => {
-              const fullText = smartAppend(currentUserText, processedText).replace(/\s+/g, ' ').trim();
-              if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === fullText) return prev;
-              return [...prev, { role: 'user', text: fullText }];
-            });
+            setTranscriptions(prev => [...prev, { role: 'user', text: processedText }]);
             setCurrentUserText('');
           } else {
-            setCurrentUserText(prev => smartAppend(prev, processedText));
+            setCurrentUserText(processedText);
           }
         }
       },
       onError: (err) => {
-        console.error("Gemini Error:", err);
         startBuffering();
         setTimeout(() => initService(config), 5000);
       },
-      onClose: () => {
-        localStorage.removeItem('storyscape_saved_session');
-        onExit();
-      },
+      onClose: () => onExit(),
     }, transcriptions, fetchedLore).then(() => {
       setConnectingProgress(100);
       setAnalysers({ in: service.inputAnalyser, out: service.outputAnalyser });
@@ -203,31 +174,26 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [transcriptions, currentModelText, currentUserText]);
 
   const handleTextSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!textChoice.trim() || !serviceRef.current || isPaused) return;
-    const choice = textChoice.trim();
-    setTranscriptions(prev => [...prev, { role: 'user', text: choice }]);
-    serviceRef.current.sendTextChoice(choice);
+    setTranscriptions(prev => [...prev, { role: 'user', text: textChoice.trim() }]);
+    serviceRef.current.sendTextChoice(textChoice.trim());
     setTextChoice('');
     startBuffering();
   };
 
-  const toggleInputMode = () => setInputMode(prev => prev === 'text' ? 'mic' : 'text');
+  const handleSaveDraft = () => {
+    localStorage.setItem('storyscape_saved_session', JSON.stringify({ config, transcriptions }));
+    onExit();
+  };
 
-  const togglePause = () => {
-    const next = !isPaused;
-    setIsPaused(next);
-    if (serviceRef.current) serviceRef.current.setPaused(next);
-    if (ambientAudioRef.current) {
-      if (next) ambientAudioRef.current.pause();
-      else if (!isMuted) ambientAudioRef.current.play();
-    }
+  const handleExitAndClear = () => {
+    localStorage.removeItem('storyscape_saved_session');
+    onExit();
   };
 
   const getGenreStyles = () => {
@@ -251,60 +217,28 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
             <div className="flex items-center gap-3 mt-0.5">
                <div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
                <p className="text-[10px] opacity-60 uppercase tracking-widest font-black">{config.language} • {config.mode}</p>
-               {lore && (
-                 <button onClick={() => setShowLore(!showLore)} className="text-[10px] bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-tighter border border-white/10 transition-colors">
-                   <i className="fas fa-scroll mr-1"></i> Lore Archives
-                 </button>
-               )}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-4 glass px-6 py-3 rounded-full flex-1 md:flex-none border-white/5">
-            <button onClick={() => setIsMuted(!isMuted)} className="opacity-70"><i className={`fas ${isMuted ? 'fa-volume-mute text-red-400' : 'fa-volume-low'}`}></i></button>
-            <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white" />
-          </div>
+          <button onClick={handleSaveDraft} className="px-6 py-3 rounded-full bg-white/10 border border-white/10 text-xs font-black uppercase tracking-[0.2em] hover:bg-white/20 transition-all flex items-center gap-2">
+            <i className="fas fa-save text-[10px]"></i> Save Draft
+          </button>
           <button onClick={() => setShowFinishConfirmation(true)} className="px-8 py-3 rounded-full bg-white text-black font-black text-xs uppercase tracking-[0.2em] shadow-2xl shrink-0">Finish</button>
-          <button onClick={onExit} className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center shrink-0"><i className="fas fa-stop"></i></button>
+          <button onClick={handleExitAndClear} className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center shrink-0"><i className="fas fa-stop"></i></button>
         </div>
       </header>
 
       <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-white/10 z-10 bg-black/20">
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative bg-black/20">
           
-          {showLore && lore && (
-            <div className="mb-12 glass p-8 rounded-[2.5rem] border-white/10 bg-black/40 animate-in fade-in slide-in-from-top-4 duration-500">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-black uppercase tracking-tighter text-blue-400">Archival Findings</h3>
-                <button onClick={() => setShowLore(false)} className="opacity-40 hover:opacity-100 transition-opacity"><i className="fas fa-times"></i></button>
-              </div>
-              <p className="text-sm font-light leading-relaxed mb-6 opacity-80">{lore.manifest}</p>
-              <div className="flex flex-wrap gap-2">
-                {lore.sources.map((s, i) => (
-                  <a key={i} href={s.uri} target="_blank" rel="noopener noreferrer" className="text-[10px] bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/5 transition-all text-blue-300">
-                    <i className="fas fa-link mr-1.5"></i> {s.title}
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
           {(connectingProgress < 100 || isBuffering) && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col items-center justify-center gap-8 text-center px-12">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-50 flex flex-col items-center justify-center gap-8 text-center px-12 pointer-events-none">
                <div className="relative">
                  <div className="w-40 h-40 border-[6px] border-white/5 border-t-white rounded-full animate-spin"></div>
                  <div className="absolute inset-0 flex items-center justify-center font-black text-3xl">{isBuffering ? bufferPercent : connectingProgress}%</div>
                </div>
-               <div className="space-y-3">
-                 <h3 className="text-xl font-black uppercase tracking-[0.3em]">
-                   {connectingProgress < 20 ? 'Accessing Global Archives...' : 
-                    connectingProgress < 50 ? 'Synthesizing World Data...' : 
-                    isBuffering ? 'Re-weaving temporal thread...' : 'Summoning the Voice...'}
-                 </h3>
-                 <p className="text-[10px] opacity-40 uppercase tracking-[0.2em] max-w-xs mx-auto">
-                   {connectingProgress < 50 ? 'Fetching real-world inspirations to ground the narrative...' : 'Establishing live vocal connection...'}
-                 </p>
-               </div>
+               <h3 className="text-xl font-black uppercase tracking-[0.3em]">Connecting to Oracle...</h3>
             </div>
           )}
 
@@ -320,14 +254,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
           {(currentModelText || currentUserText) && (
             <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] ${currentUserText ? 'bg-white/10 rounded-tr-none' : 'bg-black/40 rounded-tl-none'} animate-pulse`}>
-                <p className="text-xl md:text-2xl leading-relaxed italic opacity-60 break-words hyphens-auto">
-                  {currentModelText || currentUserText}
-                  <span className="inline-flex gap-1 ml-4">
-                    <span className="w-2 h-2 bg-current rounded-full animate-bounce"></span>
-                    <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:0.1s]"></span>
-                    <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                  </span>
-                </p>
+                <p className="text-xl md:text-2xl leading-relaxed italic opacity-60 break-words hyphens-auto">{currentModelText || currentUserText}</p>
               </div>
             </div>
           )}
@@ -335,67 +262,24 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
 
         <div className="p-8 md:p-10 glass border-t border-white/10 flex flex-col gap-6 bg-black/40 shrink-0">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-10">
-              <div className="flex items-center gap-4">
-                 <div className={`w-3.5 h-3.5 rounded-full ${isOutputActive ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`}></div>
-                 <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-60">Narrator Status</span>
-              </div>
-              <div className="flex items-center gap-4">
-                 <div className={`w-3.5 h-3.5 rounded-full ${isInputActive ? 'bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.6)]' : 'bg-white/10'}`}></div>
-                 <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-60">Input Signal</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <button onClick={toggleInputMode} className={`flex items-center gap-4 px-8 py-4 rounded-full border transition-all shrink-0 ${inputMode === 'mic' ? 'bg-blue-600 border-blue-400 text-white shadow-2xl' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}>
+            <button onClick={handleMicToggle} className={`flex items-center gap-4 px-8 py-4 rounded-full border transition-all shrink-0 ${inputMode === 'mic' ? 'bg-blue-600 border-blue-400 text-white shadow-2xl' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}>
                 <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-keyboard'}`}></i>
                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">{inputMode === 'mic' ? 'Mic Active' : 'Text Mode'}</span>
-              </button>
-              <button onClick={togglePause} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shrink-0 ${isPaused ? 'bg-green-600 text-white shadow-2xl' : 'glass border-white/10'}`}>
+            </button>
+            <button onClick={() => setIsPaused(!isPaused)} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shrink-0 ${isPaused ? 'bg-green-600 text-white shadow-2xl' : 'glass border-white/10 hover:bg-white/5'}`}>
                 <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
-              </button>
-            </div>
+            </button>
           </div>
 
-          {inputMode === 'text' ? (
+          {inputMode === 'text' && (
             <form onSubmit={handleTextSubmit} className="relative flex items-center gap-3">
               <input type="text" value={textChoice} onChange={(e) => setTextChoice(e.target.value)} disabled={isPaused} placeholder={isPaused ? "Saga Paused..." : "Describe your intent..."} className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-8 py-5 outline-none focus:border-white/30 text-lg font-light transition-all disabled:opacity-30" />
               <button type="submit" disabled={!textChoice.trim() || isPaused} className="px-10 py-5 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-xs shadow-2xl shrink-0">Send</button>
             </form>
-          ) : (
-            <div className="flex flex-col items-center py-6 bg-blue-500/10 rounded-[2rem] border border-blue-500/20 animate-pulse">
-               <span className="text-sm font-black uppercase tracking-[0.3em] text-blue-400">Capturing Vocal Intent...</span>
-            </div>
           )}
         </div>
       </main>
-
-      {showFinishConfirmation && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-2xl">
-          <div className="glass p-12 rounded-[4rem] border-white/10 max-w-lg w-full text-center space-y-10">
-            <h3 className="text-3xl font-black uppercase">Finalize Chronicle?</h3>
-            <div className="flex flex-col gap-4">
-              <button onClick={async () => { setShowFinishConfirmation(false); setIsSummarizing(true); setSummary(await StoryScapeService.generateSummary(config.genre, transcriptions)); setIsSummarizing(false); localStorage.removeItem('storyscape_saved_session'); }} className="w-full py-5 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em]">Begin Finalization</button>
-              <button onClick={() => setShowFinishConfirmation(false)} className="w-full py-5 rounded-2xl bg-white/5 border border-white/10 font-bold uppercase tracking-[0.2em]">Return to Story</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {(summary || isSummarizing) && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/98 backdrop-blur-3xl overflow-y-auto">
-          <div className="max-w-4xl w-full my-auto space-y-16 py-20">
-            {isSummarizing ? (
-              <div className="text-center animate-pulse"><h2 className="text-4xl font-black uppercase tracking-tighter">Weaving the Finale...</h2></div>
-            ) : (
-              <div className="space-y-16 animate-in fade-in slide-in-from-bottom-12">
-                <div className="text-center"><h2 className="text-7xl md:text-9xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-white/20 uppercase">FINALE</h2></div>
-                <div className="glass p-16 rounded-[5rem] border-white/10"><p className="text-3xl font-light italic text-center leading-relaxed">"{summary}"</p></div>
-                <div className="flex justify-center pt-8"><button onClick={onExit} className="px-16 py-8 rounded-[3rem] bg-white text-black font-black uppercase tracking-[0.3em] shadow-2xl">Return to Hub</button></div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }` }} />
     </div>
   );
 };
