@@ -406,7 +406,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
 
           <div className="space-y-6">
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase block opacity-40">> ENTER_SESSION_TOPIC_STRING:</label>
+              <label className="text-xs font-bold uppercase block opacity-40">{">"} ENTER_SESSION_TOPIC_STRING:</label>
               <input 
                 type="text" 
                 value={topic} 
@@ -418,7 +418,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
 
             <div className="grid grid-cols-2 gap-8">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase block opacity-40">> SELECT_LANGUAGE:</label>
+                <label className="text-xs font-bold uppercase block opacity-40">{">"} SELECT_LANGUAGE:</label>
                 <select 
                   value={language} 
                   onChange={e => setLanguage(e.target.value)}
@@ -428,7 +428,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase block opacity-40">> SELECT_SENSEI_VOICE:</label>
+                <label className="text-xs font-bold uppercase block opacity-40">{">"} SELECT_SENSEI_VOICE:</label>
                 <select 
                   value={voice} 
                   onChange={e => setVoice(e.target.value as GeminiVoice)}
@@ -441,7 +441,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
 
             <div className="space-y-4 pt-4">
               <div className="flex justify-between items-center text-xs">
-                <span className="opacity-40 uppercase font-bold">> DURATION_LIMIT:</span>
+                <span className="opacity-40 uppercase font-bold">{">"} DURATION_LIMIT:</span>
                 <span className="font-bold">{duration}m</span>
               </div>
               <input 

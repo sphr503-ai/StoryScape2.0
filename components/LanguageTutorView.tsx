@@ -175,7 +175,7 @@ Example: "Aapko 'have' ki jagah 'had' use karna chahiye kyunki ye past action ha
 
           {connectingProgress < 100 && (
              <div className="py-4 font-bold text-xs">
-                > SYNCING_NEURAL_LINK: [{Array(Math.floor(connectingProgress/5)).fill('█').join('')}{Array(20-Math.floor(connectingProgress/5)).fill('░').join('')}] {connectingProgress}%
+                {">"} SYNCING_NEURAL_LINK: [{Array(Math.floor(connectingProgress/5)).fill('█').join('')}{Array(20-Math.floor(connectingProgress/5)).fill('░').join('')}] {connectingProgress}%
              </div>
           )}
 
