@@ -38,6 +38,29 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
   const modelTextBuffer = useRef('');
   const userTextBuffer = useRef('');
 
+  // Helper to parse the AI's tagged text into styled JSX
+  const renderFormattedText = (text: string) => {
+    // Regex matches:
+    // <sea>(...)</sea> -> Sea Blue
+    // <fail>...</fail> -> Red
+    // <pass>...</pass> -> Neon Green
+    // <p>(...)</p>     -> Neon Green (Pronunciation)
+    const parts = text.split(/(<sea>.*?<\/sea>|<fail>.*?<\/fail>|<pass>.*?<\/pass>|<p>.*?<\/p>)/g);
+
+    return parts.map((part, index) => {
+      if (part.startsWith('<sea>')) {
+        return <span key={index} className="text-[#00d2ff] font-medium">{part.replace(/<\/?sea>/g, '')}</span>;
+      } else if (part.startsWith('<fail>')) {
+        return <span key={index} className="text-[#ff3e3e] font-bold line-through opacity-90">{part.replace(/<\/?fail>/g, '')}</span>;
+      } else if (part.startsWith('<pass>')) {
+        return <span key={index} className="text-[#00ff41] font-bold drop-shadow-[0_0_5px_rgba(0,255,65,0.5)]">{part.replace(/<\/?pass>/g, '')}</span>;
+      } else if (part.startsWith('<p>')) {
+        return <span key={index} className="text-[#00ff41] text-[0.8em] opacity-80 ml-1 italic">{part.replace(/<\/?p>/g, '')}</span>;
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   const handleMicToggle = async () => {
     const newMode = inputMode === 'text' ? 'mic' : 'text';
     setInputMode(newMode);
@@ -62,23 +85,27 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
 # Role: Neural Language Sensei (Terminal Protocol)
 You are a highly advanced AI language tutor operating within a terminal environment. 
 
-## Communication Protocol:
-- Speak in a friendly but precise manner.
+## Communication & Formatting Protocol:
 - Primary language: ${advConfig.language}.
-- Support language: Hindi/Hinglish for explanations.
+- Support language: Hindi/Hinglish.
+- **MANDATORY TAGS for visual feedback**:
+  1. Use \`<sea>(Translation)</sea>\` for all translations in the native language (Hindi).
+  2. Use \`<fail>Incorrect Word/Sentence</fail>\` to highlight user mistakes in RED.
+  3. Use \`<pass>Correct Word/Sentence</pass>\` to highlight corrections in NEON GREEN.
+  4. Use \`<p>(Pronunciation)</p>\` to show how to say a corrected word.
 
-## 🛑 CORRECTION LOGIC (Mandatory):
-If the user makes a mistake (grammar, word choice, or tense), explain it in natural Hindi/Hinglish like this:
-"Aapko '[User's Wrong Word]' ki jagah '[Correct Word]' use karna chahiye.
-Iska matlab ye hai: [Explanation in Hindi/Hinglish].
-Incorrect sentence: '[User's Original]'
-Correct sentence: '[Fixed Version]' (इसका मतलब है: [Hindi translation])"
+## 🛑 CORRECTION LOGIC:
+If the user makes a mistake, respond EXACTLY like this:
+"Aapko <fail>[Incorrect]</fail> ki jagah <pass>[Correct]</pass> <p>([Pronunciation])</p> use karna chahiye. 
+Iska matlab ye hai: <sea>([Hindi Explanation])</sea>.
+Incorrect: <fail>'[User Sentence]'</fail>
+Correct: <pass>'[Fixed Sentence]'</pass> <sea>([Hindi Translation])</sea>
 
-Example: "Aapko 'have' ki jagah 'had' use karna chahiye kyunki ye past action hai. 'Have' bolne se ye present tense ho jata hai jo yahan sahi nahi hai."
+Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronunciation])</p>"
 
-## Response Format:
-- If correct, acknowledge briefly in Hinglish and continue in ${advConfig.language}.
-- Keep sentences concise and optimized for a terminal display.
+## Regular Conversation:
+- Always follow every sentence in ${advConfig.language} with its translation in <sea>(Hindi)</sea>.
+- Keep sentences concise.
 `;
 
     service.startAdventure(advConfig, {
@@ -190,10 +217,10 @@ Example: "Aapko 'have' ki jagah 'had' use karna chahiye kyunki ye past action ha
                 </div>
                 
                 <div className={`p-3 md:p-4 border ${
-                  m.role === 'user' ? 'bg-amber-950/10 border-amber-500/30 text-amber-100' : 'bg-blue-950/10 border-blue-500/30 text-blue-100'
+                  m.role === 'user' ? 'bg-amber-950/10 border-amber-500/30 text-amber-100' : 'bg-blue-950/10 border-blue-500/30 text-[#e9edef]'
                 } rounded-sm shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
                   <p className="text-sm md:text-base leading-relaxed break-words whitespace-pre-wrap">
-                    {m.text}
+                    {m.role === 'model' ? renderFormattedText(m.text) : m.text}
                   </p>
                 </div>
               </div>
@@ -206,7 +233,7 @@ Example: "Aapko 'have' ki jagah 'had' use karna chahiye kyunki ye past action ha
                <div className="max-w-[90%] p-3 border border-dashed border-[#00ff41]/20 bg-[#00ff41]/5">
                   <span className="text-[10px] block mb-1 animate-pulse">{currentUserText ? 'USER_INPUT_BUFFERING...' : 'SENSEI_THINKING...'}</span>
                   <p className="text-sm md:text-base italic opacity-70">
-                    {currentModelText || currentUserText}<span className="inline-block w-2 h-4 bg-[#00ff41] animate-blink ml-1"></span>
+                    {currentUserText ? currentUserText : renderFormattedText(currentModelText)}<span className="inline-block w-2 h-4 bg-[#00ff41] animate-blink ml-1"></span>
                   </p>
                </div>
             </div>
