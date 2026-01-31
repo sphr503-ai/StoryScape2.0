@@ -395,13 +395,15 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
              <div className="flex items-center gap-6 glass p-8 rounded-[2rem] border-emerald-500/10 bg-emerald-500/5">
                 <button 
                   onClick={() => setIsOriginal(!isOriginal)}
-                  className={`w-14 h-8 rounded-full transition-all relative ${isOriginal ? 'bg-emerald-500' : 'bg-white/10'}`}
+                  className={`w-14 h-8 rounded-full transition-all relative ${isOriginal ? 'bg-emerald-500 shadow-[0_0_15px_#10b981]' : 'bg-white/10'}`}
                 >
                   <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${isOriginal ? 'left-7' : 'left-1'}`}></div>
                 </button>
                 <div>
-                   <span className="text-[10px] font-black uppercase tracking-widest block">Neural Script Synthesis (Create Your Own)</span>
-                   <p className="text-[8px] opacity-40 uppercase tracking-tighter mt-1">If active, AI will invent a raw, high-stakes plot for your title instead of searching.</p>
+                   <span className="text-[10px] font-black uppercase tracking-widest block flex items-center gap-2">
+                     YOUR DESIRE <span className="bg-red-600 text-white text-[8px] px-2 py-0.5 rounded-full border border-red-400/50">18+ ADULT</span>
+                   </span>
+                   <p className="text-[8px] opacity-40 uppercase tracking-tighter mt-1">AI will invent a RAW, UNFILTERED plot with adult themes & aggressive language. No Restrictions.</p>
                 </div>
              </div>
           )}
