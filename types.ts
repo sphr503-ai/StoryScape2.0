@@ -3,7 +3,9 @@ export enum Genre {
   FANTASY = 'Fantasy',
   SCIFI = 'Sci-Fi',
   MYSTERY = 'Mystery',
-  HORROR = 'Horror'
+  HORROR = 'Horror',
+  THRILLER = 'Thriller',
+  DOCUMENTARY = 'Documentary'
 }
 
 export enum ViewMode {
@@ -26,7 +28,7 @@ export interface AdventureConfig {
   language: string;
   voice: GeminiVoice;
   mode: NarratorMode;
-  durationMinutes?: number; // Added for Story Files deep sleep sessions
+  durationMinutes?: number;
 }
 
 export interface StoryState {

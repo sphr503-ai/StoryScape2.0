@@ -5,6 +5,7 @@ import AdventureView from './components/AdventureView';
 import StoryFilesView from './components/StoryFilesView';
 import VoiceGuruView from './components/VoiceGuruView';
 import FeedbackView from './components/FeedbackView';
+import PodcastView from './components/PodcastView';
 
 const LANGUAGES = [
   "English", "Spanish", "French", "German", "Hindi", "Interlingua", "Chinese", "Arabic"
@@ -47,6 +48,20 @@ const THEMES = {
     card: 'bg-black/40 border-orange-900/30 hover:border-orange-500/40 hover:shadow-[0_0_40px_rgba(234,88,12,0.05)]',
     container: ''
   },
+  broadcast: { // Immersive Podcast / Documentary
+    bg: 'bg-[#0a0a14]',
+    glow1: 'bg-violet-900/20',
+    glow2: 'bg-fuchsia-900/10',
+    accent: 'text-violet-400',
+    border: 'border-violet-500/20',
+    tabActive: 'bg-violet-600 text-white shadow-[0_0_20px_#8b5cf6]',
+    heroTitle: 'THE BROADCAST',
+    heroSub: 'DOCUSERIES & TRUE CRIME THRILLERS',
+    font: 'font-sans',
+    icon: 'fa-microphone-lines',
+    card: 'glass border-violet-500/10 hover:border-violet-400/50 hover:shadow-[0_0_30px_rgba(139,92,246,0.1)]',
+    container: ''
+  },
   custom: { // Hacker / Terminal
     bg: 'bg-[#000a00]',
     glow1: 'bg-green-950/30',
@@ -65,8 +80,8 @@ const THEMES = {
 
 const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.HOME);
-  const [activeTab, setActiveTab] = useState<'adventures' | 'files' | 'custom'>('adventures');
-  const [sessionOrigin, setSessionOrigin] = useState<'adventures' | 'files' | 'custom' | null>(null);
+  const [activeTab, setActiveTab] = useState<'adventures' | 'files' | 'broadcast' | 'custom'>('adventures');
+  const [sessionOrigin, setSessionOrigin] = useState<'adventures' | 'files' | 'broadcast' | 'custom' | null>(null);
   const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
   const [setupConfig, setSetupConfig] = useState<AdventureConfig | null>(null);
   const [audioState, setAudioState] = useState<'suspended' | 'running' | 'closed'>('suspended');
@@ -120,9 +135,11 @@ const App: React.FC = () => {
         [Genre.FANTASY]: ["A lost dragon egg", "The whispering woods", "A thief stealing a god's crown"],
         [Genre.SCIFI]: ["First contact on a frozen moon", "A glitch in the simulation", "The last oxygen tank"],
         [Genre.MYSTERY]: ["The empty train car", "The painting that changes at night", "A message from 50 years ago"],
-        [Genre.HORROR]: ["The sound behind the walls", "A mirror that reflects a different room", "The never-ending fog"]
+        [Genre.HORROR]: ["The sound behind the walls", "A mirror that reflects a different room", "The never-ending fog"],
+        [Genre.THRILLER]: ["The witness protection glitch", "Midnight on the bridge", "Shadow of a doubt"],
+        [Genre.DOCUMENTARY]: ["The Pyramids: A New Theory", "Voyager 1: The Final Signal", "The Great Library Fire"]
       };
-      const genreTopics = randomTopics[config.genre];
+      const genreTopics = randomTopics[config.genre] || ["The unknown narrative"];
       finalTopic = genreTopics[Math.floor(Math.random() * genreTopics.length)];
     }
     setSetupConfig({ ...config, topic: finalTopic });
@@ -133,7 +150,7 @@ const App: React.FC = () => {
     if (savedSession) {
       setSetupConfig(savedSession.config);
       setInitialHistory(savedSession.transcriptions);
-      setSessionOrigin(savedSession.config.durationMinutes ? 'files' : 'adventures');
+      setSessionOrigin(savedSession.config.durationMinutes ? (activeTab === 'broadcast' ? 'broadcast' : 'files') : 'adventures');
       setViewMode(ViewMode.ADVENTURE);
       setSavedSession(null);
     }
@@ -146,13 +163,11 @@ const App: React.FC = () => {
 
   const renderHome = () => (
     <div className={`min-h-screen ${theme.bg} ${theme.font} transition-all duration-1000 flex flex-col items-center overflow-x-hidden relative ${theme.container}`}>
-      {/* Immersive Visual Layers */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className={`absolute top-[-10%] left-[-5%] w-[60%] h-[60%] ${theme.glow1} blur-[200px] rounded-full animate-float transition-colors duration-1000`}></div>
         <div className={`absolute bottom-[-10%] right-[-5%] w-[50%] h-[50%] ${theme.glow2} blur-[200px] rounded-full animate-float transition-colors duration-1000`} style={{animationDelay: '-5s'}}></div>
       </div>
 
-      {/* Modern Top Navigation Hub */}
       <nav className={`sticky top-0 z-50 w-full glass-dark border-b ${theme.border} transition-colors duration-700`}>
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -160,19 +175,14 @@ const App: React.FC = () => {
             <h1 className="text-xl font-black tracking-tighter hidden md:block uppercase">StoryScape 2.0</h1>
           </div>
           
-          <div className="flex bg-white/5 rounded-full p-1 border border-white/10">
+          <div className="flex bg-white/5 rounded-full p-1 border border-white/10 scale-90 sm:scale-100">
             <TabItem active={activeTab === 'adventures'} onClick={() => setActiveTab('adventures')} label="SAGA" icon="fa-rocket" activeClass={theme.tabActive} />
-            <TabItem active={activeTab === 'files'} onClick={() => setActiveTab('files')} label="VAULT" icon="fa-book-skull" activeClass={theme.tabActive} />
+            <TabItem active={activeTab === 'files'} onClick={() => setActiveTab('files')} label="VAULT" icon="fa-moon" activeClass={theme.tabActive} />
+            <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-broadcast-tower" activeClass={theme.tabActive} />
             <TabItem active={activeTab === 'custom'} onClick={() => setActiveTab('custom')} label="DIRECT" icon="fa-terminal" activeClass={theme.tabActive} />
           </div>
 
           <div className="flex items-center gap-3">
-             <div className="flex flex-col items-end mr-2 hidden sm:flex">
-                <span className={`text-[8px] font-bold uppercase opacity-30`}>Neural Link</span>
-                <span className={`text-[10px] font-black uppercase ${audioState === 'running' ? 'text-green-500' : 'text-red-500'}`}>
-                  {audioState === 'running' ? 'Connected' : 'Disconnected'}
-                </span>
-             </div>
              <button onClick={handleFixAudio} className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all">
                 <i className={`fas fa-bolt text-sm ${audioState === 'running' ? 'text-yellow-500' : 'text-white/20'}`}></i>
              </button>
@@ -181,7 +191,6 @@ const App: React.FC = () => {
       </nav>
 
       <main className="relative z-10 w-full max-w-7xl px-6 py-12 flex flex-col items-center">
-        {/* Hero Header */}
         <header className="w-full text-center mb-16 animate-in fade-in slide-in-from-top-4 duration-1000">
            <h2 className="text-6xl md:text-9xl font-black tracking-tighter mb-4 text-glow bg-clip-text text-transparent bg-gradient-to-b from-white to-white/40 uppercase leading-none">
               {theme.heroTitle}
@@ -191,7 +200,6 @@ const App: React.FC = () => {
            </p>
         </header>
 
-        {/* Resumption Card */}
         {savedSession && (
           <div className="w-full max-w-3xl mb-16 animate-in fade-in zoom-in-95 duration-700">
             <div className={`p-8 rounded-[3rem] border ${theme.border} bg-white/[0.03] flex flex-col sm:flex-row items-center gap-8 backdrop-blur-md`}>
@@ -210,7 +218,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Dynamic Grid */}
         <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
           {activeTab === 'adventures' ? (
             <>
@@ -226,6 +233,13 @@ const App: React.FC = () => {
               <HomeCard genre={Genre.MYSTERY} icon="fa-file-signature" label="Dossier" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
               <HomeCard genre={Genre.HORROR} icon="fa-book-dead" label="Grimoire" theme={theme} onStart={() => handleStartSetup(Genre.HORROR)} />
             </>
+          ) : activeTab === 'broadcast' ? (
+            <>
+              <HomeCard genre={Genre.MYSTERY} icon="fa-mask" label="Crime" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
+              <HomeCard genre={Genre.THRILLER} icon="fa-user-secret" label="Thriller" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
+              <HomeCard genre={Genre.DOCUMENTARY} icon="fa-brain" label="Insight" theme={theme} onStart={() => handleStartSetup(Genre.DOCUMENTARY)} />
+              <HomeCard genre={Genre.SCIFI} icon="fa-atom" label="Discovery" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
+            </>
           ) : (
             <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl w-full mx-auto">
                <StudioActionCard title="VOICE GURU" icon="fa-microphone-lines" desc="DIRECT MULTI-CHARACTER CAST PRODUCTIONS." theme={theme} onStart={() => setViewMode(ViewMode.SETUP)} />
@@ -234,14 +248,13 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Subtle Footer */}
         <footer className="w-full max-w-2xl flex items-center justify-between border-t border-white/5 pt-8 opacity-40">
            <button onClick={() => setViewMode(ViewMode.FEEDBACK)} className="text-[9px] font-black uppercase tracking-[0.4em] hover:opacity-100 transition-opacity">Submit Intelligence (Feedback)</button>
            <div className="flex gap-4">
               <i className="fab fa-github hover:opacity-100 cursor-pointer"></i>
               <i className="fab fa-discord hover:opacity-100 cursor-pointer"></i>
            </div>
-           <span className="text-[9px] font-black uppercase tracking-[0.4em]">v2.0.4 - SP APK</span>
+           <span className="text-[9px] font-black uppercase tracking-[0.4em]">v2.1.0 - SP APK</span>
         </footer>
       </main>
     </div>
@@ -258,31 +271,12 @@ const App: React.FC = () => {
   const renderContent = () => {
     if (viewMode === ViewMode.ADVENTURE && setupConfig) {
       if (sessionOrigin === 'files') {
-        return (
-          <StoryFilesView 
-            config={setupConfig} 
-            initialHistory={initialHistory}
-            onExit={() => {
-              setViewMode(ViewMode.HOME);
-              setSetupConfig(null);
-              setSessionOrigin(null);
-              setInitialHistory([]);
-            }} 
-          />
-        );
+        return <StoryFilesView config={setupConfig} initialHistory={initialHistory} onExit={() => { setViewMode(ViewMode.HOME); setSetupConfig(null); setSessionOrigin(null); setInitialHistory([]); }} />;
       }
-      return (
-        <AdventureView 
-          config={setupConfig} 
-          initialHistory={initialHistory}
-          onExit={() => {
-            setViewMode(ViewMode.HOME);
-            setSetupConfig(null);
-            setSessionOrigin(null);
-            setInitialHistory([]);
-          }} 
-        />
-      );
+      if (sessionOrigin === 'broadcast') {
+        return <PodcastView config={setupConfig} initialHistory={initialHistory} onExit={() => { setViewMode(ViewMode.HOME); setSetupConfig(null); setSessionOrigin(null); setInitialHistory([]); }} />;
+      }
+      return <AdventureView config={setupConfig} initialHistory={initialHistory} onExit={() => { setViewMode(ViewMode.HOME); setSetupConfig(null); setSessionOrigin(null); setInitialHistory([]); }} />;
     }
     if (viewMode === ViewMode.SETUP) return renderSetup();
     if (viewMode === ViewMode.FEEDBACK) return <FeedbackView onBack={() => setViewMode(ViewMode.HOME)} />;
@@ -303,14 +297,14 @@ interface TabItemProps {
 const TabItem: React.FC<TabItemProps> = ({ active, onClick, label, icon, activeClass }) => (
   <button 
     onClick={onClick}
-    className={`px-6 py-2.5 rounded-full flex items-center gap-2.5 transition-all duration-500 border border-transparent ${
+    className={`px-4 sm:px-6 py-2.5 rounded-full flex items-center gap-2.5 transition-all duration-500 border border-transparent ${
       active 
         ? `${activeClass} scale-[1.05]` 
         : 'text-white/30 hover:text-white/60 hover:bg-white/5'
     }`}
   >
     <i className={`fas ${icon} text-xs`}></i>
-    <span className="text-[9px] font-black tracking-widest">{label}</span>
+    <span className="text-[9px] font-black tracking-widest hidden xs:block">{label}</span>
   </button>
 );
 
@@ -363,7 +357,7 @@ const StudioActionCard: React.FC<StudioActionCardProps> = ({ title, icon, desc, 
 
 interface SetupViewProps {
   genre: Genre;
-  origin: 'adventures' | 'files' | 'custom';
+  origin: 'adventures' | 'files' | 'broadcast' | 'custom';
   onBack: () => void;
   onConfirm: (config: AdventureConfig) => void;
 }
@@ -385,7 +379,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
         <div className="text-center space-y-3">
           <p className={`${currentTheme.accent} uppercase tracking-[0.5em] text-[8px] font-black`}>{genre} Parameters</p>
           <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter">
-            {origin === 'files' ? 'Archive Protocol' : 'Forge Reality'}
+            {origin === 'broadcast' ? 'Broadcast Protocol' : origin === 'files' ? 'Archive Protocol' : 'Forge Reality'}
           </h2>
         </div>
 
@@ -401,10 +395,10 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
             />
           </div>
 
-          {origin === 'files' && (
+          {(origin === 'files' || origin === 'broadcast') && (
             <div className="space-y-6 bg-white/[0.02] p-8 rounded-[3rem] border border-white/5">
               <div className="flex justify-between items-center mb-2">
-                <label className="text-[9px] uppercase font-black opacity-30 ml-2 tracking-widest">Chapter Length</label>
+                <label className="text-[9px] uppercase font-black opacity-30 ml-2 tracking-widest">{origin === 'broadcast' ? 'Episode Length' : 'Chapter Length'}</label>
                 <span className={`text-xl font-black ${currentTheme.accent}`}>{duration} Minutes</span>
               </div>
               <input 
@@ -472,10 +466,10 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
         <div className="flex flex-col sm:flex-row gap-4 pt-4">
           <button onClick={onBack} className="flex-1 py-6 rounded-[2rem] bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.3em] hover:bg-white/10 transition-all">Abort</button>
           <button 
-            onClick={() => onConfirm({ genre, topic, language, voice, mode, durationMinutes: origin === 'files' ? duration : undefined })} 
+            onClick={() => onConfirm({ genre, topic, language, voice, mode, durationMinutes: (origin === 'files' || origin === 'broadcast') ? duration : undefined })} 
             className="flex-[2] py-6 rounded-[2rem] bg-white text-black text-[9px] font-black uppercase tracking-[0.3em] hover:scale-[1.02] transition-all shadow-xl"
           >
-            {origin === 'files' ? 'Seal chapter' : `Launch ${genre}`}
+            {origin === 'broadcast' ? 'Go Live' : origin === 'files' ? 'Seal chapter' : `Launch ${genre}`}
           </button>
         </div>
       </div>

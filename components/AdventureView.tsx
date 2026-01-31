@@ -11,11 +11,14 @@ interface AdventureViewProps {
   initialHistory?: Array<{ role: 'user' | 'model'; text: string }>;
 }
 
+// Added missing genres (Thriller, Documentary) to complete the mapping for Record<Genre, string>
 const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.FANTASY]: 'https://assets.mixkit.co/sfx/preview/mixkit-forest-at-night-with-crickets-1224.mp3',
   [Genre.SCIFI]: 'https://assets.mixkit.co/sfx/preview/mixkit-deep-space-wind-vibe-1204.mp3',
   [Genre.MYSTERY]: 'https://assets.mixkit.co/sfx/preview/mixkit-light-rain-loop-2393.mp3',
   [Genre.HORROR]: 'https://assets.mixkit.co/sfx/preview/mixkit-horror-atmosphere-drone-953.mp3',
+  [Genre.THRILLER]: 'https://assets.mixkit.co/sfx/preview/mixkit-suspense-movie-trailer-ambience-2537.mp3',
+  [Genre.DOCUMENTARY]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
 };
 
 type InputMode = 'text' | 'mic';
