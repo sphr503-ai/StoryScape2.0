@@ -399,11 +399,11 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
                 >
                   <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${isOriginal ? 'left-7' : 'left-1'}`}></div>
                 </button>
-                <div>
-                   <span className="text-[10px] font-black uppercase tracking-widest block flex items-center gap-2">
-                     YOUR DESIRE <span className="bg-red-600 text-white text-[8px] px-2 py-0.5 rounded-full border border-red-400/50">18+ ADULT</span>
-                   </span>
-                   <p className="text-[8px] opacity-40 uppercase tracking-tighter mt-1">AI will invent a RAW, UNFILTERED plot with adult themes & aggressive language. No Restrictions.</p>
+                <div className="flex-1">
+                   <div className="flex items-center gap-2">
+                     <span className="text-[10px] font-black uppercase tracking-widest block">YOUR DESIRE</span>
+                   </div>
+                   <p className="text-[8px] opacity-40 uppercase tracking-tighter mt-1">AI will invent a RAW, UNFILTERED plot based on your title. Unrestricted narrative protocols active.</p>
                 </div>
              </div>
           )}
