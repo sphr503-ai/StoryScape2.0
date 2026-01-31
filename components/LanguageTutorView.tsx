@@ -77,26 +77,25 @@ You are an advanced, empathetic, and interactive AI Language Tutor.
 
 ## Objective
 Engage the user in conversation in ${advConfig.language}. 
-STRICTLY follow these rules:
 
-1. **Onboarding:** If history is empty, greet and ask for their native language, current level, and goal (Business/Personal/Travel).
+## 🛑 Hindi/Hinglish Correction Protocol (MANDATORY):
+If the user makes ANY grammar, spelling, or tense mistake, STOP the conversation flow.
+You MUST explain the mistake in HINDI (written in Roman script/Hinglish) so they understand.
 
-2. **🛑 Hindi/Hinglish Correction Protocol:**
-   If the user makes ANY mistake (grammar, tense, word choice), STOP the conversation flow immediately.
-   You MUST explain the mistake in HINDI (written in Roman script/Hinglish) so they understand clearly.
+Example: 
+User: "I has a car."
+Response:
+🛑 **Correction Needed:**
+- **Incorrect:** "I has a car."
+- **Correct:** "I have a car."
+- **Samajhiye (Explanation):** Aapko 'has' ki jagha 'have' use karna chahiye kyunki 'I' ke saath hamesha 'have' lagta hai. 'I has' galat hota hai.
    
-   Example format:
-   🛑 **Correction Needed:**
-   - **Incorrect:** "[User's sentence]"
-   - **Correct:** "[Corrected sentence]"
-   - **Samajhiye (Explanation):** Aapko yahan '[word]' ki jagha '[word]' use karna chahiye tha kyunki [short reason in Hindi]. 
-   
-   **🎙️ Action:** Ab please sahi sentence repeat kijiye.
+🎙️ **Action:** Ab please sahi sentence repeat kijiye.
 
-3. **General Behavior:**
-   - Use ${advConfig.language} for the main conversation.
-   - Use Hinglish/Hindi ONLY for explaining corrections.
-   - Keep replies short (1-2 sentences).
+## General Behavior:
+- Main conversation: ${advConfig.language}.
+- Corrections: Hinglish/Hindi.
+- Be concise. Max 2-3 sentences.
 `;
 
     service.startAdventure(advConfig, {
@@ -146,9 +145,18 @@ STRICTLY follow these rules:
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [connectingProgress, isPaused, secondsRemaining]);
 
+  // Robust scrolling logic for long streaming texts
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const scrollContainer = scrollRef.current;
+      const isAtBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop <= scrollContainer.clientHeight + 100;
+      
+      if (isAtBottom) {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
     }
   }, [transcriptions, currentModelText, currentUserText]);
 
@@ -162,11 +170,6 @@ STRICTLY follow these rules:
     startBuffering();
   };
 
-  const handleSaveDraft = () => {
-    localStorage.setItem('storyscape_saved_session', JSON.stringify({ config, transcriptions }));
-    onExit();
-  };
-
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -175,61 +178,76 @@ STRICTLY follow these rules:
 
   return (
     <div className="h-screen bg-[#0b141a] text-[#e9edef] font-sans flex flex-col overflow-hidden relative">
-      {/* WhatsApp Doodle Background */}
+      {/* Authentic WhatsApp Background Pattern */}
       <div className="absolute inset-0 opacity-[0.06] pointer-events-none bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-repeat"></div>
       
-      {/* WhatsApp Style Header */}
-      <header className="bg-[#202c33] px-4 py-3 flex items-center justify-between z-20 border-b border-[#ffffff10] shadow-lg shrink-0">
-        <div className="flex items-center gap-4">
-          <button onClick={onExit} className="text-[#aebac1] hover:text-white transition-colors">
-            <i className="fas fa-arrow-left"></i>
+      {/* WhatsApp Header */}
+      <header className="bg-[#202c33] px-3 py-2 flex items-center justify-between z-20 border-b border-[#ffffff10] shadow-md shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={onExit} className="text-[#aebac1] hover:text-white p-2">
+            <i className="fas fa-arrow-left text-lg"></i>
           </button>
           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-full bg-[#6b7c85] flex items-center justify-center text-white text-lg border border-white/10">
-                <i className="fas fa-graduation-cap"></i>
+             <div className="w-10 h-10 rounded-full bg-[#6b7c85] flex items-center justify-center text-white text-xl shadow-inner">
+                <i className="fas fa-user-tie"></i>
              </div>
-             <div>
-                <h1 className="text-[15px] font-bold leading-tight">{config.topic}</h1>
-                <p className="text-[11px] text-[#00a884] font-medium leading-tight">
-                   {isPaused ? 'Paused' : 'Online'} • {config.language}
+             <div className="flex flex-col">
+                <h1 className="text-[15px] font-bold leading-tight truncate max-w-[150px] md:max-w-xs">{config.topic}</h1>
+                <p className="text-[11px] text-[#00a884] font-medium leading-tight mt-0.5">
+                   {isPaused ? 'last seen today' : 'online'}
                 </p>
              </div>
           </div>
         </div>
-        <div className="flex items-center gap-5">
-           <div className="text-[11px] font-black bg-white/5 px-3 py-1 rounded-md text-[#8696a0] border border-white/5">
-             {formatTime(secondsRemaining)}
+        <div className="flex items-center gap-4 text-[#aebac1]">
+           <div className="hidden sm:flex flex-col items-end">
+              <span className="text-[10px] font-black uppercase tracking-tighter opacity-50">Session Time</span>
+              <span className="text-xs font-mono text-white leading-none">{formatTime(secondsRemaining)}</span>
            </div>
-           <button onClick={handleSaveDraft} className="text-[#aebac1] hover:text-white transition-colors" title="Save & Exit">
-              <i className="fas fa-floppy-disk text-lg"></i>
+           <button onClick={() => {
+              localStorage.setItem('storyscape_saved_session', JSON.stringify({ config, transcriptions }));
+              onExit();
+           }} className="hover:text-white p-2" title="Save Draft">
+              <i className="fas fa-archive text-lg"></i>
+           </button>
+           <button className="hover:text-white p-2 hidden xs:block">
+              <i className="fas fa-ellipsis-vertical text-lg"></i>
            </button>
         </div>
       </header>
 
-      {/* Chat Viewport */}
+      {/* Main Chat Container */}
       <main className="flex-1 min-h-0 flex flex-col relative z-10">
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-6 space-y-4 custom-scrollbar scroll-smooth">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-2 custom-scrollbar scroll-smooth">
           
-          {/* Status Message Overlay */}
+          {/* Subtle Connection Status */}
           {(connectingProgress < 100 || isBuffering) && (
-            <div className="sticky top-0 z-50 flex justify-center mb-6 pointer-events-none">
-               <div className="bg-[#182229] border border-white/5 px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
-                 <div className="w-3.5 h-3.5 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin"></div>
+            <div className="sticky top-0 z-50 flex justify-center mb-4 pointer-events-none">
+               <div className="bg-[#182229] border border-white/5 px-4 py-1.5 rounded-full shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                 <div className="w-3 h-3 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin"></div>
                  <span className="text-[10px] font-bold text-[#8696a0] uppercase tracking-widest">
-                   {isBuffering ? `Sensei is thinking...` : `Syncing Neural Teacher (${connectingProgress}%)`}
+                   {isBuffering ? `Teacher typing...` : `Establishing Link...`}
                  </span>
                </div>
             </div>
           )}
 
+          {/* Encryption Notice (WhatsApp Flavor) */}
+          <div className="flex justify-center mb-6">
+             <div className="bg-[#182229] text-[#ffd279] text-[11px] px-3 py-1.5 rounded-lg text-center max-w-[85%] border border-[#ffd27910] shadow-sm">
+                <i className="fas fa-lock text-[9px] mr-2"></i>
+                Messages are generated in real-time by Neural AI. Tap to learn about your goals.
+             </div>
+          </div>
+
           {transcriptions.map((t, i) => (
-            <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] md:max-w-[75%] p-3 px-4 rounded-xl shadow-md relative group ${
+            <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'} w-full`}>
+              <div className={`max-w-[85%] md:max-w-[70%] p-2.5 px-3 rounded-lg shadow-sm relative group ${
                 t.role === 'user' 
                   ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' 
                   : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'
               }`}>
-                {/* Bubble Tail */}
+                {/* Visual Tail */}
                 <div className={`absolute top-0 w-3 h-4 ${
                   t.role === 'user' 
                   ? 'right-[-8px] text-[#005c4b]' 
@@ -240,89 +258,94 @@ STRICTLY follow these rules:
                    </svg>
                 </div>
 
-                <div className="text-[14.5px] leading-[1.45] whitespace-pre-wrap break-words">
+                <div className="text-[14.5px] leading-[1.4] whitespace-pre-wrap break-words">
                   {t.text}
                 </div>
-                <div className="flex justify-end mt-1 h-3 opacity-40">
-                   <span className="text-[9px] uppercase font-bold">
-                     {t.role === 'user' ? 'Sent' : 'Teacher'}
+                
+                <div className="flex items-center justify-end gap-1 mt-1">
+                   <span className="text-[10px] text-[#ffffff60] leading-none">
+                     {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                    </span>
+                   {t.role === 'user' && (
+                     <i className="fas fa-check-double text-[9px] text-[#53bdeb]"></i>
+                   )}
                 </div>
               </div>
             </div>
           ))}
 
           {(currentModelText || currentUserText) && (
-            <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] md:max-w-[75%] p-3 px-4 rounded-xl shadow-sm animate-pulse ${
-                currentUserText ? 'bg-[#005c4b]/40 rounded-tr-none' : 'bg-[#202c33]/40 rounded-tl-none'
+            <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'} w-full`}>
+              <div className={`max-w-[85%] md:max-w-[70%] p-2.5 px-3 rounded-lg shadow-sm relative animate-pulse ${
+                currentUserText ? 'bg-[#005c4b]/50 rounded-tr-none' : 'bg-[#202c33]/50 rounded-tl-none'
               }`}>
-                <div className="text-[14.5px] leading-[1.45] italic opacity-60">
+                <div className="text-[14.5px] leading-[1.4] whitespace-pre-wrap break-words italic opacity-70">
                   {currentModelText || currentUserText}
                 </div>
               </div>
             </div>
           )}
           
-          <div className="h-4"></div>
+          <div className="h-6"></div>
         </div>
 
-        {/* WhatsApp Style Footer Input */}
-        <div className="bg-[#202c33] px-3 py-3 flex items-center gap-2 z-20 shrink-0 border-t border-white/5">
-          <button 
-            onClick={handleMicToggle}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shrink-0 ${
-              inputMode === 'mic' 
-                ? 'bg-[#00a884] text-[#111b21] shadow-lg scale-110' 
-                : 'text-[#8696a0] hover:text-[#e9edef] bg-white/5'
-            }`}
-          >
-            <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-microphone-slash'} text-xl`}></i>
-          </button>
+        {/* WhatsApp Footer Input Field */}
+        <div className="bg-[#202c33] px-2 py-2 flex items-center gap-2 z-20 shrink-0">
+          <div className="flex-1 flex items-center bg-[#2a3942] rounded-full px-4 py-1 border border-transparent focus-within:shadow-md transition-all">
+            
+            <button 
+              onClick={() => setIsPaused(!isPaused)} 
+              className={`p-2 transition-colors ${isPaused ? 'text-[#00a884]' : 'text-[#8696a0]'}`}
+            >
+              <i className={`fas ${isPaused ? 'fa-play' : 'fa-smile'} text-xl`}></i>
+            </button>
 
-          {inputMode === 'text' ? (
-            <form onSubmit={handleTextSubmit} className="flex-1 flex gap-2 items-center">
-              <div className="flex-1 bg-[#2a3942] rounded-full px-5 py-3 border border-transparent focus-within:border-[#00a88440] transition-all">
+            {inputMode === 'text' ? (
+              <form onSubmit={handleTextSubmit} className="flex-1 flex items-center">
                 <input 
                   type="text" 
                   value={textChoice} 
                   onChange={(e) => setTextChoice(e.target.value)} 
                   placeholder="Type a message" 
                   disabled={isPaused}
-                  className="w-full bg-transparent outline-none text-[15px] placeholder-[#8696a0] disabled:opacity-30"
+                  className="w-full bg-transparent outline-none py-2 px-2 text-[15px] placeholder-[#8696a0] disabled:opacity-30"
                 />
+                <button 
+                  type="submit" 
+                  disabled={!textChoice.trim() || isPaused} 
+                  className={`p-2 transition-all ${!textChoice.trim() ? 'opacity-0' : 'opacity-100 text-[#00a884]'}`}
+                >
+                  <i className="fas fa-paper-plane text-lg"></i>
+                </button>
+              </form>
+            ) : (
+              <div className="flex-1 h-10 flex items-center px-2 gap-3 overflow-hidden">
+                 <div className="flex-1 flex justify-center">
+                    <Visualizer inputAnalyser={analysers.in} outputAnalyser={null} genre={Genre.SCIFI} isPaused={false} />
+                 </div>
+                 <span className="text-[10px] font-bold text-[#00a884] animate-pulse truncate">
+                   Listening...
+                 </span>
               </div>
-              <button 
-                type="submit" 
-                disabled={!textChoice.trim() || isPaused} 
-                className="w-12 h-12 rounded-full bg-[#00a884] text-[#111b21] flex items-center justify-center shadow-md disabled:opacity-30 disabled:bg-[#8696a0] transition-all active:scale-90 shrink-0"
-              >
-                <i className="fas fa-paper-plane text-lg ml-0.5"></i>
-              </button>
-            </form>
-          ) : (
-            <div className="flex-1 h-12 bg-[#2a3942] rounded-full flex items-center px-6 gap-4 overflow-hidden border border-[#00a88420]">
-               <div className="flex gap-1.5">
-                  <div className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                  <div className="w-1.5 h-1.5 bg-[#00a884] rounded-full animate-bounce [animation-delay:0.4s]"></div>
-               </div>
-               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00a884] animate-pulse">
-                 Listening to you...
-               </span>
-               <div className="flex-1 flex justify-end">
-                  <Visualizer inputAnalyser={analysers.in} outputAnalyser={null} genre={Genre.SCIFI} isPaused={false} />
-               </div>
-            </div>
-          )}
-          
+            )}
+
+            <button className="p-2 text-[#8696a0] hidden xs:block">
+              <i className="fas fa-paperclip text-lg"></i>
+            </button>
+            <button className="p-2 text-[#8696a0] hidden sm:block">
+              <i className="fas fa-camera text-lg"></i>
+            </button>
+          </div>
+
           <button 
-            onClick={() => setIsPaused(!isPaused)} 
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all bg-white/5 ${
-              isPaused ? 'text-[#00a884]' : 'text-[#8696a0]'
+            onClick={handleMicToggle}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shrink-0 shadow-md ${
+              inputMode === 'mic' 
+                ? 'bg-[#00a884] text-white scale-110' 
+                : 'bg-[#00a884] text-white'
             }`}
           >
-            <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'} text-lg`}></i>
+            <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-microphone'} text-xl`}></i>
           </button>
         </div>
       </main>
@@ -330,8 +353,8 @@ STRICTLY follow these rules:
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 6px; } 
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } 
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #374045; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4a555c; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
       ` }} />
     </div>
   );
