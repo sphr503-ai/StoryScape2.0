@@ -369,7 +369,8 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
     <div className={`min-h-screen flex items-center justify-center p-6 ${currentTheme.bg} ${currentTheme.font} relative overflow-hidden`}>
       <div className={`absolute top-[-20%] right-[-10%] w-[60%] h-[60%] ${currentTheme.glow1} blur-[200px] rounded-full`}></div>
       
-      <div className={`max-w-4xl w-full glass-dark p-12 md:p-20 rounded-[5rem] border ${currentTheme.border} space-y-12 z-10 animate-in fade-in zoom-in-95 duration-500 shadow-2xl`}>
+      {/* Box constrained with max-height and internal scrolling to prevent resizing issues */}
+      <div className={`max-w-4xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar glass-dark p-12 md:p-20 rounded-[5rem] border ${currentTheme.border} space-y-12 z-10 animate-in fade-in zoom-in-95 duration-500 shadow-2xl`}>
         <div className="text-center space-y-4">
           <p className={`${currentTheme.accent} uppercase tracking-[0.6em] text-[10px] font-black`}>{genre} Mapping Core</p>
           <h2 className="text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none">
@@ -395,7 +396,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
              <div className="flex items-center gap-6 glass p-8 rounded-[2rem] border-emerald-500/10 bg-emerald-500/5">
                 <button 
                   onClick={() => setIsOriginal(!isOriginal)}
-                  className={`w-14 h-8 rounded-full transition-all relative ${isOriginal ? 'bg-emerald-500 shadow-[0_0_15px_#10b981]' : 'bg-white/10'}`}
+                  className={`w-14 h-8 rounded-full transition-all relative shrink-0 ${isOriginal ? 'bg-emerald-500 shadow-[0_0_15px_#10b981]' : 'bg-white/10'}`}
                 >
                   <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${isOriginal ? 'left-7' : 'left-1'}`}></div>
                 </button>

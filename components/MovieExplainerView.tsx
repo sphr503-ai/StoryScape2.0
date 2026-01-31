@@ -306,27 +306,28 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <button onClick={handleDownloadSession} disabled={isDownloading} title="Export Recap" className="w-12 h-12 rounded-full glass border border-emerald-500/10 flex items-center justify-center hover:bg-emerald-500/10 transition-all">
+          <button onClick={handleDownloadSession} disabled={isDownloading} title="Export Recap" className="w-12 h-12 rounded-full glass border border-emerald-500/10 flex items-center justify-center hover:bg-emerald-500/10 transition-all shrink-0">
             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-file-audio'} text-sm text-emerald-400`}></i>
           </button>
           
-          <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-emerald-500/10">
+          <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-emerald-500/10 shrink-0">
             <button onClick={() => setIsMuted(!isMuted)} className="opacity-70 w-5">
               <i className={`fas ${isMuted ? 'fa-volume-mute' : 'fa-volume-low'} text-emerald-400`}></i>
             </button>
             <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-emerald-900/40 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
           </div>
 
-          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-8 py-3 rounded-full bg-emerald-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-emerald-500 transition-all">End Session</button>
+          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-8 py-3 rounded-full bg-emerald-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-emerald-500 transition-all shrink-0">End Session</button>
           
-          <button onClick={onExit} title="Exit" className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center hover:bg-red-500/30 transition-all">
+          <button onClick={onExit} title="Exit" className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center hover:bg-red-500/30 transition-all shrink-0">
             <i className="fas fa-stop text-sm"></i>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-emerald-500/10 z-10 bg-black/40 min-h-0">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 md:p-12 space-y-12 scroll-smooth custom-scrollbar relative">
+      {/* Main viewport is now strictly constrained with min-h-0 to allow proper internal scrolling without expansion */}
+      <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-emerald-500/10 z-10 bg-black/40">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative bg-black/20">
           
           {(connectingProgress < 100 || isBuffering || isDownloading) && (
             <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-50 flex flex-col items-center justify-center gap-8 text-center px-12">
@@ -355,25 +356,26 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
           )}
 
           {transcriptions.map((t, i) => (
-            <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="max-w-[92%] p-8 rounded-[2.5rem] bg-emerald-950/10 border border-emerald-500/10 rounded-tl-none shadow-xl">
-                <p className="text-[9px] text-emerald-500 opacity-60 mb-3 uppercase tracking-[0.4em] font-black flex items-center gap-2">
+            <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="max-w-[92%] p-6 md:p-8 rounded-[2.5rem] bg-emerald-950/20 border border-emerald-500/10 rounded-tl-none shadow-xl">
+                <p className="text-[9px] text-emerald-500 opacity-60 mb-2 uppercase tracking-[0.4em] font-black flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> {config.voice} RECAPPER
                 </p>
-                <p className="text-xl md:text-2xl leading-relaxed font-light text-emerald-50/90">{t.text}</p>
+                <p className="text-xl md:text-2xl leading-relaxed font-light text-emerald-50/90 break-words hyphens-auto">{t.text}</p>
               </div>
             </div>
           ))}
 
           {currentModelText && (
             <div className="flex justify-start">
-              <div className="max-w-[92%] p-8 rounded-[2.5rem] bg-emerald-500/[0.02] border border-dashed border-emerald-500/20 rounded-tl-none animate-pulse">
-                <p className="text-xl md:text-2xl leading-relaxed italic text-emerald-400/60">{currentModelText}</p>
+              <div className="max-w-[92%] p-6 md:p-8 rounded-[2.5rem] bg-emerald-500/[0.02] border border-dashed border-emerald-500/20 rounded-tl-none animate-pulse">
+                <p className="text-xl md:text-2xl leading-relaxed italic text-emerald-400/60 break-words hyphens-auto">{currentModelText}</p>
               </div>
             </div>
           )}
         </div>
 
+        {/* Footer controls are locked to the bottom with shrink-0 */}
         <div className="p-8 md:p-10 glass border-t border-emerald-500/10 flex flex-col gap-6 bg-black/60 shrink-0">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex items-center gap-12">
@@ -381,7 +383,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
                  <div className={`w-3.5 h-3.5 rounded-full ${isOutputActive ? 'bg-emerald-500 shadow-[0_0_15px_#10b981]' : 'bg-red-500'}`}></div>
                  <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-60 text-emerald-300">{isOutputActive ? 'Narrating' : 'Syncing'}</span>
               </div>
-              <div className="h-8 w-px bg-white/10"></div>
+              <div className="h-8 w-px bg-white/10 hidden md:block"></div>
               <div className="flex items-center gap-4">
                 <i className="fas fa-stopwatch text-emerald-400 text-xs"></i>
                 <span className="text-sm font-black tracking-widest text-emerald-400">{formatTime(secondsRemaining)} Remaining</span>

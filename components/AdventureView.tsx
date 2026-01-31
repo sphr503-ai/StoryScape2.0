@@ -11,7 +11,6 @@ interface AdventureViewProps {
   initialHistory?: Array<{ role: 'user' | 'model'; text: string }>;
 }
 
-// Added missing genres (Thriller, Documentary) to complete the mapping for Record<Genre, string>
 const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.FANTASY]: 'https://assets.mixkit.co/sfx/preview/mixkit-forest-at-night-with-crickets-1224.mp3',
   [Genre.SCIFI]: 'https://assets.mixkit.co/sfx/preview/mixkit-deep-space-wind-vibe-1204.mp3',
@@ -265,13 +264,13 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
             <button onClick={() => setIsMuted(!isMuted)} className="opacity-70"><i className={`fas ${isMuted ? 'fa-volume-mute text-red-400' : 'fa-volume-low'}`}></i></button>
             <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white" />
           </div>
-          <button onClick={() => setShowFinishConfirmation(true)} className="px-8 py-3 rounded-full bg-white text-black font-black text-xs uppercase tracking-[0.2em] shadow-2xl">Finish</button>
-          <button onClick={onExit} className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center"><i className="fas fa-stop"></i></button>
+          <button onClick={() => setShowFinishConfirmation(true)} className="px-8 py-3 rounded-full bg-white text-black font-black text-xs uppercase tracking-[0.2em] shadow-2xl shrink-0">Finish</button>
+          <button onClick={onExit} className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center shrink-0"><i className="fas fa-stop"></i></button>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-white/10 z-10 bg-black/20 min-h-0">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 md:p-12 space-y-12 scroll-smooth custom-scrollbar relative">
+      <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-white/10 z-10 bg-black/20">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative bg-black/20">
           
           {showLore && lore && (
             <div className="mb-12 glass p-8 rounded-[2.5rem] border-white/10 bg-black/40 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -310,18 +309,18 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
           )}
 
           {transcriptions.map((t, i) => (
-            <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-4`}>
-              <div className={`max-w-[85%] p-8 rounded-[2.5rem] shadow-xl ${t.role === 'user' ? 'bg-white/10 border border-white/10 rounded-tr-none' : 'bg-black/40 border border-white/5 rounded-tl-none'}`}>
-                <p className={`text-[9px] opacity-30 mb-3 uppercase tracking-[0.3em] font-black ${t.role === 'user' ? 'text-right' : 'text-left'}`}>{t.role === 'user' ? 'The Wanderer' : 'The Oracle'}</p>
-                <p className="text-xl md:text-2xl leading-relaxed font-light">{t.text}</p>
+            <div key={i} className={`flex ${t.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
+              <div className={`max-w-[85%] p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-xl ${t.role === 'user' ? 'bg-white/10 border border-white/10 rounded-tr-none' : 'bg-black/40 border border-white/5 rounded-tl-none'}`}>
+                <p className={`text-[9px] opacity-30 mb-2 uppercase tracking-[0.3em] font-black ${t.role === 'user' ? 'text-right' : 'text-left'}`}>{t.role === 'user' ? 'The Wanderer' : 'The Oracle'}</p>
+                <p className="text-xl md:text-2xl leading-relaxed font-light break-words hyphens-auto">{t.text}</p>
               </div>
             </div>
           ))}
 
           {(currentModelText || currentUserText) && (
             <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] p-8 rounded-[2.5rem] ${currentUserText ? 'bg-white/10 rounded-tr-none' : 'bg-black/40 rounded-tl-none'} animate-pulse`}>
-                <p className="text-xl md:text-2xl leading-relaxed italic opacity-60">
+              <div className={`max-w-[85%] p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] ${currentUserText ? 'bg-white/10 rounded-tr-none' : 'bg-black/40 rounded-tl-none'} animate-pulse`}>
+                <p className="text-xl md:text-2xl leading-relaxed italic opacity-60 break-words hyphens-auto">
                   {currentModelText || currentUserText}
                   <span className="inline-flex gap-1 ml-4">
                     <span className="w-2 h-2 bg-current rounded-full animate-bounce"></span>
@@ -347,11 +346,11 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <button onClick={toggleInputMode} className={`flex items-center gap-4 px-8 py-4 rounded-full border transition-all ${inputMode === 'mic' ? 'bg-blue-600 border-blue-400 text-white shadow-2xl' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}>
+              <button onClick={toggleInputMode} className={`flex items-center gap-4 px-8 py-4 rounded-full border transition-all shrink-0 ${inputMode === 'mic' ? 'bg-blue-600 border-blue-400 text-white shadow-2xl' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}>
                 <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-keyboard'}`}></i>
                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">{inputMode === 'mic' ? 'Mic Active' : 'Text Mode'}</span>
               </button>
-              <button onClick={togglePause} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isPaused ? 'bg-green-600 text-white shadow-2xl' : 'glass border-white/10'}`}>
+              <button onClick={togglePause} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shrink-0 ${isPaused ? 'bg-green-600 text-white shadow-2xl' : 'glass border-white/10'}`}>
                 <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
               </button>
             </div>
@@ -360,7 +359,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
           {inputMode === 'text' ? (
             <form onSubmit={handleTextSubmit} className="relative flex items-center gap-3">
               <input type="text" value={textChoice} onChange={(e) => setTextChoice(e.target.value)} disabled={isPaused} placeholder={isPaused ? "Saga Paused..." : "Describe your intent..."} className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-8 py-5 outline-none focus:border-white/30 text-lg font-light transition-all disabled:opacity-30" />
-              <button type="submit" disabled={!textChoice.trim() || isPaused} className="px-10 py-5 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-xs shadow-2xl">Send</button>
+              <button type="submit" disabled={!textChoice.trim() || isPaused} className="px-10 py-5 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-xs shadow-2xl shrink-0">Send</button>
             </form>
           ) : (
             <div className="flex flex-col items-center py-6 bg-blue-500/10 rounded-[2rem] border border-blue-500/20 animate-pulse">

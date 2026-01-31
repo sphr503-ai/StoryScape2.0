@@ -44,7 +44,6 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
   const timerRef = useRef<number | null>(null);
   const bufferIntervalRef = useRef<number | null>(null);
 
-  // Persistence logic: Save progress to localStorage
   useEffect(() => {
     if (transcriptions.length > 0) {
       localStorage.setItem('storyscape_saved_session', JSON.stringify({
@@ -127,11 +126,10 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
   };
 
   const cleanText = (text: string): string => {
-    // Advanced cleaning to catch labels like "मेज़बान:", "Narrator:", etc.
     return text
       .replace(/\([^)]*\)/g, '') 
       .replace(/\[[^\]]*\]/g, '') 
-      .replace(/^[\w\u0900-\u097F]+[:：]\s*/, '') // Removes speaker labels in English and Hindi/Devanagari
+      .replace(/^[\w\u0900-\u097F]+[:：]\s*/, '') 
       .replace(/\s+/g, ' ')
       .trim();
   };
@@ -170,10 +168,8 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     CRITICAL PRODUCTION RULES:
     1. NEVER speak or write speaker labels (e.g., "Host:", "मेज़बान:", "Narrator:", "AJ:"). Start speaking directly.
     2. NEVER speak or write stage directions in brackets or parentheses. 
-       - Do NOT say "(deep breath)" or "(गहरी साँस)". Instead, actually TAKE a deep breath into the microphone.
-       - Do NOT say "(conspiratorial voice)" or "(साजिश भरी आवाज़)". Instead, actually perform the lines with that vocal tone.
     3. YOUR GOAL is to be the character, not describe the character's actions in text.
-    4. NO TEXTUAL ARTIFACTS: Your output must only contain the spoken words. If an emotion is intended, convey it through your voice modality.
+    4. NO TEXTUAL ARTIFACTS: Your output must only contain the spoken words. 
 
     LORE MANIFEST (Ground the show in these facts):
     ${fetchedLore.manifest}
@@ -277,31 +273,31 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <button onClick={handleDownloadSession} disabled={isDownloading} title="Download Audio" className="w-12 h-12 rounded-full glass border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all">
+          <button onClick={handleDownloadSession} disabled={isDownloading} title="Download Audio" className="w-12 h-12 rounded-full glass border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-download'} text-sm text-violet-400`}></i>
           </button>
           
-          <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-white/5">
+          <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-white/5 shrink-0">
             <button onClick={() => setIsMuted(!isMuted)} className="opacity-70 w-5">
               <i className={`fas ${isMuted ? 'fa-volume-mute' : 'fa-volume-low'} text-violet-400`}></i>
             </button>
             <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-violet-500" />
           </div>
 
-          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-8 py-3 rounded-full bg-white text-black font-black text-xs uppercase tracking-widest shadow-2xl hover:scale-105 transition-all">Finish</button>
+          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-8 py-3 rounded-full bg-white text-black font-black text-xs uppercase tracking-widest shadow-2xl shrink-0">Finish</button>
           
-          <button onClick={onExit} title="Continue Later" className="w-12 h-12 rounded-full bg-violet-500/20 text-violet-400 border border-violet-500/10 flex items-center justify-center hover:bg-violet-500/30 transition-all">
+          <button onClick={onExit} title="Continue Later" className="w-12 h-12 rounded-full bg-violet-500/20 text-violet-400 border border-violet-500/10 flex items-center justify-center hover:bg-violet-500/30 transition-all shrink-0">
             <i className="fas fa-bookmark text-sm"></i>
           </button>
           
-          <button onClick={onExit} title="Abort Show" className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center hover:bg-red-500/30 transition-all">
+          <button onClick={onExit} title="Abort Show" className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center hover:bg-red-500/30 transition-all shrink-0">
             <i className="fas fa-stop text-sm"></i>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-violet-500/10 z-10 bg-black/40 min-h-0">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 md:p-12 space-y-12 scroll-smooth custom-scrollbar relative">
+      <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-violet-500/10 z-10 bg-black/40">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative bg-black/20">
           
           {(connectingProgress < 100 || isBuffering || isDownloading) && (
             <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-50 flex flex-col items-center justify-center gap-8 text-center px-12">
@@ -330,20 +326,20 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
           )}
 
           {transcriptions.map((t, i) => (
-            <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="max-w-[92%] p-8 rounded-[2.5rem] bg-violet-950/10 border border-violet-500/10 rounded-tl-none shadow-xl">
-                <p className="text-[9px] text-violet-500 opacity-60 mb-3 uppercase tracking-[0.4em] font-black flex items-center gap-2">
+            <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="max-w-[92%] p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-violet-950/20 border border-violet-500/10 rounded-tl-none shadow-xl">
+                <p className="text-[9px] text-violet-500 opacity-60 mb-2 uppercase tracking-[0.4em] font-black flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"></span> SYSTEM NARRATOR
                 </p>
-                <p className="text-xl md:text-2xl leading-relaxed font-light text-violet-50/90">{t.text}</p>
+                <p className="text-xl md:text-2xl leading-relaxed font-light text-violet-50/90 break-words hyphens-auto">{t.text}</p>
               </div>
             </div>
           ))}
 
           {currentModelText && (
             <div className="flex justify-start">
-              <div className="max-w-[92%] p-8 rounded-[2.5rem] bg-violet-500/[0.02] border border-dashed border-violet-500/20 rounded-tl-none animate-pulse">
-                <p className="text-xl md:text-2xl leading-relaxed italic text-violet-400/60">{currentModelText}</p>
+              <div className="max-w-[92%] p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-violet-500/[0.02] border border-dashed border-violet-500/20 rounded-tl-none animate-pulse">
+                <p className="text-xl md:text-2xl leading-relaxed italic text-violet-400/60 break-words hyphens-auto">{currentModelText}</p>
               </div>
             </div>
           )}
@@ -356,7 +352,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
                  <div className={`w-3.5 h-3.5 rounded-full ${isOutputActive ? 'bg-violet-500 shadow-[0_0_15px_#8b5cf6]' : 'bg-red-500'}`}></div>
                  <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-60 text-violet-300">{isOutputActive ? 'Transmitting' : 'On Standby'}</span>
               </div>
-              <div className="h-8 w-px bg-white/10"></div>
+              <div className="h-8 w-px bg-white/10 hidden md:block"></div>
               <div className="flex items-center gap-4">
                 <i className="fas fa-stopwatch text-violet-400 text-xs"></i>
                 <span className="text-sm font-black tracking-widest text-violet-400">{formatTime(secondsRemaining)} Remaining</span>
@@ -364,7 +360,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
             </div>
             
             <div className="flex items-center gap-6">
-               <button onClick={togglePause} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl ${isPaused ? 'bg-violet-600 text-white' : 'glass border-violet-500/20 hover:bg-violet-500/10'}`}>
+               <button onClick={togglePause} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 ${isPaused ? 'bg-violet-600 text-white' : 'glass border-violet-500/20 hover:bg-violet-500/10'}`}>
                  <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
                </button>
             </div>
