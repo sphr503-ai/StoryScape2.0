@@ -28,7 +28,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [isOutputActive, setIsOutputActive] = useState(false);
-  const [currentPhase, setCurrentPhase] = useState('Initializing Archive');
+  const [currentPhase, setCurrentPhase] = useState('Initializing Decoder');
   
   const [analysers, setAnalysers] = useState<{in: AnalyserNode | null, out: AnalyserNode | null}>({in: null, out: null});
   
@@ -146,45 +146,52 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
 
   const initService = async (advConfig: AdventureConfig) => {
     setConnectingProgress(5);
-    setCurrentPhase('Scanning Web for Spoilers');
+    setCurrentPhase(advConfig.isOriginalScript ? 'Synthesizing Neural Plot' : 'Retrieving World Data');
     if (serviceRef.current) await serviceRef.current.stopAdventure();
     
     const service = new StoryScapeService();
     serviceRef.current = service;
 
     setConnectingProgress(15);
-    // Enhanced search prompt for recap style
-    const movieLore = await service.fetchLore({ 
-      ...advConfig, 
-      topic: `Detailed movie recap, hidden easter eggs, plot twists, and genre analysis for: ${advConfig.topic}` 
-    });
+    
+    let movieLore: LoreData;
+    if (advConfig.isOriginalScript) {
+       movieLore = {
+         manifest: `TITLE: ${advConfig.topic}. This is an ORIGINAL NEURAL SCRIPT. It is a raw, intense, and gritty movie with 18+ themes, adult dialogue, and high-stakes twists. Genre: ${advConfig.genre}. Create a deep, unfiltered plot and explain it.`,
+         sources: []
+       };
+    } else {
+       movieLore = await service.fetchLore({ 
+         ...advConfig, 
+         topic: `Complete plot analysis, genre identification, production year, and ending explained for the movie: ${advConfig.topic}` 
+       });
+    }
+    
     setLore(movieLore);
     setConnectingProgress(45);
-    setCurrentPhase('Optimizing Vocal Engine');
+    setCurrentPhase('Optimizing Recapper Persona');
     
-    const customInstruction = `You are the world's most engaging YouTube Movie Recapper, specializing in explaining films in ${advConfig.language}.
+    const customInstruction = `You are a professional, high-energy Movie Recapper like those on popular YouTube channels. Your language is ${advConfig.language}.
     
-    STYLE: Inspired by professional recap channels. You are fast-paced, witty, deeply analytical, and highly emotional.
+    CORE PERSONA: Gritty, fast-paced, street-smart, and deeply emotional.
     
-    GENRE-SPECIFIC PERFORMANCE (VOCAL MODALITY):
-    1. HORROR: When explaining scary scenes, lower your volume, use a whispered/conspiratorial tone, and sound genuinely AFRAID.
-    2. ACTION: High energy, fast talking, excited tone.
-    3. DRAMA/THRILLER: Slow down for emotional beats, sound pensive and serious.
-    4. TWISTS: When a big twist is revealed, sound SHOCKED.
+    MANDATORY OPENING FORMAT (HINDI/URDU STYLE):
+    You MUST start with exactly this structure:
+    "Ye ek [Genre - like Horror, War, 18+ Adult, Action] movie hai jo sun [Year] mein banayi gayi thi. Is movie ka naam hai ${advConfig.topic}. Movie ke starting mein dikhaya jata hai..."
     
-    STRICT PERFORMANCE RULES:
-    1. PERFORM the emotions. If a scene is sad, sound sad. If it's a jump scare, sound startled.
-    2. NEVER narrate your own state (e.g., DON'T say "I am feeling scared now"). Actually SOUND scared in your voice.
-    3. NO TEXTUAL ARTIFACTS: Do not output speaker labels like "Recapper:" or stage directions in brackets.
-    4. NO SPOILER WARNINGS: Just dive straight into the deep breakdown.
+    GENRE-ADAPTIVE VOICE PERFORMANCE:
+    1. HORROR: Lower your volume, sound genuinely TERRIFIED, build suspense with shaky breath.
+    2. WAR/ACTION: Gritty, aggressive, loud, and intense. High energy.
+    3. DRAMA/ADULT: Raw, unfiltered, and realistic tone. Use "unfiltered" street-style expressions suitable for the movie's maturity level.
     
-    LORE MANIFEST (Spoilers & Plot Points):
-    ${movieLore.manifest}
+    STRICT RULES:
+    1. PERFORM the emotions. If the scene is scary, sound scared. If it's a war scene, sound like a soldier.
+    2. NEVER output speaker labels (e.g., "Recapper:") or stage directions in brackets.
+    3. If 'Neural Script Synthesis' (isOriginalScript) is true: Invent a detailed, raw, and high-impact movie plot for "${advConfig.topic}" and explain it as if it's a real blockbuster. 
+    4. Focus on the plot twists and "Ending Explained".
     
-    SHOW FLOW:
-    - Start with a hook about why this movie is legendary/weird.
-    - Walk through the plot Chronologically.
-    - Deep analysis of the "Ending Explained" at the very end.`;
+    LORE MANIFEST / SCRIPT DATA:
+    ${movieLore.manifest}`;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
@@ -208,7 +215,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("Keep the recap moving. Tell us what happens next in the movie with high energy and emotional depth.");
+          service.sendTextChoice("Keep the recap going. Focus on the next major plot point or character development. Stay in character.");
           startBuffering();
         }
       },
@@ -219,7 +226,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
       onClose: () => onExit(),
     }, transcriptions, movieLore, customInstruction).then(() => {
       setConnectingProgress(100);
-      setCurrentPhase('Live Recap Active');
+      setCurrentPhase('Recap Connection Established');
       setAnalysers({ in: service.inputAnalyser, out: service.outputAnalyser });
     });
   };
@@ -275,7 +282,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 z-10 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-emerald-400 leading-none uppercase">RECAP: {config.topic}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-emerald-400 leading-none uppercase">RECAPPER: {config.topic}</h1>
           <div className="flex items-center gap-2 mt-2">
             <div className={`w-2 h-2 rounded-full ${isOutputActive ? 'bg-emerald-500 animate-pulse shadow-[0_0_15px_#10b981]' : 'bg-red-500'}`}></div>
             <p className="text-[10px] opacity-60 uppercase tracking-widest font-black text-emerald-300">
@@ -284,7 +291,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <button onClick={handleDownloadSession} disabled={isDownloading} title="Export Master" className="w-12 h-12 rounded-full glass border border-emerald-500/10 flex items-center justify-center hover:bg-emerald-500/10 transition-all">
+          <button onClick={handleDownloadSession} disabled={isDownloading} title="Export Recap" className="w-12 h-12 rounded-full glass border border-emerald-500/10 flex items-center justify-center hover:bg-emerald-500/10 transition-all">
             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-file-audio'} text-sm text-emerald-400`}></i>
           </button>
           
@@ -295,11 +302,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
             <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-emerald-900/40 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
           </div>
 
-          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-8 py-3 rounded-full bg-emerald-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-emerald-500 transition-all">End Recap</button>
-          
-          <button onClick={onExit} title="Continue Later" className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/10 flex items-center justify-center hover:bg-emerald-500/30 transition-all">
-            <i className="fas fa-bookmark text-sm"></i>
-          </button>
+          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-8 py-3 rounded-full bg-emerald-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-emerald-500 transition-all">End Session</button>
           
           <button onClick={onExit} title="Exit" className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center hover:bg-red-500/30 transition-all">
             <i className="fas fa-stop text-sm"></i>
@@ -332,7 +335,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
           {transcriptions.length === 0 && !isBuffering && connectingProgress === 100 && (
             <div className="h-full flex flex-col items-center justify-center opacity-10 text-emerald-500 text-center space-y-6">
               <i className="fas fa-film text-8xl"></i>
-              <p className="text-sm font-black uppercase tracking-[1em]">Scanning Cinema Archives</p>
+              <p className="text-sm font-black uppercase tracking-[1em]">Scanning Neural Archives</p>
             </div>
           )}
 
@@ -340,7 +343,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
             <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-700">
               <div className="max-w-[92%] p-8 rounded-[2.5rem] bg-emerald-950/10 border border-emerald-500/10 rounded-tl-none shadow-xl">
                 <p className="text-[9px] text-emerald-500 opacity-60 mb-3 uppercase tracking-[0.4em] font-black flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> CINE-RECAPPER ACTIVE
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> {config.voice} RECAPPER
                 </p>
                 <p className="text-xl md:text-2xl leading-relaxed font-light text-emerald-50/90">{t.text}</p>
               </div>
@@ -361,7 +364,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
             <div className="flex items-center gap-12">
               <div className="flex items-center gap-4">
                  <div className={`w-3.5 h-3.5 rounded-full ${isOutputActive ? 'bg-emerald-500 shadow-[0_0_15px_#10b981]' : 'bg-red-500'}`}></div>
-                 <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-60 text-emerald-300">{isOutputActive ? 'Streaming' : 'Buffering'}</span>
+                 <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-60 text-emerald-300">{isOutputActive ? 'Narrating' : 'Syncing'}</span>
               </div>
               <div className="h-8 w-px bg-white/10"></div>
               <div className="flex items-center gap-4">
@@ -386,7 +389,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-8 bg-black/98 backdrop-blur-3xl overflow-y-auto">
           <div className="max-w-5xl w-full my-auto space-y-16 py-20 animate-in fade-in slide-in-from-bottom-12">
             <div className="text-center space-y-6">
-              <p className="text-emerald-500 uppercase tracking-[1.2em] text-[10px] font-black">Recap Conclusion</p>
+              <p className="text-emerald-500 uppercase tracking-[1.2em] text-[10px] font-black">Recap Summary</p>
               <h2 className="text-8xl md:text-[10rem] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-emerald-400 to-emerald-900 uppercase leading-none">THE END</h2>
             </div>
             <div className="glass p-16 rounded-[5rem] border-emerald-500/20 bg-emerald-950/5 relative shadow-2xl">

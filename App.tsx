@@ -8,7 +8,7 @@ import PodcastView from './components/PodcastView';
 import MovieExplainerView from './components/MovieExplainerView';
 
 const LANGUAGES = [
-  "English", "Hindi", "Spanish", "French", "German", "Japanese", "Arabic", "Russian", "Portuguese", "Italian", "Korean", "Chinese", "Bengali", "Turkish", "Vietnamese", "Urdu", "Marathi", "Telugu", "Tamil"
+  "Hindi", "English", "Spanish", "French", "German", "Japanese", "Arabic", "Russian", "Portuguese", "Italian", "Korean", "Chinese", "Bengali", "Turkish", "Vietnamese", "Urdu", "Marathi", "Telugu", "Tamil"
 ];
 
 const VOICES: Array<{ id: GeminiVoice; name: string; description: string }> = [
@@ -20,7 +20,7 @@ const VOICES: Array<{ id: GeminiVoice; name: string; description: string }> = [
 ];
 
 const THEMES = {
-  adventures: { // SAGA: Futuristic & Sci-Fi
+  adventures: {
     bg: 'bg-[#010409]',
     glow1: 'bg-cyan-600/20',
     glow2: 'bg-blue-600/10',
@@ -34,7 +34,7 @@ const THEMES = {
     card: 'glass border-cyan-500/10 hover:border-cyan-500/40 hover:shadow-[0_0_30px_rgba(34,211,238,0.1)]',
     tag: 'SYSTEM: ACTIVE'
   },
-  files: { // VAULT: Dark & Moody Sleep Stories
+  files: {
     bg: 'bg-[#080303]',
     glow1: 'bg-red-900/20',
     glow2: 'bg-orange-950/10',
@@ -48,7 +48,7 @@ const THEMES = {
     card: 'bg-black/40 border-red-900/30 hover:border-red-500/40 hover:shadow-[0_0_40px_rgba(239,68,68,0.05)]',
     tag: 'STATUS: TRANQUIL'
   },
-  broadcast: { // CAST: The Why Files / High-Fi Podcast
+  broadcast: {
     bg: 'bg-[#050512]',
     glow1: 'bg-violet-600/20',
     glow2: 'bg-indigo-900/15',
@@ -62,7 +62,7 @@ const THEMES = {
     card: 'glass border-violet-500/10 hover:border-violet-400/50 hover:shadow-[0_0_35px_rgba(139,92,246,0.15)]',
     tag: 'MODE: INVESTIGATIVE'
   },
-  explainer: { // CINE: Movie Decoder
+  explainer: {
     bg: 'bg-[#020d0a]',
     glow1: 'bg-emerald-600/20',
     glow2: 'bg-teal-900/15',
@@ -142,7 +142,7 @@ const App: React.FC = () => {
       const genreTopics = randomTopics[config.genre as string] || ["A Narrative Anomaly"];
       finalTopic = genreTopics[Math.floor(Math.random() * genreTopics.length)];
     } else if (activeTab === 'explainer' && !finalTopic) {
-        finalTopic = "Inception"; // Default if empty for explainer
+        finalTopic = config.isOriginalScript ? "The Shadow Protocol" : "Inception";
     }
 
     setSetupConfig({ ...config, topic: finalTopic });
@@ -174,13 +174,11 @@ const App: React.FC = () => {
 
   const renderHome = () => (
     <div className={`min-h-screen ${theme.bg} ${theme.font} transition-all duration-1000 flex flex-col items-center overflow-x-hidden relative`}>
-      {/* Background Volumetric Glows */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className={`absolute top-[-20%] left-[-5%] w-[80%] h-[80%] ${theme.glow1} blur-[250px] rounded-full animate-float transition-colors duration-1000`}></div>
         <div className={`absolute bottom-[-15%] right-[-5%] w-[70%] h-[70%] ${theme.glow2} blur-[250px] rounded-full animate-float transition-colors duration-1000`} style={{animationDelay: '-6s'}}></div>
       </div>
 
-      {/* Modern Top Navigation Island */}
       <nav className={`sticky top-6 z-50 w-[95%] max-w-3xl glass-dark border ${theme.border} rounded-full transition-colors duration-700 backdrop-blur-3xl shadow-2xl`}>
         <div className="px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -204,7 +202,6 @@ const App: React.FC = () => {
       </nav>
 
       <main className="relative z-10 w-full max-w-7xl px-6 pt-24 pb-16 flex flex-col items-center">
-        {/* Dynamic Hero Header */}
         <header className="w-full text-center mb-16 animate-in fade-in slide-in-from-top-4 duration-1000">
            <div className="flex items-center justify-center gap-3 mb-6">
               <span className={`px-4 py-1.5 rounded-full glass border ${theme.border} text-[8px] font-black uppercase tracking-[0.4em] ${theme.accent}`}>
@@ -219,7 +216,6 @@ const App: React.FC = () => {
            </p>
         </header>
 
-        {/* Resumption Area */}
         {savedSession && (
           <div className="w-full max-w-3xl mb-16 animate-in fade-in zoom-in-95 duration-700">
             <div className={`p-8 rounded-[3rem] border ${theme.border} bg-white/[0.03] flex flex-col sm:flex-row items-center gap-8 backdrop-blur-md shadow-2xl`}>
@@ -238,7 +234,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* The Portal Grid */}
         <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-24">
           {activeTab === 'adventures' ? (
             <>
@@ -263,15 +258,14 @@ const App: React.FC = () => {
             </>
           ) : (
             <>
-              <PortalCard genre={Genre.MYSTERY} icon="fa-film" label="Noir Explainer" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
-              <PortalCard genre={Genre.SCIFI} icon="fa-robot" label="Sci-Fi Decoder" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
-              <PortalCard genre={Genre.THRILLER} icon="fa-puzzle-piece" label="Plot Decoder" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
-              <PortalCard genre={Genre.FANTASY} icon="fa-scroll" label="Lore Explainer" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
+              <PortalCard genre={Genre.HORROR} icon="fa-skull" label="Horror Recap" theme={theme} onStart={() => handleStartSetup(Genre.HORROR)} />
+              <PortalCard genre={Genre.SCIFI} icon="fa-rocket" label="Action Decoder" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
+              <PortalCard genre={Genre.MYSTERY} icon="fa-mask" label="Crime Explainer" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
+              <PortalCard genre={Genre.THRILLER} icon="fa-bolt" label="War Decoder" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
             </>
           )}
         </div>
 
-        {/* Global Footer */}
         <footer className="w-full max-w-3xl flex items-center justify-between border-t border-white/5 pt-12 opacity-30">
            <button onClick={() => setViewMode(ViewMode.FEEDBACK)} className="text-[10px] font-black uppercase tracking-[0.5em] hover:opacity-100 transition-opacity">Submit Intel</button>
            <div className="flex gap-6 items-center">
@@ -363,10 +357,11 @@ interface SetupViewProps {
 
 const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm }) => {
   const [topic, setTopic] = useState('');
-  const [language, setLanguage] = useState('English');
+  const [language, setLanguage] = useState('Hindi');
   const [voice, setVoice] = useState<GeminiVoice>('Zephyr');
   const [mode, setMode] = useState<NarratorMode>(NarratorMode.SINGLE);
-  const [duration, setDuration] = useState(25); // Default to 25 for explainers
+  const [duration, setDuration] = useState(25);
+  const [isOriginal, setIsOriginal] = useState(false);
 
   const currentTheme = THEMES[origin as keyof typeof THEMES] || THEMES.adventures;
 
@@ -378,29 +373,44 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
         <div className="text-center space-y-4">
           <p className={`${currentTheme.accent} uppercase tracking-[0.6em] text-[10px] font-black`}>{genre} Mapping Core</p>
           <h2 className="text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none">
-            {origin === 'broadcast' ? 'Initiate Cast' : origin === 'files' ? 'Seal Vault' : origin === 'explainer' ? 'Decode Movie' : 'Forge Saga'}
+            {origin === 'broadcast' ? 'Initiate Cast' : origin === 'files' ? 'Seal Vault' : origin === 'explainer' ? 'Initiate Decoder' : 'Forge Saga'}
           </h2>
         </div>
 
         <div className="space-y-10">
           <div className="space-y-4">
             <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">
-                {origin === 'explainer' ? 'Movie Name' : 'Chronicle Seed (Optional)'}
+                {origin === 'explainer' ? (isOriginal ? 'Original Movie Title' : 'Existing Movie Name') : 'Chronicle Seed (Optional)'}
             </label>
             <input 
               type="text" 
               value={topic} 
               onChange={e => setTopic(e.target.value)}
-              placeholder={origin === 'explainer' ? "e.g. Inception, The Prestige..." : "Leave empty for the Oracle's choice..."}
+              placeholder={origin === 'explainer' ? "e.g. Inception, Tumbbad..." : "Leave empty for the Oracle's choice..."}
               className="w-full bg-white/5 border border-white/10 rounded-[3rem] px-10 py-8 outline-none focus:border-white/30 transition-all text-2xl font-light placeholder:opacity-10 shadow-inner"
             />
           </div>
+
+          {origin === 'explainer' && (
+             <div className="flex items-center gap-6 glass p-8 rounded-[2rem] border-emerald-500/10 bg-emerald-500/5">
+                <button 
+                  onClick={() => setIsOriginal(!isOriginal)}
+                  className={`w-14 h-8 rounded-full transition-all relative ${isOriginal ? 'bg-emerald-500' : 'bg-white/10'}`}
+                >
+                  <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${isOriginal ? 'left-7' : 'left-1'}`}></div>
+                </button>
+                <div>
+                   <span className="text-[10px] font-black uppercase tracking-widest block">Neural Script Synthesis (Create Your Own)</span>
+                   <p className="text-[8px] opacity-40 uppercase tracking-tighter mt-1">If active, AI will invent a raw, high-stakes plot for your title instead of searching.</p>
+                </div>
+             </div>
+          )}
 
           {(origin === 'files' || origin === 'broadcast' || origin === 'explainer') && (
             <div className="space-y-8 bg-white/[0.02] p-10 rounded-[4rem] border border-white/5 shadow-2xl">
               <div className="flex justify-between items-center mb-2">
                 <label className="text-[10px] uppercase font-black opacity-30 ml-2 tracking-widest">
-                    {origin === 'broadcast' ? 'Broadcast Span' : origin === 'explainer' ? 'Explanation Span' : 'Chapter Span'}
+                    {origin === 'broadcast' ? 'Broadcast Span' : origin === 'explainer' ? 'Recap Duration' : 'Chapter Span'}
                 </label>
                 <span className={`text-2xl font-black ${currentTheme.accent}`}>{duration} Minutes</span>
               </div>
@@ -418,7 +428,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">Explanation Language</label>
+              <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">Explainer Language</label>
               <div className="relative">
                 <select 
                   value={language} 
@@ -433,15 +443,14 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
               </div>
             </div>
             <div className="space-y-4">
-              <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">Narrator Logic</label>
+              <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">Recapper Personality</label>
               <div className="relative">
                 <select 
-                  value={mode} 
-                  onChange={e => setMode(e.target.value as NarratorMode)}
+                  value={voice} 
+                  onChange={e => setVoice(e.target.value as GeminiVoice)}
                   className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-10 py-6 outline-none text-xs font-black uppercase tracking-widest appearance-none cursor-pointer hover:bg-white/10 transition-all"
                 >
-                  <option value={NarratorMode.SINGLE} className="bg-black">SOLO GUIDE</option>
-                  <option value={NarratorMode.MULTI} className="bg-black">ENSEMBLE CAST</option>
+                  {VOICES.map(v => <option key={v.id} value={v.id} className="bg-black">{v.name} ({v.description})</option>)}
                 </select>
                 <div className="absolute right-8 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
                   <i className="fas fa-chevron-down text-xs"></i>
@@ -449,30 +458,15 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
               </div>
             </div>
           </div>
-
-          <div className="space-y-6">
-            <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">Select Neural Personality</label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-              {VOICES.map(v => (
-                <button
-                  key={v.id}
-                  onClick={() => setVoice(v.id)}
-                  className={`flex flex-col items-center gap-2 p-6 rounded-[2.5rem] border transition-all duration-300 ${voice === v.id ? 'bg-white text-black border-white shadow-2xl scale-110' : 'bg-white/5 border-white/10 opacity-30 hover:opacity-100 hover:scale-105'}`}
-                >
-                  <span className="text-[10px] font-black uppercase tracking-tighter">{v.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-5 pt-8">
           <button onClick={onBack} className="flex-1 py-8 rounded-[3rem] bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.5em] hover:bg-white/10 transition-all active:scale-95">Abort Link</button>
           <button 
-            onClick={() => onConfirm({ genre, topic, language, voice, mode, durationMinutes: (origin === 'files' || origin === 'broadcast' || origin === 'explainer') ? duration : undefined })} 
+            onClick={() => onConfirm({ genre, topic, language, voice, mode, isOriginalScript: isOriginal, durationMinutes: (origin === 'files' || origin === 'broadcast' || origin === 'explainer') ? duration : undefined })} 
             className="flex-[2] py-8 rounded-[3rem] bg-white text-black text-[10px] font-black uppercase tracking-[0.5em] hover:scale-[1.03] transition-all shadow-2xl active:scale-95"
           >
-            {origin === 'broadcast' ? 'Initiate Cast' : origin === 'files' ? 'Seal Vault' : origin === 'explainer' ? 'Initiate Decoder' : `Launch Saga`}
+            {origin === 'broadcast' ? 'Initiate Cast' : origin === 'explainer' ? 'Start Recap' : `Launch Saga`}
           </button>
         </div>
       </div>
