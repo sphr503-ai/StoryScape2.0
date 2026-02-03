@@ -34,6 +34,31 @@ export class StoryScapeService {
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
+  /**
+   * Fetches a truly random trending topic from the internet based on genre and mode.
+   */
+  async fetchTrendingTopic(genre: Genre, mode: string): Promise<string> {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const prompt = `Find a single, currently popular or trending ${genre} ${mode === 'explainer' ? 'movie' : 'topic for a podcast'}. 
+    Return ONLY the title or name, nothing else. No punctuation, no quotes. 
+    Make it interesting and randomized. Pull from recent news or classic viral mysteries.`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-preview',
+        contents: prompt,
+        config: { 
+          tools: [{ googleSearch: {} }],
+          temperature: 1.0 // High temperature for more variety
+        },
+      });
+      return response.text.trim().replace(/^"|"$/g, '') || "The Unknown Anomaly";
+    } catch (err) {
+      const fallbackTopics = ["The Dyatlov Pass", "Interstellar", "Ancient Mars Structures", "The Matrix", "Cicada 3301"];
+      return fallbackTopics[Math.floor(Math.random() * fallbackTopics.length)];
+    }
+  }
+
   async fetchLore(config: AdventureConfig): Promise<LoreData> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const isExplainer = config.durationMinutes !== undefined; 

@@ -7,6 +7,7 @@ import FeedbackView from './components/FeedbackView';
 import PodcastView from './components/PodcastView';
 import MovieExplainerView from './components/MovieExplainerView';
 import LanguageTutorView from './components/LanguageTutorView';
+import { StoryScapeService } from './services/geminiLiveService';
 
 const LANGUAGES = [
   "Hindi", "English", "Spanish", "French", "German", "Japanese", "Arabic", "Russian", "Portuguese", "Italian", "Korean", "Chinese", "Bengali", "Turkish", "Vietnamese", "Urdu", "Marathi", "Telugu", "Tamil"
@@ -157,17 +158,18 @@ const App: React.FC = () => {
     let finalTopic = config.topic.trim();
     if (!finalTopic && activeTab !== 'explainer' && activeTab !== 'tutor') {
       const randomTopics: Record<string, string[]> = {
-        [Genre.FANTASY]: ["The Floating Citadel", "A Whisper in the Iron Woods", "The Alchemist's Mistake"],
-        [Genre.SCIFI]: ["Glitched Orbit 44", "The Last Signal from Europa", "Neon Rain Over Sector 7"],
-        [Genre.MYSTERY]: ["The Shadow in the Library", "Protocol 09: Broken Ground", "The Unseen Witness"],
-        [Genre.HORROR]: ["The Crawling Mist", "Mirror to the Void", "Silence in the Ward"],
-        [Genre.THRILLER]: ["The Midnight Cipher", "Double Agent's Gamble", "The Concrete Labyrinth"],
-        [Genre.DOCUMENTARY]: ["The Truth Behind Project Stargate", "Hidden Depth", "The Great Library Conspiracy"]
+        [Genre.FANTASY]: ["The Floating Citadel", "A Whisper in the Iron Woods", "The Alchemist's Mistake", "Curse of the Ember King", "The Glass Dragon", "Sands of the Forgotten Empire"],
+        [Genre.SCIFI]: ["Glitched Orbit 44", "The Last Signal from Europa", "Neon Rain Over Sector 7", "The Turing Paradox", "Starship Graveyard", "The Quantum Heist"],
+        [Genre.MYSTERY]: ["The Shadow in the Library", "Protocol 09: Broken Ground", "The Unseen Witness", "Midnight at the Clockmaker's", "The Case of the Missing Soul", "Whispers of the Fog"],
+        [Genre.HORROR]: ["The Crawling Mist", "Mirror to the Void", "Silence in the Ward", "The Entity in the Basement", "Blackwood Asylum", "Night of the Crimson Moon"],
+        [Genre.THRILLER]: ["The Midnight Cipher", "Double Agent's Gamble", "The Concrete Labyrinth", "The Final Extradition", "Red Code Protocol", "The Invisible Assassin"],
+        [Genre.DOCUMENTARY]: ["The Truth Behind Project Stargate", "Hidden Depth", "The Great Library Conspiracy", "The Lost City of Z", "Area 51 Internal Memos", "The Voynich Mystery"]
       };
       const genreTopics = randomTopics[config.genre as string] || ["A Narrative Anomaly"];
       finalTopic = genreTopics[Math.floor(Math.random() * genreTopics.length)];
     } else if (activeTab === 'explainer' && !finalTopic) {
-        finalTopic = config.isOriginalScript ? "The Shadow Protocol" : "Inception";
+        const moviePool = ["Inception", "Interstellar", "The Matrix", "Pulp Fiction", "The Prestige", "The Dark Knight", "Everything Everywhere All At Once", "Parasite", "Shutter Island", "Memento", "Gladiator", "The Godfather"];
+        finalTopic = config.isOriginalScript ? "The Shadow Protocol" : moviePool[Math.floor(Math.random() * moviePool.length)];
     } else if (activeTab === 'tutor' && !finalTopic) {
         finalTopic = "Daily Conversation";
     }
@@ -354,8 +356,22 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
   const [mode, setMode] = useState<NarratorMode>(NarratorMode.SINGLE);
   const [duration, setDuration] = useState(25);
   const [isOriginal, setIsOriginal] = useState(false);
+  const [isRandomizing, setIsRandomizing] = useState(false);
 
   const currentTheme = THEMES[origin as keyof typeof THEMES] || THEMES.adventures;
+
+  const handleRandomize = async () => {
+    setIsRandomizing(true);
+    try {
+      const service = new StoryScapeService();
+      const trending = await service.fetchTrendingTopic(genre, origin);
+      setTopic(trending);
+    } catch (err) {
+      console.error("Failed to randomize topic", err);
+    } finally {
+      setIsRandomizing(false);
+    }
+  };
 
   // Dedicated Terminal Setup UI for Tutor mode
   if (origin === 'tutor') {
@@ -482,9 +498,19 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
         <div className="space-y-8">
           {/* Chronicle Seed Input */}
           <div className="space-y-3">
-            <label className="text-[9px] md:text-[10px] uppercase font-black opacity-40 ml-4 tracking-[0.3em]">
-                {origin === 'explainer' ? (isOriginal ? 'Original Movie Title' : 'Existing Movie Name') : 'Chronicle Seed (Optional)'}
-            </label>
+            <div className="flex justify-between items-end ml-4">
+              <label className="text-[9px] md:text-[10px] uppercase font-black opacity-40 tracking-[0.3em]">
+                  {origin === 'explainer' ? (isOriginal ? 'Original Movie Title' : 'Existing Movie Name') : 'Chronicle Seed (Optional)'}
+              </label>
+              <button 
+                onClick={handleRandomize} 
+                disabled={isRandomizing}
+                className={`text-[8px] font-black uppercase tracking-widest ${currentTheme.accent} opacity-60 hover:opacity-100 flex items-center gap-2 transition-opacity`}
+              >
+                <i className={`fas fa-wand-magic-sparkles ${isRandomizing ? 'fa-spin' : ''}`}></i>
+                {isRandomizing ? 'Searching Web...' : 'Surprise Me'}
+              </button>
+            </div>
             <div className="relative group">
                <input 
                 type="text" 
