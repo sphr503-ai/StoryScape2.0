@@ -215,9 +215,18 @@ const App: React.FC = () => {
             <TabItem active={activeTab === 'tutor'} onClick={() => setActiveTab('tutor')} label="TUTOR" icon="fa-terminal" activeClass={THEMES.tutor.tabActive} />
           </div>
 
-          <button onClick={handleFixAudio} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all border-white/5">
-             <i className={`fas fa-bolt text-[10px] ${audioState === 'running' ? 'text-yellow-500' : 'text-white/20'}`}></i>
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setViewMode(ViewMode.FEEDBACK)}
+              className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all border-white/5"
+              title="Transmissions"
+            >
+               <i className="fas fa-comment-dots text-[10px] opacity-60"></i>
+            </button>
+            <button onClick={handleFixAudio} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all border-white/5">
+               <i className={`fas fa-bolt text-[10px] ${audioState === 'running' ? 'text-yellow-500' : 'text-white/20'}`}></i>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -469,15 +478,15 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
             </div>
           </div>
 
-          <div className="flex gap-4 pt-6">
-            <button onClick={onBack} className="flex-1 py-3 border border-[#00ff41]/30 text-xs font-bold uppercase hover:bg-[#00ff41]/10 transition-all">
-              [ESC] ABORT
-            </button>
+          <div className="flex flex-col gap-4 pt-6">
             <button 
               onClick={() => onConfirm({ genre, topic, language, voice, mode, isOriginalScript: isOriginal, durationMinutes: duration })} 
-              className="flex-[2] py-3 bg-[#00ff41] text-black text-xs font-bold uppercase hover:bg-[#00ff41]/80 transition-all shadow-[0_0_20px_rgba(0,255,65,0.2)]"
+              className="w-full py-3 bg-[#00ff41] text-black text-xs font-bold uppercase hover:bg-[#00ff41]/80 transition-all shadow-[0_0_20px_rgba(0,255,65,0.2)]"
             >
               [ENTER] START_IMMERSION
+            </button>
+            <button onClick={onBack} className="w-full py-3 border border-[#00ff41]/30 text-xs font-bold uppercase hover:bg-[#00ff41]/10 transition-all">
+              [ESC] ABORT
             </button>
           </div>
         </div>
@@ -574,19 +583,19 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-          <button 
-            onClick={onBack} 
-            className="w-full sm:flex-1 py-5 md:py-6 rounded-[1.5rem] md:rounded-[2.5rem] bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.4em] hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all active:scale-95 text-white/60"
-          >
-            Abort Link
-          </button>
+        <div className="flex flex-col gap-4 pt-4">
           <button 
             onClick={() => onConfirm({ genre, topic, language, voice, mode, isOriginalScript: isOriginal, durationMinutes: duration })} 
-            className={`w-full sm:flex-[2] py-5 md:py-6 rounded-[1.5rem] md:rounded-[2.5rem] ${currentTheme.accentBg} text-black text-[10px] font-black uppercase tracking-[0.4em] hover:scale-[1.02] transition-all shadow-2xl active:scale-95 relative group overflow-hidden`}
+            className={`w-full py-5 md:py-6 rounded-[1.5rem] md:rounded-[2.5rem] ${currentTheme.accentBg} text-black text-[10px] font-black uppercase tracking-[0.4em] hover:scale-[1.02] transition-all shadow-2xl active:scale-95 relative group overflow-hidden`}
           >
             <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
             <span className="relative z-10">{origin === 'explainer' ? 'Start Recap' : `Launch Protocol`}</span>
+          </button>
+          <button 
+            onClick={onBack} 
+            className="w-full py-5 md:py-6 rounded-[1.5rem] md:rounded-[2.5rem] bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.4em] hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all active:scale-95 text-white/60"
+          >
+            Abort Link
           </button>
         </div>
       </div>

@@ -224,9 +224,6 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
           <button onClick={onBack} className="text-[#00ff41] hover:bg-[#00ff41]/10 px-2 py-1 rounded transition-colors text-xs font-bold">
             [BACK]
           </button>
-          <button onClick={onExit} className="text-[#00ff41] hover:bg-[#00ff41]/10 px-2 py-1 rounded transition-colors text-xs">
-            [ESC] EXIT
-          </button>
           <div className="h-4 w-px bg-[#00ff41]/20 mx-2"></div>
           <div>
             <h2 className="text-xs font-bold tracking-widest uppercase flex items-center gap-2">
@@ -250,6 +247,9 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
            <button onClick={() => setIsPaused(!isPaused)} className={`text-xs font-bold tracking-widest ${isPaused ? 'text-amber-500' : 'text-[#00ff41]'}`}>
              [{isPaused ? 'RESUME' : 'PAUSE'}]
            </button>
+           <button onClick={onExit} className="text-[#00ff41] hover:bg-[#00ff41]/10 px-2 py-1 rounded transition-colors text-xs font-bold">
+            [ESC] EXIT
+          </button>
         </div>
       </header>
 
