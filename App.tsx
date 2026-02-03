@@ -12,12 +12,12 @@ const LANGUAGES = [
   "Hindi", "English", "Spanish", "French", "German", "Japanese", "Arabic", "Russian", "Portuguese", "Italian", "Korean", "Chinese", "Bengali", "Turkish", "Vietnamese", "Urdu", "Marathi", "Telugu", "Tamil"
 ];
 
-const VOICES: Array<{ id: GeminiVoice; name: string; description: string; gender: 'Male' | 'Female' | 'Neutral' }> = [
-  { id: 'Zephyr', name: 'Zephyr', description: 'Deep & Commanding', gender: 'Male' },
-  { id: 'Puck', name: 'Puck', description: 'Energetic & Witty', gender: 'Neutral' },
-  { id: 'Charon', name: 'Charon', description: 'Stoic & Wise', gender: 'Male' },
-  { id: 'Kore', name: 'Kore', description: 'Calm & Graceful', gender: 'Female' },
-  { id: 'Fenrir', name: 'Fenrir', description: 'Gravelly & Intense', gender: 'Male' },
+const VOICES: Array<{ id: GeminiVoice; name: string; description: string; gender: 'Male' | 'Female' | 'Neutral'; icon: string }> = [
+  { id: 'Zephyr', name: 'Zephyr', description: 'Deep & Commanding', gender: 'Male', icon: 'fa-person' },
+  { id: 'Kore', name: 'Kore', description: 'Calm & Graceful', gender: 'Female', icon: 'fa-person-dress' },
+  { id: 'Puck', name: 'Puck', description: 'Energetic & Witty', gender: 'Neutral', icon: 'fa-bolt-lightning' },
+  { id: 'Charon', name: 'Charon', description: 'Stoic & Wise', gender: 'Male', icon: 'fa-feather-pointed' },
+  { id: 'Fenrir', name: 'Fenrir', description: 'Gravelly & Intense', gender: 'Male', icon: 'fa-wolf-pack-battalion' },
 ];
 
 const THEMES = {
@@ -26,6 +26,7 @@ const THEMES = {
     glow1: 'bg-cyan-600/20',
     glow2: 'bg-blue-600/10',
     accent: 'text-cyan-400',
+    accentBg: 'bg-cyan-500',
     border: 'border-cyan-500/20',
     tabActive: 'bg-cyan-500 text-black shadow-[0_0_20px_#22d3ee]',
     heroTitle: 'NEURAL_SAGA',
@@ -40,6 +41,7 @@ const THEMES = {
     glow1: 'bg-red-900/20',
     glow2: 'bg-orange-950/10',
     accent: 'text-red-500',
+    accentBg: 'bg-red-600',
     border: 'border-red-900/30',
     tabActive: 'bg-red-900 text-white border-red-500 shadow-[0_0_25px_#ef4444]',
     heroTitle: 'THE_VAULT',
@@ -54,6 +56,7 @@ const THEMES = {
     glow1: 'bg-violet-600/20',
     glow2: 'bg-indigo-900/15',
     accent: 'text-violet-400',
+    accentBg: 'bg-violet-500',
     border: 'border-violet-500/20',
     tabActive: 'bg-violet-600 text-white shadow-[0_0_25px_#8b5cf6]',
     heroTitle: 'ON_AIR',
@@ -68,6 +71,7 @@ const THEMES = {
     glow1: 'bg-emerald-600/20',
     glow2: 'bg-teal-900/15',
     accent: 'text-emerald-400',
+    accentBg: 'bg-emerald-500',
     border: 'border-emerald-500/20',
     tabActive: 'bg-emerald-600 text-white shadow-[0_0_25px_#10b981]',
     heroTitle: 'NEURAL_CINE',
@@ -82,6 +86,7 @@ const THEMES = {
     glow1: 'bg-[#00ff41]/5',
     glow2: 'bg-[#00ff41]/2',
     accent: 'text-[#00ff41]',
+    accentBg: 'bg-[#00ff41]',
     border: 'border-[#00ff41]/30',
     tabActive: 'bg-[#00ff41] text-black shadow-[0_0_20px_#00ff41]',
     heroTitle: 'NEURAL_TUTOR',
@@ -171,41 +176,6 @@ const App: React.FC = () => {
     setViewMode(ViewMode.ADVENTURE);
   };
 
-  const resumeSession = () => {
-    if (savedSession) {
-      setSetupConfig(savedSession.config);
-      setInitialHistory(savedSession.transcriptions);
-      
-      let origin: 'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' = 'adventures';
-      if (savedSession.config.durationMinutes) {
-          if (activeTab === 'broadcast') origin = 'broadcast';
-          else if (activeTab === 'explainer') origin = 'explainer';
-          else if (activeTab === 'tutor') origin = 'tutor';
-          else origin = 'files';
-      }
-      
-      setSessionOrigin(origin);
-      setViewMode(ViewMode.ADVENTURE);
-      setSavedSession(null);
-      setShowDraftPrompt(null);
-    }
-  };
-
-  const startNewSession = (genre: Genre) => {
-    localStorage.removeItem('storyscape_saved_session');
-    setSavedSession(null);
-    setShowDraftPrompt(null);
-    setSelectedGenre(genre);
-    setSessionOrigin(activeTab);
-    setViewMode(ViewMode.SETUP);
-  };
-
-  const discardSavedSession = () => {
-    localStorage.removeItem('storyscape_saved_session');
-    setSavedSession(null);
-    setShowDraftPrompt(null);
-  };
-
   const renderHome = () => (
     <div className={`min-h-screen ${theme.bg} ${theme.font} transition-all duration-1000 flex flex-col items-center overflow-x-hidden relative`}>
       {activeTab === 'tutor' && <div className="absolute inset-0 pointer-events-none z-50 opacity-[0.03] scanlines"></div>}
@@ -224,7 +194,7 @@ const App: React.FC = () => {
             <h1 className="text-sm font-black tracking-tighter hidden lg:block uppercase opacity-90">StoryScape 2.0</h1>
           </div>
           
-          <div className="flex bg-white/5 rounded-full p-1 border border-white/5 scale-90 sm:scale-100">
+          <div className="flex bg-white/5 rounded-full p-1 border border-white/5 scale-90 sm:scale-100 overflow-x-auto no-scrollbar">
             <TabItem active={activeTab === 'adventures'} onClick={() => setActiveTab('adventures')} label="SAGA" icon="fa-rocket" activeClass={THEMES.adventures.tabActive} />
             <TabItem active={activeTab === 'files'} onClick={() => setActiveTab('files')} label="VAULT" icon="fa-moon" activeClass={THEMES.files.tabActive} />
             <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-microphone-lines" activeClass={THEMES.broadcast.tabActive} />
@@ -245,7 +215,7 @@ const App: React.FC = () => {
                 {theme.tag}
               </span>
            </div>
-           <h2 className={`text-7xl md:text-[9rem] font-black tracking-tighter mb-4 text-glow bg-clip-text text-transparent bg-gradient-to-b ${activeTab === 'tutor' ? 'from-[#00ff41] to-[#004d13]' : 'from-white to-white/40'} uppercase leading-[0.85] py-2`}>
+           <h2 className={`text-5xl md:text-[9rem] font-black tracking-tighter mb-4 text-glow bg-clip-text text-transparent bg-gradient-to-b ${activeTab === 'tutor' ? 'from-[#00ff41] to-[#004d13]' : 'from-white to-white/40'} uppercase leading-[0.85] py-2`}>
               {theme.heroTitle}
            </h2>
            <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.6em] ${theme.accent} opacity-90 mt-4 max-w-2xl mx-auto leading-relaxed`}>
@@ -253,7 +223,7 @@ const App: React.FC = () => {
            </p>
         </header>
 
-        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-24">
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 mb-24">
           {activeTab === 'adventures' ? (
             <>
               <PortalCard genre={Genre.FANTASY} icon="fa-dragon" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
@@ -335,14 +305,14 @@ interface TabItemProps {
 const TabItem: React.FC<TabItemProps> = ({ active, onClick, label, icon, activeClass }) => (
   <button 
     onClick={onClick}
-    className={`px-4 sm:px-5 py-2.5 rounded-full flex items-center gap-3 transition-all duration-500 border border-transparent ${
+    className={`px-3 sm:px-5 py-2.5 rounded-full flex items-center gap-2 transition-all duration-500 border border-transparent shrink-0 ${
       active 
         ? `${activeClass} scale-[1.05] z-10 font-black` 
         : 'text-white/30 hover:text-white/60 hover:bg-white/5 font-bold'
     }`}
   >
     <i className={`fas ${icon} text-[10px]`}></i>
-    <span className="text-[9px] tracking-[0.2em] hidden xs:block">{label}</span>
+    <span className="text-[9px] tracking-[0.2em]">{label}</span>
   </button>
 );
 
@@ -357,16 +327,16 @@ interface PortalCardProps {
 const PortalCard: React.FC<PortalCardProps> = ({ genre, icon, theme, label = "Link", onStart }) => (
   <button 
     onClick={onStart}
-    className={`group relative p-12 rounded-[4rem] border transition-all duration-700 hover:scale-[1.05] active:scale-95 flex flex-col items-center text-center overflow-hidden h-[340px] justify-center ${theme.card}`}
+    className={`group relative p-8 md:p-12 rounded-[2.5rem] md:rounded-[4rem] border transition-all duration-700 hover:scale-[1.03] active:scale-95 flex flex-col items-center text-center overflow-hidden h-[280px] md:h-[340px] justify-center ${theme.card}`}
   >
     <div className={`absolute inset-0 bg-gradient-to-b from-transparent to-white/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-1000`}></div>
-    <div className={`w-20 h-20 rounded-[2.5rem] bg-white/5 flex items-center justify-center mb-10 group-hover:scale-110 group-hover:rotate-6 transition-all duration-700 ${theme.accent} border border-white/5 shadow-inner`}>
-       <i className={`fas ${icon} text-3xl`}></i>
+    <div className={`w-16 h-16 md:w-20 md:h-20 rounded-[2rem] md:rounded-[2.5rem] bg-white/5 flex items-center justify-center mb-6 md:mb-10 group-hover:scale-110 group-hover:rotate-6 transition-all duration-700 ${theme.accent} border border-white/5 shadow-inner`}>
+       <i className={`fas ${icon} text-2xl md:text-3xl`}></i>
     </div>
-    <h3 className="text-3xl font-black uppercase tracking-tighter mb-2 group-hover:tracking-[0.1em] transition-all duration-700 leading-none">
+    <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tighter mb-2 group-hover:tracking-[0.1em] transition-all duration-700 leading-none">
         {label === "Link" ? genre : label}
     </h3>
-    <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-30 group-hover:opacity-80 group-hover:text-white transition-all">Link Protocol</span>
+    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.4em] opacity-30 group-hover:opacity-80 group-hover:text-white transition-all">Link Protocol</span>
   </button>
 );
 
@@ -483,84 +453,121 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
               [ENTER] START_IMMERSION
             </button>
           </div>
-          <div className="pt-4 text-[8px] opacity-20 text-center uppercase tracking-widest animate-pulse">
-            Warning: Protocol bypass active. Monitoring neural pathways...
-          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen flex items-center justify-center p-6 ${currentTheme.bg} ${currentTheme.font} relative overflow-hidden`}>
-      <div className={`absolute top-[-20%] right-[-10%] w-[60%] h-[60%] ${currentTheme.glow1} blur-[200px] rounded-full`}></div>
+    <div className={`min-h-screen flex flex-col items-center justify-center p-4 md:p-8 ${currentTheme.bg} ${currentTheme.font} relative overflow-hidden`}>
+      {/* Dynamic Themed Glows */}
+      <div className={`absolute top-[-10%] right-[-10%] w-[60%] h-[60%] ${currentTheme.glow1} blur-[150px] md:blur-[200px] rounded-full`}></div>
+      <div className={`absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] ${currentTheme.glow2} blur-[150px] md:blur-[200px] rounded-full`}></div>
       
-      <div className={`max-w-4xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar glass-dark p-12 md:p-20 rounded-[5rem] border ${currentTheme.border} space-y-12 z-10 animate-in fade-in zoom-in-95 duration-500 shadow-2xl`}>
+      {/* Cinematic Scanner Beam */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="w-full h-[2px] bg-white/10 absolute top-0 animate-[scan_8s_ease-in-out_infinite]"></div>
+      </div>
+
+      <div className={`max-w-4xl w-full glass-dark p-6 md:p-12 rounded-[2rem] md:rounded-[4rem] border ${currentTheme.border} space-y-8 md:space-y-12 z-10 animate-in fade-in zoom-in-95 duration-500 shadow-2xl relative overflow-hidden`}>
+        
+        {/* Header Section */}
         <div className="text-center space-y-4">
-          <p className={`${currentTheme.accent} uppercase tracking-[0.6em] text-[10px] font-black`}>Link Verification</p>
-          <h2 className="text-5xl md:text-6xl font-black uppercase tracking-tighter leading-none">
+          <p className={`${currentTheme.accent} uppercase tracking-[0.4em] md:tracking-[0.6em] text-[9px] md:text-[10px] font-black animate-pulse`}>Link Verification Protocol</p>
+          <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none text-white">
             {origin === 'broadcast' ? 'Initiate Cast' : origin === 'files' ? 'Seal Vault' : origin === 'explainer' ? 'Initiate Decoder' : 'Forge Saga'}
           </h2>
         </div>
 
-        <div className="space-y-10">
-          <div className="space-y-4">
-            <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">
+        <div className="space-y-8">
+          {/* Chronicle Seed Input */}
+          <div className="space-y-3">
+            <label className="text-[9px] md:text-[10px] uppercase font-black opacity-40 ml-4 tracking-[0.3em]">
                 {origin === 'explainer' ? (isOriginal ? 'Original Movie Title' : 'Existing Movie Name') : 'Chronicle Seed (Optional)'}
             </label>
-            <input 
-              type="text" 
-              value={topic} 
-              onChange={e => setTopic(e.target.value)}
-              placeholder={origin === 'explainer' ? "e.g. Inception..." : "Leave empty for AI choice..."}
-              className="w-full bg-white/5 border border-white/10 rounded-[3rem] px-10 py-8 outline-none focus:border-white/30 transition-all text-2xl font-light placeholder:opacity-10 shadow-inner"
-            />
+            <div className="relative group">
+               <input 
+                type="text" 
+                value={topic} 
+                onChange={e => setTopic(e.target.value)}
+                placeholder={origin === 'explainer' ? "e.g. Inception..." : "Leave empty for AI choice..."}
+                className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] md:rounded-[2rem] px-6 md:px-8 py-5 md:py-6 outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all text-lg md:text-xl font-light placeholder:opacity-20 shadow-inner group-hover:border-white/20"
+              />
+              <div className={`absolute bottom-0 left-8 right-8 h-[1px] ${currentTheme.accentBg} opacity-0 group-focus-within:opacity-100 transition-opacity blur-[2px]`}></div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-4">
-              <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">Narrator Language</label>
-              <div className="relative">
-                <select 
-                  value={language} 
-                  onChange={e => setLanguage(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-10 py-6 outline-none text-xs font-black uppercase tracking-widest appearance-none cursor-pointer hover:bg-white/10 transition-all"
-                >
-                  {LANGUAGES.map(l => <option key={l} value={l} className="bg-black">{l}</option>)}
-                </select>
-                <div className="absolute right-8 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </div>
-              </div>
+          {/* Language Selection (Scrollable Pills) */}
+          <div className="space-y-3">
+            <label className="text-[9px] md:text-[10px] uppercase font-black opacity-40 ml-4 tracking-[0.3em]">Narrator Language</label>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 px-1">
+               {LANGUAGES.map(lang => (
+                 <button 
+                   key={lang}
+                   onClick={() => setLanguage(lang)}
+                   className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 border ${language === lang ? `${currentTheme.accentBg} text-black border-transparent shadow-[0_0_15px_rgba(255,255,255,0.2)]` : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
+                 >
+                   {lang}
+                 </button>
+               ))}
             </div>
-            <div className="space-y-4">
-              <label className="text-[10px] uppercase font-black opacity-30 ml-6 tracking-[0.4em]">Persona</label>
-              <div className="relative">
-                <select 
-                  value={voice} 
-                  onChange={e => setVoice(e.target.value as GeminiVoice)}
-                  className="w-full bg-white/5 border border-white/10 rounded-[2rem] px-10 py-6 outline-none text-xs font-black uppercase tracking-widest appearance-none cursor-pointer hover:bg-white/10 transition-all"
-                >
-                  {VOICES.map(v => <option key={v.id} value={v.id} className="bg-black">{v.name} ({v.description})</option>)}
-                </select>
-                <div className="absolute right-8 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
-                  <i className="fas fa-chevron-down text-xs"></i>
-                </div>
-              </div>
+          </div>
+
+          {/* Persona Grid Selection */}
+          <div className="space-y-3">
+            <label className="text-[9px] md:text-[10px] uppercase font-black opacity-40 ml-4 tracking-[0.3em]">Persona Deck</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+               {VOICES.map(v => (
+                 <button 
+                   key={v.id}
+                   onClick={() => setVoice(v.id)}
+                   className={`p-4 rounded-2xl border transition-all text-left flex items-start gap-4 ${voice === v.id ? `bg-white text-black border-transparent shadow-xl scale-[1.02]` : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:border-white/20'}`}
+                 >
+                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${voice === v.id ? 'bg-black text-white' : 'bg-white/5 text-white/60'}`}>
+                      <i className={`fas ${v.icon} text-sm`}></i>
+                   </div>
+                   <div className="min-w-0">
+                      <div className="text-[10px] font-black uppercase tracking-widest truncate">{v.name}</div>
+                      <div className="text-[8px] font-bold opacity-60 truncate mt-1">{v.description}</div>
+                   </div>
+                 </button>
+               ))}
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-5 pt-8">
-          <button onClick={onBack} className="flex-1 py-8 rounded-[3rem] bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.5em] hover:bg-white/10 transition-all active:scale-95">Abort Link</button>
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 pt-4">
+          <button 
+            onClick={onBack} 
+            className="w-full sm:flex-1 py-5 md:py-6 rounded-[1.5rem] md:rounded-[2.5rem] bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-[0.4em] hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all active:scale-95 text-white/60"
+          >
+            Abort Link
+          </button>
           <button 
             onClick={() => onConfirm({ genre, topic, language, voice, mode, isOriginalScript: isOriginal, durationMinutes: duration })} 
-            className="flex-[2] py-8 rounded-[3rem] bg-white text-black text-[10px] font-black uppercase tracking-[0.5em] hover:scale-[1.03] transition-all shadow-2xl active:scale-95"
+            className={`w-full sm:flex-[2] py-5 md:py-6 rounded-[1.5rem] md:rounded-[2.5rem] ${currentTheme.accentBg} text-black text-[10px] font-black uppercase tracking-[0.4em] hover:scale-[1.02] transition-all shadow-2xl active:scale-95 relative group overflow-hidden`}
           >
-            {origin === 'explainer' ? 'Start Recap' : `Launch Protocol`}
+            <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+            <span className="relative z-10">{origin === 'explainer' ? 'Start Recap' : `Launch Protocol`}</span>
           </button>
         </div>
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes scan {
+          0% { top: 0%; opacity: 0; }
+          10% { opacity: 0.3; }
+          90% { opacity: 0.3; }
+          100% { top: 100%; opacity: 0; }
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%) skewX(-20deg); }
+          100% { transform: translateX(200%) skewX(-20deg); }
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      ` }} />
     </div>
   );
 };
