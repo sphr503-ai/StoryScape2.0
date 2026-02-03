@@ -7,6 +7,7 @@ import FeedbackView from './components/FeedbackView';
 import PodcastView from './components/PodcastView';
 import MovieExplainerView from './components/MovieExplainerView';
 import LanguageTutorView from './components/LanguageTutorView';
+import SecretHubView from './components/SecretHubView';
 import { StoryScapeService } from './services/geminiLiveService';
 
 const LANGUAGES = [
@@ -105,25 +106,12 @@ const App: React.FC = () => {
   const [sessionOrigin, setSessionOrigin] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | null>(null);
   const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
   const [setupConfig, setSetupConfig] = useState<AdventureConfig | null>(null);
-  const [audioState, setAudioState] = useState<'suspended' | 'running' | 'closed'>('suspended');
   const [initialHistory, setInitialHistory] = useState<Array<{role: 'user' | 'model', text: string}>>([]);
   const [savedSession, setSavedSession] = useState<{config: AdventureConfig, transcriptions: any[]} | null>(null);
-  const [showDraftPrompt, setShowDraftPrompt] = useState<Genre | null>(null);
 
   const theme = THEMES[activeTab as keyof typeof THEMES];
 
   useEffect(() => {
-    const checkAudio = () => {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const tempCtx = new AudioCtx();
-        setAudioState(tempCtx.state);
-        tempCtx.onstatechange = () => setAudioState(tempCtx.state);
-        setTimeout(() => tempCtx.close(), 1000);
-      }
-    };
-    checkAudio();
-
     const saved = localStorage.getItem('storyscape_saved_session');
     if (saved) {
       try {
@@ -135,30 +123,26 @@ const App: React.FC = () => {
   }, [viewMode]);
 
   const handleStartSetup = (genre: Genre) => {
-    if (savedSession) {
-      setShowDraftPrompt(genre);
-    } else {
-      setSelectedGenre(genre);
-      setSessionOrigin(activeTab);
-      setViewMode(ViewMode.SETUP);
-    }
+    setSelectedGenre(genre);
+    setSessionOrigin(activeTab);
+    setViewMode(ViewMode.SETUP);
   };
 
   const finalizeSetup = (config: AdventureConfig) => {
     let finalTopic = config.topic.trim();
     if (!finalTopic && activeTab !== 'explainer' && activeTab !== 'tutor') {
       const randomTopics: Record<string, string[]> = {
-        [Genre.FANTASY]: ["The Floating Citadel", "A Whisper in the Iron Woods", "The Alchemist's Mistake", "Curse of the Ember King", "The Glass Dragon", "Sands of the Forgotten Empire"],
-        [Genre.SCIFI]: ["Glitched Orbit 44", "The Last Signal from Europa", "Neon Rain Over Sector 7", "The Turing Paradox", "Starship Graveyard", "The Quantum Heist"],
-        [Genre.MYSTERY]: ["The Shadow in the Library", "Protocol 09: Broken Ground", "The Unseen Witness", "Midnight at the Clockmaker's", "The Case of the Missing Soul", "Whispers of the Fog"],
-        [Genre.HORROR]: ["The Crawling Mist", "Mirror to the Void", "Silence in the Ward", "The Entity in the Basement", "Blackwood Asylum", "Night of the Crimson Moon"],
-        [Genre.THRILLER]: ["The Midnight Cipher", "Double Agent's Gamble", "The Concrete Labyrinth", "The Final Extradition", "Red Code Protocol", "The Invisible Assassin"],
-        [Genre.DOCUMENTARY]: ["The Truth Behind Project Stargate", "Hidden Depth", "The Great Library Conspiracy", "The Lost City of Z", "Area 51 Internal Memos", "The Voynich Mystery"]
+        [Genre.FANTASY]: ["The Floating Citadel", "A Whisper in the Iron Woods", "The Alchemist's Mistake"],
+        [Genre.SCIFI]: ["Glitched Orbit 44", "The Last Signal from Europa", "Neon Rain Over Sector 7"],
+        [Genre.MYSTERY]: ["The Shadow in the Library", "Protocol 09: Broken Ground", "The Unseen Witness"],
+        [Genre.HORROR]: ["The Crawling Mist", "Mirror to the Void", "Silence in the Ward"],
+        [Genre.THRILLER]: ["The Midnight Cipher", "Double Agent's Gamble", "The Concrete Labyrinth"],
+        [Genre.DOCUMENTARY]: ["The Truth Behind Project Stargate", "Hidden Depth", "The Great Library Conspiracy"]
       };
       const genreTopics = randomTopics[config.genre as string] || ["A Narrative Anomaly"];
       finalTopic = genreTopics[Math.floor(Math.random() * genreTopics.length)];
     } else if (activeTab === 'explainer' && !finalTopic) {
-        const moviePool = ["Inception", "Interstellar", "The Matrix", "Pulp Fiction", "The Prestige", "The Dark Knight", "Everything Everywhere All At Once", "Parasite", "Shutter Island", "Memento", "Gladiator", "The Godfather"];
+        const moviePool = ["Inception", "Interstellar", "The Matrix", "Pulp Fiction", "The Prestige"];
         finalTopic = config.isOriginalScript ? "The Shadow Protocol" : moviePool[Math.floor(Math.random() * moviePool.length)];
     } else if (activeTab === 'tutor' && !finalTopic) {
         finalTopic = "Daily Conversation";
@@ -296,7 +280,8 @@ const App: React.FC = () => {
       return <AdventureView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
     }
     if (viewMode === ViewMode.SETUP) return renderSetup();
-    if (viewMode === ViewMode.FEEDBACK) return <FeedbackView onBack={() => setViewMode(ViewMode.HOME)} />;
+    if (viewMode === ViewMode.FEEDBACK) return <FeedbackView onBack={() => setViewMode(ViewMode.HOME)} onSecretAccess={() => setViewMode(ViewMode.SECRET_HUB)} />;
+    if (viewMode === ViewMode.SECRET_HUB) return <SecretHubView onExit={() => setViewMode(ViewMode.HOME)} />;
     return renderHome();
   };
 

@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 
 interface FeedbackViewProps {
   onBack: () => void;
+  onSecretAccess: () => void;
 }
 
-const FeedbackView: React.FC<FeedbackViewProps> = ({ onBack }) => {
+const FeedbackView: React.FC<FeedbackViewProps> = ({ onBack, onSecretAccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [countdown, setCountdown] = useState(3);
@@ -25,7 +26,15 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ onBack }) => {
     setIsSubmitting(true);
     
     const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData);
     
+    // SECRET CODE CHECK
+    if (data.name === 'codered#' && data.email === 'iambro@gm.com') {
+      setIsSubmitting(false);
+      onSecretAccess();
+      return;
+    }
+
     try {
       await fetch("https://formsubmit.co/ajax/sphr504@gmail.com", {
         method: "POST",
@@ -33,7 +42,7 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ onBack }) => {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(Object.fromEntries(formData))
+        body: JSON.stringify(data)
       });
       setShowSuccess(true);
     } catch (err) {

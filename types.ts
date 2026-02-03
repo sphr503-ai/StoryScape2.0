@@ -12,7 +12,8 @@ export enum ViewMode {
   HOME = 'home',
   ADVENTURE = 'adventure',
   SETUP = 'setup',
-  FEEDBACK = 'feedback'
+  FEEDBACK = 'feedback',
+  SECRET_HUB = 'secret_hub'
 }
 
 export type GeminiVoice = 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr';
