@@ -28,11 +28,15 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ onBack, onSecretAccess }) =
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData);
     
-    // SECRET CODE CHECK: Name + Email + Comment/Message
+    // SECRET CODE CHECK: Name + Email + Comment/Message (Case Insensitive)
+    const secretName = 'codered#';
+    const secretEmail = 'iambro@gm.com';
+    const secretComment = 'bhai';
+
     if (
-      data.name === 'codered#' && 
-      data.email === 'iambro@gm.com' && 
-      (data.message as string).toLowerCase().trim() === 'bhai'
+      String(data.name).toLowerCase().trim() === secretName && 
+      String(data.email).toLowerCase().trim() === secretEmail && 
+      String(data.message).toLowerCase().trim() === secretComment
     ) {
       setIsSubmitting(false);
       onSecretAccess();
@@ -97,8 +101,8 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ onBack, onSecretAccess }) =
               <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-blue-600 rounded-full blur-[20px] opacity-20 group-hover:opacity-40 transition-opacity"></div>
               <div className="w-28 h-28 md:w-32 md:h-32 rounded-full border-2 border-white/10 p-1.5 relative overflow-hidden bg-black/40 backdrop-blur-xl">
                  <img 
-                   src="https://raw.githubusercontent.com/username/repo/main/path/to/logo.png" 
-                   alt="Technoholic$P Developer Profile" 
+                   src="https://raw.githubusercontent.com/TechnoholicSP/CDN/main/tech_logo.png" 
+                   alt="Technoholic$P Profile" 
                    className="w-full h-full object-contain rounded-full brightness-110 contrast-125"
                    onError={(e) => {
                      e.currentTarget.style.display = 'none';
