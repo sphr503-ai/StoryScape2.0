@@ -52,7 +52,9 @@ export class StoryScapeService {
           temperature: 1.0 // High temperature for more variety
         },
       });
-      return response.text.trim().replace(/^"|"$/g, '') || "The Unknown Anomaly";
+      // Fix for TS18048: Check if text exists before calling .trim()
+      const text = response.text || "";
+      return text.trim().replace(/^"|"$/g, '') || "The Unknown Anomaly";
     } catch (err) {
       const fallbackTopics = ["The Dyatlov Pass", "Interstellar", "Ancient Mars Structures", "The Matrix", "Cicada 3301"];
       return fallbackTopics[Math.floor(Math.random() * fallbackTopics.length)];
