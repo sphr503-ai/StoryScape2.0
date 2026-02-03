@@ -88,7 +88,6 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ onBack }) => {
                    alt="Technoholic$P Developer Profile" 
                    className="w-full h-full object-contain rounded-full brightness-110 contrast-125"
                    onError={(e) => {
-                     // Fallback representation if image fails
                      e.currentTarget.style.display = 'none';
                      const parent = e.currentTarget.parentElement;
                      if (parent) {
@@ -119,7 +118,6 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ onBack }) => {
           onSubmit={handleSubmit}
           className="space-y-6"
         >
-          {/* Honeypot for spam */}
           <input type="text" name="_honey" style={{ display: 'none' }} />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -134,16 +134,6 @@ const App: React.FC = () => {
     }
   }, [viewMode]);
 
-  const handleFixAudio = async () => {
-    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-    if (AudioCtx) {
-      const tempCtx = new AudioCtx();
-      await tempCtx.resume();
-      setAudioState(tempCtx.state);
-      await tempCtx.close();
-    }
-  };
-
   const handleStartSetup = (genre: Genre) => {
     if (savedSession) {
       setShowDraftPrompt(genre);
@@ -218,13 +208,10 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setViewMode(ViewMode.FEEDBACK)}
-              className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all border-white/5"
+              className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all border-white/5"
               title="Transmissions"
             >
-               <i className="fas fa-comment-dots text-[10px] opacity-60"></i>
-            </button>
-            <button onClick={handleFixAudio} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all border-white/5">
-               <i className={`fas fa-bolt text-[10px] ${audioState === 'running' ? 'text-yellow-500' : 'text-white/20'}`}></i>
+               <i className="fas fa-comment-dots text-xs opacity-60"></i>
             </button>
           </div>
         </div>
