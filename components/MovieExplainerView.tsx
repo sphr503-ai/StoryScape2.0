@@ -95,7 +95,9 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
         offset += buffer.duration;
       });
       const finalBuffer = await offlineCtx.startRendering();
-      const wavBlob = await audioBufferToWav(finalBuffer, (p) => setDownloadProgress(Math.floor(25 + p * 75)));
+      // Fix: audioBufferToWav only accepts one argument. Progress tracking removed here.
+      const wavBlob = await audioBufferToWav(finalBuffer);
+      setDownloadProgress(100);
       const url = URL.createObjectURL(wavBlob);
       const link = document.createElement('a');
       link.href = url;
@@ -419,7 +421,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
             </div>
             <div className="glass p-16 rounded-[5rem] border-emerald-500/20 bg-emerald-950/5 relative shadow-2xl">
               <i className="fas fa-quote-left absolute top-12 left-12 text-emerald-500/10 text-8xl"></i>
-              <p className="text-3xl md:text-4xl font-light italic text-center leading-relaxed text-emerald-100/90 font-serif">"{summary}"</p>
+              <p className="text-3xl md:text-4xl font-light italic text-center leading-relaxed text-violet-100/90 font-serif">"{summary}"</p>
             </div>
             <div className="flex justify-center pt-10">
               <button onClick={onExit} className="px-16 py-8 rounded-[3rem] bg-white text-black font-black uppercase tracking-[0.4em] shadow-[0_0_50px_rgba(255,255,255,0.2)] hover:scale-110 transition-transform active:scale-95">BACK TO HUB</button>

@@ -37,74 +37,76 @@ export async function decodeAudioData(
   return buffer;
 }
 
-/**
- * Converts an AudioBuffer to a Blob (WAV format) asynchronously with progress reporting.
- */
-export async function audioBufferToWav(buffer: AudioBuffer, onProgress?: (p: number) => void): Promise<Blob> {
+export async function audioBufferToWav(buffer: AudioBuffer): Promise<Blob> {
   const numOfChan = buffer.numberOfChannels;
   const length = buffer.length * numOfChan * 2 + 44;
   const bufferArray = new ArrayBuffer(length);
   const view = new DataView(bufferArray);
-  const channels = [];
-  let i;
-  let sample;
-  let offset = 0;
   let pos = 0;
 
-  function setUint16(data: number) {
-    view.setUint16(pos, data, true);
-    pos += 2;
-  }
+  const setUint32 = (data: number) => { view.setUint32(pos, data, true); pos += 4; };
+  const setUint16 = (data: number) => { view.setUint16(pos, data, true); pos += 2; };
 
-  function setUint32(data: number) {
-    view.setUint32(pos, data, true);
-    pos += 4;
-  }
-
-  // write WAVE header
   setUint32(0x46464952); // "RIFF"
-  setUint32(length - 8); // file length - 8
+  setUint32(length - 8); 
   setUint32(0x45564157); // "WAVE"
-
-  setUint32(0x20746d66); // "fmt " chunk
-  setUint32(16); // length = 16
-  setUint16(1); // PCM (uncompressed)
+  setUint32(0x20746d66); // "fmt "
+  setUint32(16); 
+  setUint16(1); 
   setUint16(numOfChan);
   setUint32(buffer.sampleRate);
-  setUint32(buffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-  setUint16(numOfChan * 2); // block-align
-  setUint16(16); // 16-bit (hardcoded)
+  setUint32(buffer.sampleRate * 2 * numOfChan); 
+  setUint16(numOfChan * 2); 
+  setUint16(16); 
+  setUint32(0x61746164); // "data"
+  setUint32(length - pos - 4); 
 
-  setUint32(0x61746164); // "data" - chunk
-  setUint32(length - pos - 4); // chunk length
+  const channels = [];
+  for (let i = 0; i < numOfChan; i++) channels.push(buffer.getChannelData(i));
 
-  // write interleaved data
-  for (i = 0; i < buffer.numberOfChannels; i++) {
-    channels.push(buffer.getChannelData(i));
-  }
-
-  const totalSamples = buffer.length;
-  const batchSize = 25000; // Adjust batch size for performance/responsiveness balance
-
+  let offset = 0;
   while (pos < length) {
-    for (i = 0; i < numOfChan; i++) {
-      // interleave channels
-      sample = Math.max(-1, Math.min(1, channels[i][offset])); // clamp
-      sample = (sample < 0 ? sample * 0x8000 : sample * 0x7fff) | 0; // scale to 16-bit signed int
-      view.setInt16(pos, sample, true); // write 16-bit sample
+    for (let i = 0; i < numOfChan; i++) {
+      let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+      sample = (sample < 0 ? sample * 0x8000 : sample * 0x7fff) | 0;
+      view.setInt16(pos, sample, true);
       pos += 2;
     }
-    offset++; // next source sample
+    offset++;
+  }
+  return new Blob([bufferArray], { type: "audio/wav" });
+}
 
-    // Periodic yield to UI thread and progress report
-    if (offset % batchSize === 0) {
-      if (onProgress) onProgress(offset / totalSamples);
-      await new Promise(resolve => requestAnimationFrame(resolve));
+/**
+ * Robust Download/Share for APKs
+ */
+export async function downloadOrShareAudio(blob: Blob, filename: string) {
+  const file = new File([blob], filename, { type: 'audio/wav' });
+
+  // 1. Try Native Sharing (Best for APKs/Mobile)
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: 'Sensei Session Archive',
+        text: 'Language learning session recorded via StoryScape.',
+      });
+      return;
+    } catch (err) {
+      console.warn("Share API failed or cancelled", err);
     }
   }
-  
-  // Final 100% progress report
-  if (onProgress) onProgress(1);
 
-  return new Blob([bufferArray], { type: "audio/wav" });
+  // 2. Fallback: Data URL Download (Better for WebViews than Blob URLs)
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result as string;
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  reader.readAsDataURL(blob);
 }

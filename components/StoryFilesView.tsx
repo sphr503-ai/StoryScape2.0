@@ -128,7 +128,9 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onExit, initial
         offset += buffer.duration;
       });
       const finalBuffer = await offlineCtx.startRendering();
-      const wavBlob = await audioBufferToWav(finalBuffer, (p) => setDownloadProgress(Math.floor(25 + p * 75)));
+      // Fix: audioBufferToWav only accepts one argument. Progress tracking removed here.
+      const wavBlob = await audioBufferToWav(finalBuffer);
+      setDownloadProgress(100);
       const url = URL.createObjectURL(wavBlob);
       const link = document.createElement('a');
       link.href = url;

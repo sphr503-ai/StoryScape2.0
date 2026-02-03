@@ -73,7 +73,6 @@ export class StoryScapeService {
     lore?: LoreData,
     customSystemInstruction?: string
   ) {
-    // Initialize AudioContexts - will need resume() on user gesture
     this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
@@ -125,7 +124,7 @@ export class StoryScapeService {
     
     if (!this.inputAudioContext) return;
     
-    // Crucial: Resume AudioContext on user gesture
+    // Aggressive resume for APK/WebView
     if (this.inputAudioContext.state === 'suspended') {
       await this.inputAudioContext.resume();
     }
@@ -145,7 +144,6 @@ export class StoryScapeService {
             const inputData = e.inputBuffer.getChannelData(0);
             const pcmBlob = this.createBlob(inputData);
             
-            // Strictly follow the sessionPromise.then pattern to avoid race conditions/stale closures
             this.sessionPromise.then((session) => {
               session.sendRealtimeInput({ media: pcmBlob });
             });
@@ -160,7 +158,6 @@ export class StoryScapeService {
         }
       }
     } else {
-      // Logic to actually stop tracks to clear browser "recording" icon
       if (this.stream) {
         this.stream.getTracks().forEach(track => track.stop());
         this.stream = null;
@@ -200,6 +197,12 @@ export class StoryScapeService {
 
   private async handleAudioOutput(base64: string) {
     if (!this.outputAudioContext || this.isPaused) return;
+    
+    // Safety check for APKs that might suspend the context silently
+    if (this.outputAudioContext.state === 'suspended') {
+      await this.outputAudioContext.resume();
+    }
+
     this.nextStartTime = Math.max(this.nextStartTime, this.outputAudioContext.currentTime);
     const buf = await decodeAudioData(decode(base64), this.outputAudioContext, 24000, 1);
     this.recordedBuffers.push(buf);

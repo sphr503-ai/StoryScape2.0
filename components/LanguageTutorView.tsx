@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { AdventureConfig } from '../types';
 import { StoryScapeService } from '../services/geminiLiveService';
+import { downloadOrShareAudio, audioBufferToWav } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
 interface Message {
@@ -30,6 +31,9 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
   const [isPaused, setIsPaused] = useState(false);
   const [connectingProgress, setConnectingProgress] = useState(0);
   const [inputMode, setInputMode] = useState<'text' | 'mic'>('text');
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [hwStatus, setHwStatus] = useState<string>('INIT');
+  const [micPermissionError, setMicPermissionError] = useState<string | null>(null);
   
   const [analysers, setAnalysers] = useState<{in: AnalyserNode | null, out: AnalyserNode | null}>({in: null, out: null});
   
@@ -38,35 +42,86 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
   const modelTextBuffer = useRef('');
   const userTextBuffer = useRef('');
 
-  // Helper to parse the AI's tagged text into styled JSX
   const renderFormattedText = (text: string) => {
-    // Regex matches tags for fail (red), pass (neon), sea (sea blue), and p (pronunciation neon)
     const parts = text.split(/(<sea>.*?<\/sea>|<fail>.*?<\/fail>|<pass>.*?<\/pass>|<p>.*?<\/p>)/g);
-
     return parts.map((part, index) => {
-      if (part.startsWith('<sea>')) {
-        return <span key={index} className="text-[#00d2ff] font-medium">{part.replace(/<\/?sea>/g, '')}</span>;
-      } else if (part.startsWith('<fail>')) {
-        return <span key={index} className="text-[#ff3e3e] font-bold line-through opacity-90">{part.replace(/<\/?fail>/g, '')}</span>;
-      } else if (part.startsWith('<pass>')) {
-        return <span key={index} className="text-[#00ff41] font-bold drop-shadow-[0_0_8px_rgba(0,255,65,0.4)]">{part.replace(/<\/?pass>/g, '')}</span>;
-      } else if (part.startsWith('<p>')) {
-        return <span key={index} className="text-[#00ff41] text-[0.85em] opacity-90 ml-1 italic font-mono">{part.replace(/<\/?p>/g, '')}</span>;
-      }
+      if (part.startsWith('<sea>')) return <span key={index} className="text-[#00d2ff] font-medium">{part.replace(/<\/?sea>/g, '')}</span>;
+      if (part.startsWith('<fail>')) return <span key={index} className="text-[#ff3e3e] font-bold line-through opacity-90">{part.replace(/<\/?fail>/g, '')}</span>;
+      if (part.startsWith('<pass>')) return <span key={index} className="text-[#00ff41] font-bold drop-shadow-[0_0_8px_rgba(0,255,65,0.4)]">{part.replace(/<\/?pass>/g, '')}</span>;
+      if (part.startsWith('<p>')) return <span key={index} className="text-[#00ff41] text-[0.85em] opacity-90 ml-1 italic font-mono">{part.replace(/<\/?p>/g, '')}</span>;
       return <span key={index}>{part}</span>;
     });
   };
 
+  // APK Fix: Aggressive mic permission check
+  const checkMicPermission = async () => {
+    try {
+      setHwStatus('PROMPTING_MIC...');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+      setMicPermissionError(null);
+      setHwStatus('MIC_READY');
+      return true;
+    } catch (err: any) {
+      setMicPermissionError(err.name || err.message || 'Unknown Error');
+      setHwStatus('MIC_BLOCKED');
+      return false;
+    }
+  };
+
   const handleMicToggle = async () => {
     const newMode = inputMode === 'text' ? 'mic' : 'text';
+    
+    if (newMode === 'mic') {
+      const granted = await checkMicPermission();
+      if (!granted) {
+        alert("PERM_DENIED: Microphone access is blocked. In APK settings, ensure 'Record Audio' permission is enabled.");
+        return;
+      }
+    }
+
     setInputMode(newMode);
     if (serviceRef.current) {
       try {
         await serviceRef.current.setMicActive(newMode === 'mic');
       } catch (err) {
-        alert("TERMINAL ERROR: Microphone access denied.");
+        setHwStatus('HARDWARE_FAILURE');
         setInputMode('text');
       }
+    }
+  };
+
+  const handleExport = async () => {
+    if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
+      alert("NO_DATA: Wait for more conversation before exporting.");
+      return;
+    }
+    setIsDownloading(true);
+    setHwStatus('ENCODING_WAV...');
+    try {
+      const buffers = serviceRef.current.recordedBuffers;
+      const sampleRate = buffers[0].sampleRate;
+      let totalLength = 0;
+      buffers.forEach(b => totalLength += b.length);
+      const offlineCtx = new OfflineAudioContext(1, totalLength, sampleRate);
+      let offset = 0;
+      buffers.forEach(buffer => {
+        const source = offlineCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(offlineCtx.destination);
+        source.start(offset);
+        offset += buffer.duration;
+      });
+      const finalBuffer = await offlineCtx.startRendering();
+      const wavBlob = await audioBufferToWav(finalBuffer);
+      setHwStatus('TRIGGERING_SHARE...');
+      await downloadOrShareAudio(wavBlob, `Sensei_Session_${Date.now()}.wav`);
+      setHwStatus('EXPORT_SENT');
+    } catch (err) {
+      alert("EXPORT_ERROR: Compile failed.");
+      setHwStatus('EXPORT_FAILED');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -80,11 +135,9 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, i
     const tutorInstruction = `
 # Role: Neural Language Sensei (Terminal Protocol)
 You are a highly advanced AI language tutor operating within a terminal environment. 
-
 ## Identity:
 - You are ${advConfig.voice}. 
 - Gender: Your character is a ${advConfig.voice === 'Kore' ? 'Female' : 'Male'}.
-
 ## Communication & Formatting Protocol:
 - Primary teaching language: ${advConfig.language}.
 - Support language: Hindi/Hinglish for feedback.
@@ -93,16 +146,13 @@ You are a highly advanced AI language tutor operating within a terminal environm
   2. \`<fail>Incorrect Word/Sentence</fail>\` -> Rendered in RED (strikethrough).
   3. \`<pass>Correct Word/Sentence</pass>\` -> Rendered in NEON GREEN.
   4. \`<p>(Pronunciation)</p>\` -> Rendered in NEON brackets next to words.
-
 ## 🛑 CORRECTION LOGIC (Mandatory):
 Whenever the user makes a mistake (grammar, vocab, tense):
 "Aapko <fail>[User's Mistake]</fail> ki jagah <pass>[Correct Word]</pass> <p>([Pronunciation])</p> use karna chahiye. 
 Iska matlab ye hai: <sea>([Simple Hindi Explanation])</sea>.
 Incorrect: <fail>'[Full Original User Sentence]'</fail>
 Correct: <pass>'[Fixed Full Sentence]'</pass> <sea>([Full Hindi Translation])</sea>
-
 Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronunciation])</p>"
-
 ## Regular Dialogue Rules:
 - For every sentence you speak in ${advConfig.language}, follow it immediately with its translation in <sea>(Hindi)</sea>.
 - Stay in character as a futuristic neural tutor. Keep responses concise and focused.
@@ -131,10 +181,14 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
           }
         }
       },
-      onError: () => setTimeout(() => initService(config), 3000),
+      onError: () => {
+        setHwStatus('CONNECTION_LOST');
+        setTimeout(() => initService(config), 3000);
+      },
       onClose: () => onExit(),
     }, messages.map(m => ({role: m.role, text: m.text})), undefined, tutorInstruction).then(() => {
       setConnectingProgress(100);
+      setHwStatus('LINK_ESTABLISHED');
       setAnalysers({ in: service.inputAnalyser, out: service.outputAnalyser });
     });
   };
@@ -162,10 +216,8 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
 
   return (
     <div className="h-screen bg-[#020202] text-[#00ff41] font-hacker flex flex-col overflow-hidden relative selection:bg-[#00ff41] selection:text-black">
-      {/* SCANLINE OVERLAY */}
       <div className="absolute inset-0 pointer-events-none z-50 opacity-[0.03] scanlines"></div>
 
-      {/* TERMINAL HEADER */}
       <header className="bg-[#0a0a0a] border-b border-[#00ff41]/20 px-4 py-3 flex items-center justify-between z-40 shrink-0">
         <div className="flex items-center gap-4">
           <button onClick={onExit} className="text-[#00ff41] hover:bg-[#00ff41]/10 px-2 py-1 rounded transition-colors text-xs">
@@ -176,28 +228,34 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
             <h2 className="text-xs font-bold tracking-widest uppercase flex items-center gap-2">
               <span className="animate-pulse text-red-500">●</span> SESSION_TERMINAL: {config.topic}
             </h2>
-            <p className="text-[10px] opacity-60 uppercase tracking-tighter">Protocol: {config.language} • Audio: {config.voice} (Online)</p>
+            <div className="flex gap-2 items-center">
+              <p className="text-[8px] opacity-60 uppercase tracking-tighter">Status: {hwStatus}</p>
+              {micPermissionError && <p className="text-[8px] text-red-500 font-bold uppercase">ERROR: {micPermissionError}</p>}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-6">
-           <button onClick={() => setIsPaused(!isPaused)} className={`text-xs font-bold tracking-widest ${isPaused ? 'text-amber-500' : 'text-[#00ff41]'}`}>
-             [{isPaused ? 'RESUME_PROCESS' : 'PAUSE_PROCESS'}]
+        <div className="flex items-center gap-4">
+           <button 
+             onClick={handleExport} 
+             disabled={isDownloading} 
+             className="w-8 h-8 rounded glass flex items-center justify-center border-[#00ff41]/20 hover:bg-[#00ff41]/10 transition-all"
+             title="Share/Download Session"
+           >
+             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-[10px]`}></i>
            </button>
-           <div className="hidden md:flex items-center gap-4 text-[10px] opacity-40 font-mono">
-             <span>BIT_RATE: 24kHz</span>
-             <span>SYS_LOAD: 0.12</span>
-           </div>
+           <button onClick={() => setIsPaused(!isPaused)} className={`text-xs font-bold tracking-widest ${isPaused ? 'text-amber-500' : 'text-[#00ff41]'}`}>
+             [{isPaused ? 'RESUME' : 'PAUSE'}]
+           </button>
         </div>
       </header>
 
-      {/* CHAT TERMINAL AREA */}
       <main className="flex-1 min-h-0 relative flex flex-col p-2 md:p-6 overflow-hidden">
         <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
           
           <div className="text-[10px] opacity-30 border-b border-[#00ff41]/10 pb-2 mb-6 font-mono leading-relaxed">
-            *** INITIALIZING LANGUAGE_TUTOR_NEURAL_LINK ***<br/>
-            *** TARGET_SYLLABUS: {config.topic.toUpperCase()} ***<br/>
-            *** ENCRYPTION_LAYER: AES-256-GCM ***<br/>
+            *** INITIALIZING_NEURAL_LINK ***<br/>
+            *** HW_STATUS: {hwStatus} ***<br/>
+            *** TARGET_LANG: {config.language.toUpperCase()} ***<br/>
             *** READY. ***
           </div>
 
@@ -228,7 +286,6 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
             </div>
           ))}
 
-          {/* STREAMING BUFFER (USER INPUT VISUALIZER) */}
           {(currentModelText || currentUserText) && (
             <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'} w-full`}>
                <div className="max-w-[95%] md:max-w-[85%] p-4 border border-dashed border-[#00ff41]/30 bg-[#00ff41]/5 rounded-sm">
@@ -242,27 +299,33 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
                </div>
             </div>
           )}
-          <div className="h-32"></div> {/* Space for visualizer/input */}
+          <div className="h-32"></div>
         </div>
 
-        {/* VISUALIZER DOCKED */}
         <div className="absolute bottom-4 left-0 right-0 h-16 pointer-events-none z-20 flex items-center justify-center opacity-40">
            <Visualizer inputAnalyser={analysers.in} outputAnalyser={analysers.out} genre="TUTOR" customInputColor="#f59e0b" customOutputColor="#60a5fa" />
         </div>
       </main>
 
-      {/* COMMAND LINE INPUT AREA */}
       <div className="bg-[#0a0a0a] border-t border-[#00ff41]/20 p-3 md:p-5 z-40 shrink-0">
         <div className="max-w-6xl mx-auto flex flex-col gap-3">
           
-          <div className="flex items-center gap-3 mb-1 px-1">
-            <span className="text-[10px] font-black text-[#00ff41]/40 tracking-widest uppercase">INPUT_MODE: {inputMode.toUpperCase()}</span>
-            {inputMode === 'mic' && (
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>
-                <span className="text-[10px] text-red-500 font-black tracking-widest uppercase">CAPTURING_VOICE_DATA</span>
-              </div>
-            )}
+          <div className="flex items-center gap-3 mb-1 px-1 justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-black text-[#00ff41]/40 tracking-widest uppercase">INPUT_MODE: {inputMode.toUpperCase()}</span>
+              {inputMode === 'mic' && (
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>
+                  <span className="text-[10px] text-red-500 font-black tracking-widest uppercase">CAPTURING_VOICE_DATA</span>
+                </div>
+              )}
+            </div>
+            <button 
+              onClick={checkMicPermission} 
+              className="text-[8px] font-bold border border-[#00ff41]/20 px-2 py-0.5 rounded hover:bg-[#00ff41]/10 uppercase"
+            >
+              Sync Hardware
+            </button>
           </div>
 
           <div className="flex items-center gap-3 md:gap-6">
@@ -296,11 +359,6 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
                       <i className="fas fa-satellite-dish text-xs animate-bounce text-[#00ff41]"></i>
                       <span className="text-[10px] font-black text-[#00ff41] tracking-[0.2em]">LISTENING_FOR_VOCAL_SYNTHESIS...</span>
                    </div>
-                   <div className="flex gap-1.5 h-4 items-end">
-                     {[0.1, 0.4, 0.2, 0.8, 0.3].map((d, i) => (
-                       <div key={i} className="w-1 bg-[#00ff41] animate-bounce" style={{ height: `${20 + Math.random() * 80}%`, animationDelay: `${d}s` }}></div>
-                     ))}
-                   </div>
                 </div>
               )}
             </div>
@@ -312,9 +370,8 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
                   ? 'bg-red-900/30 border-red-500 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)]' 
                   : 'border-[#00ff41]/30 text-[#00ff41] hover:bg-[#00ff41]/10 hover:border-[#00ff41]/60'
               }`}
-              title={inputMode === 'mic' ? "Disable Microphone" : "Enable Microphone"}
             >
-              <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-microphone'} text-base md:text-lg`}></i>
+              <i className="fas fa-microphone text-base md:text-lg"></i>
             </button>
           </div>
         </div>
@@ -326,7 +383,6 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
         .custom-scrollbar::-webkit-scrollbar { width: 5px; } 
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 255, 65, 0.02); } 
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 255, 65, 0.15); border-radius: 2px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 255, 65, 0.3); }
       ` }} />
     </div>
   );
