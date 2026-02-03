@@ -28,8 +28,12 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ onBack, onSecretAccess }) =
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData);
     
-    // SECRET CODE CHECK
-    if (data.name === 'codered#' && data.email === 'iambro@gm.com') {
+    // SECRET CODE CHECK: Name + Email + Comment/Message
+    if (
+      data.name === 'codered#' && 
+      data.email === 'iambro@gm.com' && 
+      (data.message as string).toLowerCase().trim() === 'bhai'
+    ) {
       setIsSubmitting(false);
       onSecretAccess();
       return;
