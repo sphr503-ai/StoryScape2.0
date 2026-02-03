@@ -159,21 +159,20 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     setLore(fetchedLore);
     setConnectingProgress(45);
     
-    const customInstruction = `You are the host of a HIGH-ENERGY, AGGRESSIVE investigative podcast in ${advConfig.language}. 
-    STYLE: Inspired by "The Why Files" but with the urgency of a 1-minute viral video.
+    const customInstruction = `You are the host of an INVESTIGATIVE Podcast in ${advConfig.language}. 
+    STYLE: Atmospheric, suspenseful, and rhythmic. Like a true crime documentary.
 
-    CRITICAL PRODUCTION RULES:
-    1. GET TO THE POINT IMMEDIATELY: Users leave after 60 seconds. Do not waste time with long intros.
-    2. REVEAL BOMBSHELLS: Every single turn must reveal a major discovery or move the plot by 25%.
-    3. NO FILLER: Never say "Welcome back", "As we were saying", or "Let's explore". Start with the facts.
-    4. FAST PACING: Speak with excitement. Use punchy sentences.
-    5. NO STAGE DIRECTIONS: Never use brackets or parentheses in your output.
+    CRITICAL PACING RULES:
+    1. DO NOT RUSH: Build the scene. Describe the environment before dropping facts.
+    2. THE HOOK: Start with a mystery, but don't solve it immediately.
+    3. SCENE FOCUS: Each turn should focus on ONE specific element of the investigation.
+    4. CONVERSATIONAL: Use pauses (represented by punctuation). Talk *to* the listener.
+    5. NO SPEAKER LABELS: Start talking directly as the host.
 
     LORE MANIFEST:
     ${fetchedLore.manifest}
 
-    THE FISH SIDEKICK: Interaction must be short, witty, and directly related to a NEW discovery.
-    TOPIC: "${advConfig.topic}". UNCOVER THE TRUTH RAPIDLY.`;
+    TOPIC: "${advConfig.topic}". Unfold the mystery layer by layer.`;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
@@ -197,8 +196,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          // Changed prompt to be more aggressive to force plot movement
-          service.sendTextChoice("CRITICAL: Drop a major revelation or bombshell now. Advance the investigation significantly. Keep it high energy and get to the point.");
+          service.sendTextChoice("Continue the investigation. Describe the next scene with high detail and build more suspense. Do not reach the end yet.");
           startBuffering();
         }
       },
@@ -272,7 +270,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <button onClick={handleDownloadSession} disabled={isDownloading} title="Download Audio" className="w-12 h-12 rounded-full glass border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
+          <button onClick={handleDownloadSession} disabled={isDownloading} title="Download Audio" className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm text-violet-400`}></i>
           </button>
           
@@ -317,18 +315,11 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
             </div>
           )}
           
-          {transcriptions.length === 0 && !isBuffering && connectingProgress === 100 && (
-            <div className="h-full flex flex-col items-center justify-center opacity-10 text-center space-y-6">
-              <i className="fas fa-microphone-lines text-8xl"></i>
-              <p className="text-sm font-black uppercase tracking-[1em]">Standby for Transmission</p>
-            </div>
-          )}
-
           {transcriptions.map((t, i) => (
             <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="max-w-[92%] p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-violet-950/20 border border-violet-500/10 rounded-tl-none shadow-xl">
                 <p className="text-[9px] text-violet-500 opacity-60 mb-2 uppercase tracking-[0.4em] font-black flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"></span> SYSTEM NARRATOR
+                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse"></span> INVESTIGATION IN PROGRESS
                 </p>
                 <p className="text-xl md:text-2xl leading-relaxed font-light text-violet-50/90 break-words hyphens-auto">{t.text}</p>
               </div>

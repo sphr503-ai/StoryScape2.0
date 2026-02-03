@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig, NarratorMode } from '../types';
 import { StoryScapeService, LoreData } from '../services/geminiLiveService';
-import { audioBufferToWav } from '../utils/audioUtils';
+import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
 interface StoryFilesViewProps {
@@ -108,11 +108,10 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onExit, initial
 
   const handleDownloadSession = async () => {
     if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
-      alert("The chronicle audio hasn't been archived yet. Wait for more narration.");
+      alert("The chronicle audio hasn't been archived yet.");
       return;
     }
     setIsDownloading(true);
-    setDownloadProgress(5);
     try {
       const buffers = serviceRef.current.recordedBuffers;
       const sampleRate = buffers[0].sampleRate;
@@ -128,20 +127,12 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onExit, initial
         offset += buffer.duration;
       });
       const finalBuffer = await offlineCtx.startRendering();
-      // Fix: audioBufferToWav only accepts one argument. Progress tracking removed here.
       const wavBlob = await audioBufferToWav(finalBuffer);
-      setDownloadProgress(100);
-      const url = URL.createObjectURL(wavBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Archived_Saga_${config.topic.replace(/\s+/g, '_')}_${Date.now()}.wav`;
-      link.click();
+      await downloadOrShareAudio(wavBlob, `Archived_Saga_${config.topic.replace(/\s+/g, '_')}.wav`);
     } catch (err) {
-      console.error(err);
-      alert("Failed to compile the audio archive.");
+      alert("Failed to compile audio.");
     } finally {
       setIsDownloading(false);
-      setDownloadProgress(0);
     }
   };
 
@@ -179,16 +170,20 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onExit, initial
     setLore(fetchedLore);
     setConnectingProgress(45);
     
-    const customInstruction = `You are a Celestial Chronicler for Deep Sleep in ${advConfig.language}. 
-    Narrate a smooth, continuous ${advConfig.genre} tale. 
-    
-    LORE MANIFEST (Incorporate these facts and inspirations):
+    const customInstruction = `You are a Celestial Chronicler for Deep Sleep stories in ${advConfig.language}. 
+    STYLE: Rhythmic, sensory, and slow. Like liquid gold pouring over silk.
+
+    RULES FOR SLEEP NARRATION:
+    1. VIVID SENSORY DETAIL: Focus on the sounds, smells, and textures of the environment.
+    2. RHYTHMIC FLOW: Use longer, flowing sentences. No abrupt changes.
+    3. NO RUSHING: Each turn should describe a small, peaceful moment. Do not finish the story in one go.
+    4. NO QUESTIONS: Do not ask the listener anything. Just keep narrating.
+    5. FLOW: Ensure each segment leads naturally into the next ambient detail.
+
+    LORE MANIFEST:
     ${fetchedLore.manifest}
 
-    STRICT RULES:
-    1. CORRECT SPACING: No merged words.
-    2. NO REPETITION: Do not double phrases.
-    3. NO QUESTIONS: Just keep narrating hypnotically.`;
+    TALE: A ${advConfig.genre} journey through "${advConfig.topic}".`;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
@@ -212,7 +207,7 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onExit, initial
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("Continue the soothing narration seamlessly. Maintain perfect flow.");
+          service.sendTextChoice("Continue the peaceful, rhythmic narration. Describe the surroundings in even more detail. Stay slow and soothing.");
           startBuffering();
         }
       },
@@ -271,7 +266,7 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onExit, initial
         <div><h1 className="text-2xl font-bold tracking-tight">{config.genre}: {config.topic}</h1><div className="flex items-center gap-2 mt-0.5"><div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div><p className="text-[10px] opacity-60 uppercase tracking-widest font-black">{config.language} • {config.voice}</p></div></div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button onClick={handleDownloadSession} disabled={isDownloading} className="w-12 h-12 rounded-full glass border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
-            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-download'} text-sm`}></i>
+            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm`}></i>
           </button>
           <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-white/5 shrink-0">
             <button onClick={() => setIsMuted(!isMuted)} className="opacity-70 w-5"><i className={`fas ${isMuted ? 'fa-volume-mute' : 'fa-volume-low'}`}></i></button>

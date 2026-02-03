@@ -154,10 +154,9 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
     let movieLore: LoreData;
     if (advConfig.isOriginalScript) {
        movieLore = {
-         manifest: `TITLE: ${advConfig.topic}. UNRESTRICTED MODE. 
+         manifest: `TITLE: ${advConfig.topic}. 
          Genre: ${advConfig.genre}. Language: ${advConfig.language}.
-         THEME: Gritty, fast-paced action. 
-         INSTRUCTION: Skip the long intro. Start exactly where the action begins. Use aggressive plot movement.`,
+         INSTRUCTION: Create a deep, scene-by-scene script. No rushing. Describe characters and visuals.`,
          sources: []
        };
     } else {
@@ -173,22 +172,21 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
     
     const movieYear = movieLore.verifiedMetadata?.year || "Unknown Year";
 
-    const customInstruction = `You are a legendary Movie Recapper in ${advConfig.language}. 
-    
-    STYLE: FAST-PACED YOUTUBE RECAP (e.g. Movie Explain Universe).
-    
-    CRITICAL PERFORMANCE RULES:
-    1. AGGRESSIVE PACING: Every Turn must summarize at least 20 minutes of the movie. 
-    2. SHOCK THE AUDIENCE: Focus only on plot twists, intense action, and the most important plot points.
-    3. NO RAMBLING: Do not describe the scenery for more than 5 seconds. Get to the next scene.
-    4. YOUTUBE STYLE: Use phrases like "Dosto, yahan aata hai twist" and keep the energy extremely high.
-    5. RAPID PROGRESSION: Within 1 minute of starting, you should be at the movie's midpoint.
+    const customInstruction = `You are a Professional Movie Recapper in ${advConfig.language}. 
+    STYLE: Inspired by high-performing YouTube channels like "Movie Explain Universe" and "Mr. Hindi Rockers".
+
+    THE ALGORITHM:
+    1. THE HOOK: "Dosto, kya aapne kabhi socha tha..." Start with the core conflict.
+    2. SCENE-BY-SCENE: Focus on ONE scene at a time. Describe the lighting, the actor's expression, and the tension.
+    3. THE LOGIC: Explain *why* a character did something. Don't just list events.
+    4. NO BULLET TRAIN: Slow down. Do not summarize the whole movie in 2 minutes. We want a detailed 20-minute breakdown.
+    5. ENGAGEMENT: Address the audience as "Dosto". Use cinematic vocabulary.
 
     LORE MANIFEST:
     ${movieLore.manifest}
 
     OPENING:
-    Start with: "Ye ek [Genre] movie hai sun ${movieYear} ki. Naam hai ${advConfig.topic}. Seedhe chalte hain movie ke start mein..."
+    "Ye ek [Genre] movie hai sun ${movieYear} ki. Naam hai ${advConfig.topic}. Dosto, scene ki shuruat mein hum dekhte hain..."
     `;
 
     service.startAdventure(advConfig, {
@@ -213,7 +211,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("CRITICAL: Speed up the recap. Reveal the next major plot twist or shocker now. Don't expand the story, finish the current plot point and move to the next intense scene.");
+          service.sendTextChoice("Continue the recap. Describe the next intense scene with full detail. Focus on character motivations. Do not rush to the ending yet.");
           startBuffering();
         }
       },
@@ -291,7 +289,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <button onClick={handleDownloadSession} disabled={isDownloading} title="Export Recap" className="w-12 h-12 rounded-full glass border border-emerald-500/10 flex items-center justify-center hover:bg-emerald-500/10 transition-all shrink-0">
+          <button onClick={handleDownloadSession} disabled={isDownloading} title="Export Recap" className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm text-emerald-400`}></i>
           </button>
           
@@ -336,18 +334,11 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
             </div>
           )}
           
-          {transcriptions.length === 0 && !isBuffering && connectingProgress === 100 && (
-            <div className="h-full flex flex-col items-center justify-center opacity-10 text-emerald-500 text-center space-y-6">
-              <i className="fas fa-film text-8xl"></i>
-              <p className="text-sm font-black uppercase tracking-[1em]">Scanning Neural Archives</p>
-            </div>
-          )}
-
           {transcriptions.map((t, i) => (
             <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="max-w-[92%] p-6 md:p-8 rounded-[2.5rem] bg-emerald-950/20 border border-emerald-500/10 rounded-tl-none shadow-xl">
                 <p className="text-[9px] text-emerald-500 opacity-60 mb-2 uppercase tracking-[0.4em] font-black flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> {config.voice} RECAPPER
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> CINEMATIC DECODING
                 </p>
                 <p className="text-xl md:text-2xl leading-relaxed font-light text-emerald-50/90 break-words hyphens-auto">{t.text}</p>
               </div>
@@ -396,7 +387,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
               <p className="text-emerald-500 uppercase tracking-[1.2em] text-[10px] font-black">Recap Conclusion</p>
               <h2 className="text-8xl md:text-[10rem] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-emerald-400 to-emerald-900 uppercase leading-none">THE END</h2>
             </div>
-            <div className="glass p-16 rounded-[5rem] border-emerald-500/20 bg-emerald-950/5 relative shadow-2xl">
+            <div className="glass p-16 rounded-[5rem] border-emerald-500/20 bg-violet-950/5 relative shadow-2xl">
               <i className="fas fa-quote-left absolute top-12 left-12 text-emerald-500/10 text-8xl"></i>
               <p className="text-3xl md:text-4xl font-light italic text-center leading-relaxed text-violet-100/90 font-serif">"{summary}"</p>
             </div>
