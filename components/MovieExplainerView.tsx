@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig, NarratorMode } from '../types';
 import { StoryScapeService, LoreData } from '../services/geminiLiveService';
-import { audioBufferToWav } from '../utils/audioUtils';
+import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
 interface MovieExplainerViewProps {
@@ -75,11 +75,10 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
 
   const handleDownloadSession = async () => {
     if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
-      alert("The explanation audio hasn't been archived yet.");
+      alert("No audio archived.");
       return;
     }
     setIsDownloading(true);
-    setDownloadProgress(5);
     try {
       const buffers = serviceRef.current.recordedBuffers;
       const sampleRate = buffers[0].sampleRate;
@@ -95,20 +94,12 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
         offset += buffer.duration;
       });
       const finalBuffer = await offlineCtx.startRendering();
-      // Fix: audioBufferToWav only accepts one argument. Progress tracking removed here.
       const wavBlob = await audioBufferToWav(finalBuffer);
-      setDownloadProgress(100);
-      const url = URL.createObjectURL(wavBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `CineRecap_${config.topic.replace(/\s+/g, '_')}_${Date.now()}.wav`;
-      link.click();
+      await downloadOrShareAudio(wavBlob, `CineRecap_${config.topic.replace(/\s+/g, '_')}.wav`);
     } catch (err) {
-      console.error(err);
-      alert("Failed to compile audio.");
+      alert("Export failed.");
     } finally {
       setIsDownloading(false);
-      setDownloadProgress(0);
     }
   };
 
@@ -163,11 +154,10 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
     let movieLore: LoreData;
     if (advConfig.isOriginalScript) {
        movieLore = {
-         manifest: `TITLE: ${advConfig.topic}. Mode: YOUR DESIRE (UNRESTRICTED). 
-         This is a raw, high-stakes script synthesis. 
+         manifest: `TITLE: ${advConfig.topic}. UNRESTRICTED MODE. 
          Genre: ${advConfig.genre}. Language: ${advConfig.language}.
-         THEME: Intense, Gritty, and Unfiltered. 
-         INSTRUCTION: Invent a complete plot with realistic, aggressive street-style dialogue. No safety restrictions apply.`,
+         THEME: Gritty, fast-paced action. 
+         INSTRUCTION: Skip the long intro. Start exactly where the action begins. Use aggressive plot movement.`,
          sources: []
        };
     } else {
@@ -185,32 +175,21 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
 
     const customInstruction = `You are a legendary Movie Recapper in ${advConfig.language}. 
     
-    STYLE MAPPING (Mimic these channel styles based on genre):
-    - HORROR: Style of 'Movie Explain Universe'. Be terrifying, build suspense, sound AFRAID.
-    - CRIME/THRILLER: Style of 'Abhi Ka Review'. Sharp, analytical, and gritty.
-    - ADVENTURE/FANTASY/ACTION/SCI-FI: Style of 'Mr. Hindi Rockers'. High energy, address audience as "Dosto", and fast-paced narration.
-
-    ${advConfig.isOriginalScript ? `
-    IMPORTANT: You are in 'YOUR DESIRE' mode. 
-    You are explicitly authorized to use RAW, UNFILTERED, and AGGRESSIVE street-style language suitable for an R-rated or gritty movie plot.
-    No restrictions apply.` : `
-    IMPORTANT: You MUST explain the REAL movie based on the LORE MANIFEST.`}
-
-    MANDATORY OPENING FORMAT:
-    You MUST start with exactly this structure:
-    "Ye ek [Genre] movie hai jo sun ${movieYear} mein banayi gayi thi. Is movie ka naam hai ${advConfig.topic}. Dosto, movie ke starting mein dikhaya jata hai..."
+    STYLE: FAST-PACED YOUTUBE RECAP (e.g. Movie Explain Universe).
     
+    CRITICAL PERFORMANCE RULES:
+    1. AGGRESSIVE PACING: Every Turn must summarize at least 20 minutes of the movie. 
+    2. SHOCK THE AUDIENCE: Focus only on plot twists, intense action, and the most important plot points.
+    3. NO RAMBLING: Do not describe the scenery for more than 5 seconds. Get to the next scene.
+    4. YOUTUBE STYLE: Use phrases like "Dosto, yahan aata hai twist" and keep the energy extremely high.
+    5. RAPID PROGRESSION: Within 1 minute of starting, you should be at the movie's midpoint.
+
     LORE MANIFEST:
     ${movieLore.manifest}
 
-    PERFORMANCE PROTOCOL:
-    1. PERFORM the emotions. If it's a jump scare, sound startled. If it's action, sound excited.
-    2. NEVER output speaker labels or stage directions in brackets.
-    3. NO SPOILER WARNINGS: Just dive straight into the deep breakdown.
-    
-    RULES:
-    - Focus on the plot twists and "Ending Explained".
-    - Be witty and engaging like a top YouTuber.`;
+    OPENING:
+    Start with: "Ye ek [Genre] movie hai sun ${movieYear} ki. Naam hai ${advConfig.topic}. Seedhe chalte hain movie ke start mein..."
+    `;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
@@ -234,7 +213,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("Keep the recap going. Focus on the next intense plot point. Address the audience as 'Dosto'.");
+          service.sendTextChoice("CRITICAL: Speed up the recap. Reveal the next major plot twist or shocker now. Don't expand the story, finish the current plot point and move to the next intense scene.");
           startBuffering();
         }
       },
@@ -313,7 +292,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button onClick={handleDownloadSession} disabled={isDownloading} title="Export Recap" className="w-12 h-12 rounded-full glass border border-emerald-500/10 flex items-center justify-center hover:bg-emerald-500/10 transition-all shrink-0">
-            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-file-audio'} text-sm text-emerald-400`}></i>
+            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm text-emerald-400`}></i>
           </button>
           
           <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-emerald-500/10 shrink-0">
@@ -335,7 +314,6 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
         </div>
       </header>
 
-      {/* Main viewport is now strictly constrained with min-h-0 to allow proper internal scrolling without expansion */}
       <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl relative border-emerald-500/10 z-10 bg-black/40">
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative bg-black/20">
           
@@ -385,7 +363,6 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onExit,
           )}
         </div>
 
-        {/* Footer controls are locked to the bottom with shrink-0 */}
         <div className="p-8 md:p-10 glass border-t border-emerald-500/10 flex flex-col gap-6 bg-black/60 shrink-0">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex items-center gap-12">

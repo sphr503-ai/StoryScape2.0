@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig, NarratorMode } from '../types';
 import { StoryScapeService, LoreData } from '../services/geminiLiveService';
-import { audioBufferToWav } from '../utils/audioUtils';
+import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
 interface PodcastViewProps {
@@ -81,11 +81,10 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
 
   const handleDownloadSession = async () => {
     if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
-      alert("The broadcast audio hasn't been archived yet. Wait for more content.");
+      alert("No audio recorded yet.");
       return;
     }
     setIsDownloading(true);
-    setDownloadProgress(5);
     try {
       const buffers = serviceRef.current.recordedBuffers;
       const sampleRate = buffers[0].sampleRate;
@@ -101,20 +100,12 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
         offset += buffer.duration;
       });
       const finalBuffer = await offlineCtx.startRendering();
-      // Fix: audioBufferToWav only accepts one argument. Progress tracking removed here.
       const wavBlob = await audioBufferToWav(finalBuffer);
-      setDownloadProgress(100);
-      const url = URL.createObjectURL(wavBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Broadcast_${config.topic.replace(/\s+/g, '_')}_${Date.now()}.wav`;
-      link.click();
+      await downloadOrShareAudio(wavBlob, `Broadcast_${config.topic.replace(/\s+/g, '_')}.wav`);
     } catch (err) {
-      console.error(err);
-      alert("Failed to compile the audio archive.");
+      alert("Export failed.");
     } finally {
       setIsDownloading(false);
-      setDownloadProgress(0);
     }
   };
 
@@ -168,20 +159,21 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
     setLore(fetchedLore);
     setConnectingProgress(45);
     
-    const customInstruction = `You are the host of a professional investigative podcast in ${advConfig.language}. 
-    STYLE: Inspired by high-production shows like "The Why Files". 
+    const customInstruction = `You are the host of a HIGH-ENERGY, AGGRESSIVE investigative podcast in ${advConfig.language}. 
+    STYLE: Inspired by "The Why Files" but with the urgency of a 1-minute viral video.
 
     CRITICAL PRODUCTION RULES:
-    1. NEVER speak or write speaker labels (e.g., "Host:", "मेज़बान:", "Narrator:", "AJ:"). Start speaking directly.
-    2. NEVER speak or write stage directions in brackets or parentheses. 
-    3. YOUR GOAL is to be the character, not describe the character's actions in text.
-    4. NO TEXTUAL ARTIFACTS: Your output must only contain the spoken words. 
+    1. GET TO THE POINT IMMEDIATELY: Users leave after 60 seconds. Do not waste time with long intros.
+    2. REVEAL BOMBSHELLS: Every single turn must reveal a major discovery or move the plot by 25%.
+    3. NO FILLER: Never say "Welcome back", "As we were saying", or "Let's explore". Start with the facts.
+    4. FAST PACING: Speak with excitement. Use punchy sentences.
+    5. NO STAGE DIRECTIONS: Never use brackets or parentheses in your output.
 
-    LORE MANIFEST (Ground the show in these facts):
+    LORE MANIFEST:
     ${fetchedLore.manifest}
 
-    THE FISH SIDEKICK: Occasionally interact with a witty sidekick. Shift your voice personality to indicate the change in speaker. NEVER announce the change with text labels.
-    TOPIC: Deep dive into: "${advConfig.topic}". Use cinematic pacing.`;
+    THE FISH SIDEKICK: Interaction must be short, witty, and directly related to a NEW discovery.
+    TOPIC: "${advConfig.topic}". UNCOVER THE TRUTH RAPIDLY.`;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
@@ -205,7 +197,8 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("Continue the broadcast with perfect flow. Avoid all speaker labels and bracketed directions.");
+          // Changed prompt to be more aggressive to force plot movement
+          service.sendTextChoice("CRITICAL: Drop a major revelation or bombshell now. Advance the investigation significantly. Keep it high energy and get to the point.");
           startBuffering();
         }
       },
@@ -280,7 +273,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button onClick={handleDownloadSession} disabled={isDownloading} title="Download Audio" className="w-12 h-12 rounded-full glass border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
-            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-download'} text-sm text-violet-400`}></i>
+            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm text-violet-400`}></i>
           </button>
           
           <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-white/5 shrink-0">
