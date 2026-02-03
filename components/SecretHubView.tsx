@@ -1,153 +1,149 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 
 interface SecretHubViewProps {
   onExit: () => void;
 }
 
-const SECRET_LINKS = [
-  { id: 'google', name: 'Google', label: 'Google Search', icon: 'fa-search', url: 'https://www.google.com/search?q=&igu=1&safe=off', color: 'from-blue-600/20' },
-  { id: 'instagram', name: 'Instagram', label: 'Instagram Portal', icon: 'fa-camera-retro', url: 'https://www.google.com/search?q=instagram+login&igu=1&safe=off', color: 'from-pink-600/20' },
-  { id: 'twitter', name: 'X Twitter', label: 'X Pulse Stream', icon: 'fa-brands fa-x-twitter', url: 'https://www.google.com/search?q=twitter+trending&igu=1&safe=off', color: 'from-slate-600/20' },
-  { id: 'incognito', name: 'Incognito', label: 'Private Search', icon: 'fa-user-secret', url: 'https://www.google.com/search?q=private+search&igu=1&safe=off', color: 'from-purple-600/20' },
+interface SecretLink {
+  id: string;
+  name: string;
+  icon: string;
+  url: string;
+  color: string;
+}
+
+const SECRET_LINKS: SecretLink[] = [
+  { 
+    id: 'google', 
+    name: 'Google', 
+    icon: 'fa-search', 
+    url: 'https://www.google.com/search?q=&igu=1&safe=off', 
+    color: 'from-blue-600/20' 
+  },
+  { 
+    id: 'instagram', 
+    name: 'Instagram', 
+    icon: 'fa-camera-retro', 
+    url: 'https://www.google.com/search?q=instagram+login&igu=1&safe=off', 
+    color: 'from-pink-600/20' 
+  },
+  { 
+    id: 'twitter', 
+    name: 'X Twitter', 
+    icon: 'fa-brands fa-x-twitter', 
+    url: 'https://www.google.com/search?q=twitter+trending&igu=1&safe=off', 
+    color: 'from-slate-600/20' 
+  },
+  { 
+    id: 'incognito', 
+    name: 'Incognito', 
+    icon: 'fa-user-secret', 
+    url: 'https://www.google.com/search?q=private+search&igu=1&safe=off', 
+    color: 'from-purple-600/20' 
+  },
 ];
 
 const SecretHubView: React.FC<SecretHubViewProps> = ({ onExit }) => {
-  const [activeUrl, setActiveUrl] = useState(SECRET_LINKS[0].url);
-  const [activeId, setActiveId] = useState(SECRET_LINKS[0].id);
-  const [customQuery, setCustomQuery] = useState('');
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [activeUrl, setActiveUrl] = useState<string | null>(null);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customQuery.trim()) return;
-    
-    // Convert text to a working Google search URL which bypasses iframe blocks and turns off SafeSearch
-    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(customQuery)}&igu=1&safe=off`;
-    setActiveUrl(searchUrl);
-    setActiveId('search');
-    setCustomQuery('');
+  const handleLaunch = (url: string) => {
+    setActiveUrl(url);
   };
 
-  const openDirect = () => {
-    // Determine the actual intended URL based on the active search
-    let target = activeUrl;
-    if (activeId === 'instagram') target = 'https://www.instagram.com';
-    if (activeId === 'twitter') target = 'https://twitter.com';
-    if (activeId === 'incognito') target = 'https://duckduckgo.com';
-    
-    window.open(target, '_blank');
+  const handleBackToMenu = () => {
+    setActiveUrl(null);
   };
+
+  if (activeUrl) {
+    return (
+      <div className="fixed inset-0 w-screen h-screen bg-black z-[2000] overflow-hidden">
+        {/* Minimal Control Overlay */}
+        <div className="absolute top-4 right-4 z-[2100] flex gap-2">
+           <button 
+             onClick={handleBackToMenu}
+             className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+             title="Back to Launcher"
+           >
+             <i className="fas fa-grid-2"></i>
+           </button>
+           <button 
+             onClick={onExit}
+             className="w-10 h-10 rounded-full bg-red-600/80 backdrop-blur-md border border-red-500/40 flex items-center justify-center text-white hover:bg-red-700 transition-all shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+             title="Exit System"
+           >
+             <i className="fas fa-power-off"></i>
+           </button>
+        </div>
+
+        {/* 100% Full System Iframe */}
+        <iframe 
+          src={activeUrl}
+          className="w-full h-full border-none outline-none bg-black"
+          title="Secure Link Hub"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-[#050505] text-white flex flex-col z-[1000] overflow-hidden font-hacker">
-      {/* STEALTH HEADER */}
-      <header className="h-16 w-full glass-dark border-b border-white/10 flex items-center justify-between px-4 md:px-6 z-[110] shrink-0">
-        <div className="flex items-center gap-4 shrink-0">
-           <div className="w-9 h-9 rounded-xl bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]">
-              <i className="fas fa-biohazard text-sm animate-pulse"></i>
-           </div>
-           <div className="hidden lg:block">
-              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-red-500 leading-none">SYSTEM_OVERRIDE</p>
-              <p className="text-[7px] font-bold text-white/20 uppercase tracking-widest mt-1">Uplink: Active • Tunneling: Enabled</p>
-           </div>
-        </div>
-
-        {/* URL / SEARCH BAR */}
-        <div className="flex-1 max-w-xl mx-4 md:mx-8">
-           <form onSubmit={handleSearch} className="relative group">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-white/20">
-                 <i className="fas fa-terminal text-[10px]"></i>
-              </div>
-              <input 
-                type="text" 
-                value={customQuery}
-                onChange={(e) => setCustomQuery(e.target.value)}
-                placeholder="EXEC_QUERY_STRING_OR_URL..."
-                className="w-full bg-white/5 border border-white/10 rounded-full py-2.5 pl-10 pr-12 outline-none focus:border-red-500/40 focus:bg-white/[0.08] transition-all text-xs placeholder:text-white/10 tracking-widest font-bold"
-              />
-              <button type="submit" className="absolute right-1 top-1 bottom-1 px-4 rounded-full bg-white/5 hover:bg-white/10 text-[9px] font-black uppercase tracking-tighter transition-colors">
-                GO
-              </button>
-           </form>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-           <button 
-             onClick={onExit} 
-             className="px-5 py-2.5 rounded-full bg-red-600 text-white text-[9px] font-black uppercase tracking-widest hover:bg-red-700 transition-all active:scale-95 shadow-[0_0_20px_rgba(220,38,38,0.3)]"
-           >
-             Halt
-           </button>
-        </div>
-      </header>
-
-      {/* QUICK LINKS RIBBON */}
-      <div className="h-12 w-full bg-black/40 border-b border-white/5 flex items-center px-4 md:px-8 gap-2 overflow-x-auto no-scrollbar shrink-0">
-         {SECRET_LINKS.map((link) => (
-           <button 
-             key={link.id}
-             onClick={() => {
-               setActiveUrl(link.url);
-               setActiveId(link.id);
-             }}
-             className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shrink-0 border ${
-               activeId === link.id 
-                 ? 'bg-white text-black border-white shadow-lg' 
-                 : 'bg-white/5 border-white/5 text-white/40 hover:bg-white/10 hover:text-white/80'
-             }`}
-           >
-              <i className={`fas ${link.icon} text-[10px]`}></i>
-              <span>{link.name}</span>
-           </button>
-         ))}
+    <div className="fixed inset-0 w-screen h-screen bg-[#020202] text-white flex flex-col items-center justify-center p-6 md:p-12 z-[1000] font-hacker overflow-hidden">
+      {/* Background Ambience */}
+      <div className="absolute inset-0 scanlines opacity-5 pointer-events-none"></div>
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/5 blur-[150px] rounded-full animate-pulse"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-red-600/5 blur-[150px] rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
       </div>
 
-      {/* MAIN TUNNEL VIEW */}
-      <main className="flex-1 w-full bg-black relative flex flex-col overflow-hidden">
-        <div className="absolute inset-0 scanlines opacity-5 pointer-events-none z-10"></div>
-        
-        <div className="w-full h-full relative">
-          <iframe 
-            ref={iframeRef}
-            src={activeUrl}
-            className="absolute top-0 left-0 w-full h-full border-none outline-none bg-black"
-            title="Secure Link Hub"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
-          />
-          
-          {/* CONTROL OVERLAY - Always visible at bottom */}
-          <div className="absolute bottom-6 left-0 right-0 pointer-events-none flex justify-center z-50">
-             <div className="flex flex-col items-center gap-3 glass-dark px-8 py-4 rounded-[2.5rem] border border-white/10 shadow-2xl pointer-events-auto backdrop-blur-2xl">
-                <div className="flex items-center gap-6">
-                   <div className="flex items-center gap-3">
-                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                      <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">
-                        Stealth Engine: {activeId.toUpperCase()}
-                      </span>
-                   </div>
-                   <div className="h-4 w-px bg-white/10"></div>
-                   <button 
-                     onClick={openDirect}
-                     className="flex items-center gap-2 group"
-                   >
-                      <span className="text-[9px] font-black text-red-500 uppercase tracking-widest group-hover:text-red-400 transition-colors">Launch Direct Uplink</span>
-                      <i className="fas fa-external-link-alt text-[9px] text-red-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"></i>
-                   </button>
-                </div>
-                <p className="text-[7px] text-white/20 uppercase tracking-[0.3em] font-bold text-center">
-                  Notice: Most social sites block embedding. Use 'Direct Uplink' to bypass X-Frame security.
-                </p>
-             </div>
-          </div>
-        </div>
-      </main>
+      <div className="max-w-5xl w-full z-10 flex flex-col items-center gap-12">
+        <header className="text-center space-y-2 animate-in fade-in slide-in-from-top-4 duration-1000">
+           <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 mb-4 mx-auto">
+              <i className="fas fa-shield-halved text-sm"></i>
+           </div>
+           <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white">
+             System_Access
+           </h2>
+           <p className="text-[9px] font-black uppercase tracking-[0.6em] text-white/20">Uplink Protocols Established</p>
+        </header>
 
+        {/* 4 Box Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 w-full max-w-4xl">
+           {SECRET_LINKS.map((link, i) => (
+             <button 
+               key={link.id}
+               onClick={() => handleLaunch(link.url)}
+               className={`group relative aspect-square glass-dark rounded-[2.5rem] border border-white/5 hover:border-white/20 transition-all duration-500 flex flex-col items-center justify-center gap-4 md:gap-6 bg-gradient-to-b ${link.color} to-transparent animate-in fade-in zoom-in-95`}
+               style={{ animationDelay: `${i * 100}ms` }}
+             >
+                <div className="absolute inset-0 bg-white/[0.02] opacity-0 group-hover:opacity-100 transition-opacity rounded-[2.5rem]"></div>
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-3xl bg-white/5 border border-white/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                   <i className={`fas ${link.icon} text-xl md:text-2xl text-white/40 group-hover:text-white transition-colors`}></i>
+                </div>
+                <div className="text-center">
+                   <h3 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">
+                     {link.name}
+                   </h3>
+                </div>
+             </button>
+           ))}
+        </div>
+
+        <div className="flex flex-col items-center gap-6 pt-8">
+           <button 
+             onClick={onExit} 
+             className="px-12 py-4 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.4em] text-white/40 hover:bg-red-600/10 hover:border-red-500/20 hover:text-red-400 transition-all active:scale-95"
+           >
+             Halt System
+           </button>
+           <p className="text-[7px] text-white/10 uppercase tracking-widest">Link Tunnel v2.0.8 • Secure Session</p>
+        </div>
+      </div>
+      
       <style dangerouslySetInnerHTML={{ __html: `
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .glass-dark { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .glass-dark { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(40px); }
+        @keyframes scanlines { from { background-position: 0 0; } to { background-position: 0 100%; } }
       ` }} />
     </div>
   );
