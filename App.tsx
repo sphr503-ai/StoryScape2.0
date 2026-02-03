@@ -178,6 +178,17 @@ const App: React.FC = () => {
     setViewMode(ViewMode.ADVENTURE);
   };
 
+  const handleClearEverything = () => {
+    setViewMode(ViewMode.HOME);
+    setSetupConfig(null);
+    setSessionOrigin(null);
+    setInitialHistory([]);
+  };
+
+  const handleBackToSetup = () => {
+    setViewMode(ViewMode.SETUP);
+  };
+
   const renderHome = () => (
     <div className={`min-h-screen ${theme.bg} ${theme.font} transition-all duration-1000 flex flex-col items-center overflow-x-hidden relative`}>
       {activeTab === 'tutor' && <div className="absolute inset-0 pointer-events-none z-50 opacity-[0.03] scanlines"></div>}
@@ -275,18 +286,18 @@ const App: React.FC = () => {
   const renderContent = () => {
     if (viewMode === ViewMode.ADVENTURE && setupConfig) {
       if (sessionOrigin === 'files') {
-        return <StoryFilesView config={setupConfig} initialHistory={initialHistory} onExit={() => { setViewMode(ViewMode.HOME); setSetupConfig(null); setSessionOrigin(null); setInitialHistory([]); }} />;
+        return <StoryFilesView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
       }
       if (sessionOrigin === 'broadcast') {
-        return <PodcastView config={setupConfig} initialHistory={initialHistory} onExit={() => { setViewMode(ViewMode.HOME); setSetupConfig(null); setSessionOrigin(null); setInitialHistory([]); }} />;
+        return <PodcastView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
       }
       if (sessionOrigin === 'explainer') {
-        return <MovieExplainerView config={setupConfig} initialHistory={initialHistory} onExit={() => { setViewMode(ViewMode.HOME); setSetupConfig(null); setSessionOrigin(null); setInitialHistory([]); }} />;
+        return <MovieExplainerView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
       }
       if (sessionOrigin === 'tutor') {
-        return <LanguageTutorView config={setupConfig} initialHistory={initialHistory} onExit={() => { setViewMode(ViewMode.HOME); setSetupConfig(null); setSessionOrigin(null); setInitialHistory([]); }} />;
+        return <LanguageTutorView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
       }
-      return <AdventureView config={setupConfig} initialHistory={initialHistory} onExit={() => { setViewMode(ViewMode.HOME); setSetupConfig(null); setSessionOrigin(null); setInitialHistory([]); }} />;
+      return <AdventureView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
     }
     if (viewMode === ViewMode.SETUP) return renderSetup();
     if (viewMode === ViewMode.FEEDBACK) return <FeedbackView onBack={() => setViewMode(ViewMode.HOME)} />;

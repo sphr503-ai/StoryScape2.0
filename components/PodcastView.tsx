@@ -7,6 +7,7 @@ import Visualizer from './Visualizer';
 
 interface PodcastViewProps {
   config: AdventureConfig;
+  onBack: () => void;
   onExit: () => void;
   initialHistory?: Array<{ role: 'user' | 'model'; text: string }>;
 }
@@ -18,7 +19,7 @@ const PODCAST_AMBIENTS: Record<string, string> = {
   'Sci-Fi': 'https://assets.mixkit.co/sfx/preview/mixkit-deep-space-wind-vibe-1204.mp3',
 };
 
-const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistory = [] }) => {
+const PodcastView: React.FC<PodcastViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {
   const [transcriptions, setTranscriptions] = useState<Array<{ role: 'user' | 'model'; text: string }>>(initialHistory);
   const [currentModelText, setCurrentModelText] = useState('');
   const [ambientVolume, setAmbientVolume] = useState(0.15);
@@ -262,11 +263,16 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
       <Visualizer inputAnalyser={null} outputAnalyser={analysers.out} genre={config.genre} isPaused={isPaused} />
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 z-10 shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-violet-400">CAST: {config.topic}</h1>
-          <div className="flex items-center gap-2 mt-0.5">
-            <div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-violet-500 animate-pulse' : 'bg-red-500'}`}></div>
-            <p className="text-[10px] opacity-60 uppercase tracking-widest font-black text-violet-300">{config.language} • {config.genre}</p>
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
+            <i className="fas fa-arrow-left text-violet-400"></i>
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-violet-400">CAST: {config.topic}</h1>
+            <div className="flex items-center gap-2 mt-0.5">
+              <div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-violet-500 animate-pulse' : 'bg-red-500'}`}></div>
+              <p className="text-[10px] opacity-60 uppercase tracking-widest font-black text-violet-300">{config.language} • {config.genre}</p>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -285,7 +291,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
             <i className="fas fa-save text-[10px]"></i> Save Draft
           </button>
 
-          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-8 py-3 rounded-full bg-white text-black font-black text-xs uppercase tracking-widest shadow-2xl shrink-0">Finish</button>
+          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-8 py-3 rounded-full bg-white text-black font-black text-xs uppercase tracking-widest shadow-2xl shrink-0 text-center">Finish</button>
           
           <button onClick={handleExitAndClear} title="Abort Show" className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center hover:bg-red-500/30 transition-all shrink-0">
             <i className="fas fa-stop text-sm"></i>
@@ -373,7 +379,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onExit, initialHistor
               <p className="text-3xl md:text-4xl font-light italic text-center leading-relaxed text-violet-100/90 font-serif">"{summary}"</p>
             </div>
             <div className="flex justify-center pt-10">
-              <button onClick={onExit} className="px-16 py-8 rounded-[3rem] bg-white text-black font-black uppercase tracking-[0.4em] shadow-[0_0_50px_rgba(255,255,255,0.2)] hover:scale-110 transition-transform active:scale-95">BACK TO STUDIO</button>
+              <button onClick={onExit} className="px-16 py-8 rounded-[3rem] bg-white text-black font-black uppercase tracking-[0.4em] shadow-[0_0_50px_rgba(255,255,255,0.2)] hover:scale-110 transition-transform active:scale-95 text-center">BACK TO STUDIO</button>
             </div>
           </div>
         </div>

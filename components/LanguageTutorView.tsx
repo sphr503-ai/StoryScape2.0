@@ -13,11 +13,12 @@ interface Message {
 
 interface LanguageTutorViewProps {
   config: AdventureConfig;
+  onBack: () => void;
   onExit: () => void;
   initialHistory?: Array<{ role: 'user' | 'model'; text: string }>;
 }
 
-const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onExit, initialHistory = [] }) => {
+const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {
   const [messages, setMessages] = useState<Message[]>(
     initialHistory.map(h => ({
       ...h,
@@ -220,6 +221,9 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
 
       <header className="bg-[#0a0a0a] border-b border-[#00ff41]/20 px-4 py-3 flex items-center justify-between z-40 shrink-0">
         <div className="flex items-center gap-4">
+          <button onClick={onBack} className="text-[#00ff41] hover:bg-[#00ff41]/10 px-2 py-1 rounded transition-colors text-xs font-bold">
+            [BACK]
+          </button>
           <button onClick={onExit} className="text-[#00ff41] hover:bg-[#00ff41]/10 px-2 py-1 rounded transition-colors text-xs">
             [ESC] EXIT
           </button>
@@ -348,7 +352,7 @@ Ab please correct word repeat kijiye: <pass>[Correct Word]</pass> <p>([Pronuncia
                   <button 
                     type="submit" 
                     disabled={!textChoice.trim() || isPaused} 
-                    className="px-6 py-3 border border-[#00ff41]/30 hover:bg-[#00ff41]/10 text-[#00ff41] text-xs font-black tracking-widest transition-all disabled:opacity-10 active:scale-95"
+                    className="px-6 py-3 border border-[#00ff41]/30 hover:bg-[#00ff41]/10 text-[#00ff41] text-xs font-black tracking-widest transition-all disabled:opacity-10 active:scale-95 text-center"
                   >
                     EXECUTE
                   </button>

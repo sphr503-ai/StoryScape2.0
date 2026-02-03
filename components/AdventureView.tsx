@@ -12,6 +12,7 @@ interface Message {
 
 interface AdventureViewProps {
   config: AdventureConfig;
+  onBack: () => void;
   onExit: () => void;
   initialHistory?: Array<{ role: 'user' | 'model'; text: string }>;
 }
@@ -25,7 +26,7 @@ const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.DOCUMENTARY]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
 };
 
-const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHistory = [] }) => {
+const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {
   const [messages, setMessages] = useState<Message[]>(
     initialHistory.map(h => ({
       ...h,
@@ -200,7 +201,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onExit, initialHi
       {/* HEADER */}
       <header className="px-6 py-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 z-20 shrink-0 border-b border-white/5 bg-black/40 backdrop-blur-md">
         <div className="flex items-center gap-4">
-          <button onClick={onExit} className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors">
+          <button onClick={onBack} className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors">
             <i className="fas fa-arrow-left"></i>
           </button>
           <div className="flex flex-col">

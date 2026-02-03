@@ -7,6 +7,7 @@ import Visualizer from './Visualizer';
 
 interface StoryFilesViewProps {
   config: AdventureConfig;
+  onBack: () => void;
   onExit: () => void;
   initialHistory?: Array<{ role: 'user' | 'model'; text: string }>;
 }
@@ -20,7 +21,7 @@ const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.DOCUMENTARY]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
 };
 
-const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onExit, initialHistory = [] }) => {
+const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {
   const [transcriptions, setTranscriptions] = useState<Array<{ role: 'user' | 'model'; text: string }>>(initialHistory);
   const [currentModelText, setCurrentModelText] = useState('');
   const [ambientVolume, setAmbientVolume] = useState(0.25);
@@ -263,7 +264,12 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onExit, initial
       <Visualizer inputAnalyser={null} outputAnalyser={analysers.out} genre={config.genre} isPaused={isPaused} />
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 z-10 shrink-0">
-        <div><h1 className="text-2xl font-bold tracking-tight">{config.genre}: {config.topic}</h1><div className="flex items-center gap-2 mt-0.5"><div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div><p className="text-[10px] opacity-60 uppercase tracking-widest font-black">{config.language} • {config.voice}</p></div></div>
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="w-10 h-10 rounded-full glass border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
+            <i className="fas fa-arrow-left"></i>
+          </button>
+          <div><h1 className="text-2xl font-bold tracking-tight">{config.genre}: {config.topic}</h1><div className="flex items-center gap-2 mt-0.5"><div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div><p className="text-[10px] opacity-60 uppercase tracking-widest font-black">{config.language} • {config.voice}</p></div></div>
+        </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button onClick={handleDownloadSession} disabled={isDownloading} className="w-12 h-12 rounded-full glass border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm`}></i>
@@ -275,7 +281,7 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onExit, initial
           <button onClick={handleSaveDraft} className="px-5 py-2.5 rounded-full bg-white/10 border border-white/10 font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all flex items-center gap-2">
             <i className="fas fa-save text-[10px]"></i> Save Draft
           </button>
-          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-6 py-2.5 rounded-full bg-white text-black font-black text-xs uppercase tracking-widest shrink-0">Finish</button>
+          <button onClick={() => { setIsSummarizing(true); StoryScapeService.generateSummary(config.genre, transcriptions).then(s => { setSummary(s); setIsSummarizing(false); }); }} className="px-6 py-2.5 rounded-full bg-white text-black font-black text-xs uppercase tracking-widest shrink-0 text-center">Finish</button>
           <button onClick={handleExitAndClear} className="w-10 h-10 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center transition-all shrink-0"><i className="fas fa-stop"></i></button>
         </div>
       </header>
