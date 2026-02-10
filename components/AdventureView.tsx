@@ -1,7 +1,7 @@
+
 import React, { useEffect, useState, useRef } from 'react';
-import { Genre, AdventureConfig, LoreData } from '../types';
-import { StoryScapeService } from '../services/geminiLiveService';
-import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
+import { Genre, GeminiVoice, AdventureConfig, NarratorMode } from '../types';
+import { StoryScapeService, LoreData } from '../services/geminiLiveService';
 import Visualizer from './Visualizer';
 
 interface Message {
@@ -24,7 +24,6 @@ const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.HORROR]: 'https://assets.mixkit.co/sfx/preview/mixkit-horror-atmosphere-drone-953.mp3',
   [Genre.THRILLER]: 'https://assets.mixkit.co/sfx/preview/mixkit-suspense-movie-trailer-ambience-2537.mp3',
   [Genre.DOCUMENTARY]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
-  [Genre.EDUCATION]: 'https://assets.mixkit.co/sfx/preview/mixkit-library-room-ambience-with-distant-chatter-2517.mp3',
 };
 
 const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {
@@ -35,54 +34,26 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     }))
   );
   
-  const [currentNarratorText, setCurrentNarratorText] = useState('');
+  const [currentModelText, setCurrentModelText] = useState('');
   const [currentUserText, setCurrentUserText] = useState('');
-  const [textInput, setTextInput] = useState('');
-  const [inputMode, setInputMode] = useState<'text' | 'mic'>('text'); 
+  const [textChoice, setTextChoice] = useState('');
+  const [inputMode, setInputMode] = useState<'text' | 'mic'>('text');
+  const [ambientVolume, setAmbientVolume] = useState(0.25);
   const [isPaused, setIsPaused] = useState(false);
-  const [lore, setLore] = useState<LoreData | null>(null);
-  const [connectingProgress, setConnectingProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [ambientVolume, setAmbientVolume] = useState(0.2);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   
-  const [isNarrating, setIsNarrating] = useState(false);
-  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
-
+  const [isOutputActive, setIsOutputActive] = useState(false);
+  const [isInputActive, setIsInputActive] = useState(false);
+  const [connectingProgress, setConnectingProgress] = useState(0);
+  const [bufferPercent, setBufferPercent] = useState(0);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [lore, setLore] = useState<LoreData | null>(null);
+  
   const [analysers, setAnalysers] = useState<{in: AnalyserNode | null, out: AnalyserNode | null}>({in: null, out: null});
+  
   const serviceRef = useRef<StoryScapeService | null>(null);
-  const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const narratorBuffer = useRef('');
-  const userBuffer = useRef('');
-
-  const cleanText = (text: string): string => {
-    return text
-      .replace(/\([^)]*\)/g, '') 
-      .replace(/\[[^\]]*\]/g, '') 
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
-  const smartAppend = (prev: string, next: string): string => {
-    if (!prev) return next.trim();
-    if (!next) return prev;
-    const cleanPrev = prev.trim();
-    const cleanNext = next.trim();
-    if (cleanPrev.endsWith(cleanNext)) return prev;
-    
-    const maxOverlap = Math.min(cleanPrev.length, cleanNext.length);
-    for (let len = maxOverlap; len >= 2; len--) {
-      if (cleanPrev.slice(-len) === cleanNext.slice(0, len)) {
-        return cleanPrev + cleanNext.slice(len);
-      }
-    }
-    
-    const needsSpace = !prev.endsWith(' ') && !next.startsWith(' ') && !/^[।.,!?]/.test(cleanNext);
-    return prev + (needsSpace ? ' ' : '') + next;
-  };
+  const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
+  const bufferIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     let anim: number;
@@ -91,96 +62,98 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
         const data = new Uint8Array(analysers.out.frequencyBinCount);
         analysers.out.getByteFrequencyData(data);
         const volume = data.reduce((a, b) => a + b, 0) / data.length;
-        setIsNarrating(volume > 3);
+        const isActive = volume > 2;
+        setIsOutputActive(isActive);
+        if (isActive && isBuffering) stopBuffering();
       }
-      if (analysers.in) {
+      if (analysers.in && inputMode === 'mic') {
         const data = new Uint8Array(analysers.in.frequencyBinCount);
         analysers.in.getByteFrequencyData(data);
         const volume = data.reduce((a, b) => a + b, 0) / data.length;
-        setIsUserSpeaking(volume > 3);
+        setIsInputActive(volume > 2);
+      } else {
+        setIsInputActive(false);
       }
       anim = requestAnimationFrame(checkSignal);
     };
     checkSignal();
     return () => cancelAnimationFrame(anim);
-  }, [analysers]);
+  }, [analysers, inputMode, isBuffering]);
+
+  const startBuffering = () => {
+    setIsBuffering(true);
+    setBufferPercent(0);
+    if (bufferIntervalRef.current) clearInterval(bufferIntervalRef.current);
+    bufferIntervalRef.current = window.setInterval(() => {
+      setBufferPercent(p => {
+        if (p >= 99) return 99;
+        return p + Math.floor(Math.random() * 5) + 3;
+      });
+    }, 400);
+  };
+
+  const stopBuffering = () => {
+    setIsBuffering(false);
+    setBufferPercent(0);
+    if (bufferIntervalRef.current) clearInterval(bufferIntervalRef.current);
+  };
+
+  const handleMicToggle = async () => {
+    const newMode = inputMode === 'text' ? 'mic' : 'text';
+    setInputMode(newMode);
+    if (serviceRef.current) {
+      try {
+        await serviceRef.current.setMicActive(newMode === 'mic');
+      } catch (err) {
+        alert("Microphone activation failed.");
+        setInputMode('text');
+      }
+    }
+  };
 
   const initService = async (advConfig: AdventureConfig) => {
-    setError(null);
-    setConnectingProgress(10);
+    setConnectingProgress(5);
+    if (serviceRef.current) await serviceRef.current.stopAdventure();
+    
     const service = new StoryScapeService();
     serviceRef.current = service;
 
-    try {
-      setConnectingProgress(30);
-      const fetchedLore = await service.fetchLore(advConfig);
-      setLore(fetchedLore);
-      setConnectingProgress(70);
+    setConnectingProgress(15);
+    const fetchedLore = await service.fetchLore(advConfig);
+    setLore(fetchedLore);
+    setConnectingProgress(45);
 
-      const systemInstruction = `
-        You are the Master Narrator for an immersive ${advConfig.genre} adventure titled "${advConfig.topic}".
-        STYLE: Cinematic, vivid, and responsive. Language: ${advConfig.language}.
-        LORE Grounding: ${fetchedLore.manifest}
-        INSTRUCTION: Keep each turn short (2-3 sentences). Always prompt the user for their action.
-      `;
+    service.startAdventure(advConfig, {
+      onTranscriptionUpdate: (role, text, isFinal) => {
+        if (!text && !isFinal) return;
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-      await service.startAdventure(advConfig, {
-        onTranscriptionUpdate: (role, text, isFinal) => {
-          const processedText = cleanText(text);
-          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          
-          if (role === 'model') {
-            if (userBuffer.current.trim()) {
-              setMessages(prev => {
-                const textVal = userBuffer.current.trim();
-                if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === textVal) return prev;
-                return [...prev, { role: 'user', text: textVal, timestamp }];
-              });
-              setCurrentUserText('');
-              userBuffer.current = '';
-            }
-
-            if (processedText) {
-              narratorBuffer.current = smartAppend(narratorBuffer.current, processedText);
-              setCurrentNarratorText(narratorBuffer.current);
-            }
-            if (isFinal && narratorBuffer.current.trim()) {
-              setMessages(prev => {
-                const textVal = narratorBuffer.current.trim();
-                if (prev.length > 0 && prev[prev.length - 1].role === 'model' && prev[prev.length - 1].text === textVal) return prev;
-                return [...prev, { role: 'model', text: textVal, timestamp }];
-              });
-              setCurrentNarratorText('');
-              narratorBuffer.current = '';
-            }
+        if (role === 'model') {
+          if (isFinal) {
+            setMessages(prev => [...prev, { role: 'model', text, timestamp }]);
+            setCurrentModelText('');
+            stopBuffering();
           } else {
-            if (processedText) {
-              userBuffer.current = smartAppend(userBuffer.current, processedText);
-              setCurrentUserText(userBuffer.current);
-            }
-            if (isFinal && userBuffer.current.trim()) {
-              setMessages(prev => {
-                const textVal = userBuffer.current.trim();
-                if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === textVal) return prev;
-                return [...prev, { role: 'user', text: textVal, timestamp }];
-              });
-              setCurrentUserText('');
-              userBuffer.current = '';
-            }
+            setCurrentModelText(text);
           }
-        },
-        onError: (err) => {
-          console.error("Neural Link Failure:", err);
-          setError(err.message || "Unknown Network Error");
-        },
-        onClose: () => onExit(),
-      }, messages.map(m => ({ role: m.role, text: m.text })), fetchedLore, systemInstruction);
-
+        } else {
+          if (isFinal) {
+            setMessages(prev => [...prev, { role: 'user', text, timestamp }]);
+            setCurrentUserText('');
+          } else {
+            setCurrentUserText(text);
+          }
+        }
+      },
+      onError: (err) => {
+        startBuffering();
+        setTimeout(() => initService(config), 5000);
+      },
+      onClose: () => onExit(),
+    }, messages.map(m => ({role: m.role, text: m.text})), fetchedLore).then(() => {
       setConnectingProgress(100);
       setAnalysers({ in: service.inputAnalyser, out: service.outputAnalyser });
-    } catch (err: any) {
-      setError(err.message || "Failed to establish link.");
-    }
+    });
   };
 
   useEffect(() => {
@@ -188,249 +161,169 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     const audio = new Audio(AMBIENT_SOUNDS[config.genre]);
     audio.loop = true;
     audio.volume = ambientVolume;
-    audio.play().catch(e => console.warn("Ambient audio requires gesture", e));
+    audio.play().catch(() => {});
     ambientAudioRef.current = audio;
-
     return () => {
       if (serviceRef.current) serviceRef.current.stopAdventure();
       if (ambientAudioRef.current) ambientAudioRef.current.pause();
+      if (bufferIntervalRef.current) clearInterval(bufferIntervalRef.current);
     };
   }, []);
 
   useEffect(() => {
-    if (ambientAudioRef.current) ambientAudioRef.current.volume = isMuted ? 0 : ambientVolume;
-  }, [ambientVolume, isMuted]);
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, currentModelText, currentUserText]);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, currentNarratorText, currentUserText]);
-
-  const handleTextSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!textInput.trim() || !serviceRef.current) return;
-    const msg = textInput.trim();
+  const handleTextSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!textChoice.trim() || !serviceRef.current || isPaused) return;
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setMessages(prev => [...prev, { role: 'user', text: msg, timestamp }]);
-    serviceRef.current.sendTextChoice(msg);
-    setTextInput('');
+    setMessages(prev => [...prev, { role: 'user', text: textChoice.trim(), timestamp }]);
+    serviceRef.current.sendTextChoice(textChoice.trim());
+    setTextChoice('');
+    startBuffering();
   };
 
-  const handleMicToggle = async () => {
-    const isActivating = inputMode !== 'mic';
-    
-    // Optimistically update UI if activating, or just switch back
-    if (!isActivating) {
-      setInputMode('text');
-      if (serviceRef.current) await serviceRef.current.setMicActive(false);
-      return;
-    }
-
-    if (serviceRef.current) {
-      try {
-        await serviceRef.current.setMicActive(true);
-        setInputMode('mic');
-      } catch (err: any) {
-        console.error("Microphone access failed:", err);
-        const msg = err.message || "";
-        if (msg.toLowerCase().includes("permission denied") || msg.toLowerCase().includes("not allowed")) {
-           alert("Microphone access was denied. Please check your browser's site settings and click the lock icon in the address bar to 'Allow' the microphone.");
-        } else {
-           alert("Could not access microphone: " + msg);
-        }
-        setInputMode('text');
-      }
-    }
-  };
-
-  const handleDownload = async () => {
-    if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
-      alert("No audio data recorded.");
-      return;
-    }
-    setIsDownloading(true);
-    try {
-      const buffers = serviceRef.current.recordedBuffers;
-      const sampleRate = buffers[0].sampleRate;
-      let totalLength = 0;
-      buffers.forEach(b => totalLength += b.length);
-      const offlineCtx = new OfflineAudioContext(1, totalLength, sampleRate);
-      let offset = 0;
-      buffers.forEach(buffer => {
-        const source = offlineCtx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(offlineCtx.destination);
-        source.start(offset);
-        offset += buffer.duration;
-      });
-      const finalBuffer = await offlineCtx.startRendering();
-      const wavBlob = await audioBufferToWav(finalBuffer);
-      await downloadOrShareAudio(wavBlob, `Saga_${config.topic.replace(/\s+/g, '_')}.wav`);
-    } catch (err) {
-      alert("Export failed.");
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  const togglePause = () => {
-    const next = !isPaused;
-    setIsPaused(next);
-    if (serviceRef.current) serviceRef.current.setPaused(next);
-    if (ambientAudioRef.current) {
-      if (next) ambientAudioRef.current.pause();
-      else if (!isMuted) ambientAudioRef.current.play();
+  const getGenreStyles = () => {
+    switch(config.genre) {
+      case Genre.FANTASY: return 'from-amber-900/40 to-black text-amber-50 font-fantasy';
+      case Genre.SCIFI: return 'from-blue-900/40 to-black text-cyan-50 font-scifi';
+      case Genre.MYSTERY: return 'from-slate-800/60 to-black text-slate-100';
+      case Genre.HORROR: return 'from-red-950/50 to-black text-red-50';
+      default: return 'from-neutral-900 to-black text-white';
     }
   };
 
   return (
-    <div className={`h-screen bg-[#020205] text-white font-sans flex flex-col overflow-hidden relative selection:bg-white selection:text-black`}>
+    <div className={`h-screen bg-gradient-to-b ${getGenreStyles()} flex flex-col transition-colors duration-1000 overflow-hidden relative`}>
       <Visualizer inputAnalyser={analysers.in} outputAnalyser={analysers.out} genre={config.genre} isPaused={isPaused} />
 
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 z-50 shrink-0 bg-gradient-to-b from-black/80 to-transparent">
+      {/* HEADER */}
+      <header className="px-6 py-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 z-20 shrink-0 border-b border-white/5 bg-black/40 backdrop-blur-md">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
-            <i className="fas fa-arrow-left text-cyan-400"></i>
+          <button onClick={onBack} className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors">
+            <i className="fas fa-arrow-left"></i>
           </button>
-          <div>
-            <h1 className="text-xl md:text-2xl font-black tracking-tight uppercase leading-none">{config.topic}</h1>
-            <div className="flex items-center gap-2 mt-1.5">
-              <div className={`w-2 h-2 rounded-full ${isNarrating ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-              <p className="text-[10px] opacity-60 uppercase tracking-widest font-black text-cyan-200">{config.genre} • {config.language}</p>
+          <div className="flex flex-col">
+            <h1 className="text-xl font-bold tracking-tight uppercase leading-none">{config.topic}</h1>
+            <div className="flex items-center gap-3 mt-1.5">
+               <div className={`w-2 h-2 rounded-full ${isOutputActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+               <p className="text-[9px] opacity-60 uppercase tracking-widest font-black">{config.genre} • {config.language}</p>
             </div>
           </div>
         </div>
-
         <div className="flex items-center gap-3 w-full md:w-auto">
-          <button onClick={handleDownload} disabled={isDownloading} className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0" title="Export Audio">
-            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm text-cyan-400`}></i>
+          <button 
+            onClick={() => {
+              localStorage.setItem('storyscape_saved_session', JSON.stringify({ config, transcriptions: messages }));
+              onExit();
+            }} 
+            className="hidden sm:flex px-6 py-2 rounded-full glass text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all gap-2"
+          >
+            <i className="fas fa-save"></i> Save Draft
           </button>
-          
-          <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-white/5 shrink-0">
-            <button onClick={() => setIsMuted(!isMuted)} className="opacity-70 w-5">
-              <i className={`fas ${isMuted ? 'fa-volume-mute' : 'fa-volume-low'} text-cyan-400`}></i>
-            </button>
-            <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-20 md:w-24 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-cyan-500" />
-          </div>
-
-          <button onClick={togglePause} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shrink-0 ${isPaused ? 'bg-green-500 text-white' : 'glass border-white/10 hover:bg-white/10'}`}>
-            <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
-          </button>
-
-          <button onClick={onExit} className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center hover:bg-red-500/30 transition-all shrink-0">
-            <i className="fas fa-stop text-sm"></i>
-          </button>
+          <button onClick={onExit} className="flex-1 sm:flex-none px-8 py-2 rounded-full bg-white text-black font-black text-[10px] uppercase tracking-widest shadow-2xl transition-transform active:scale-95">End Saga</button>
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-t-[3rem] overflow-hidden shadow-2xl relative border-white/10 z-10 bg-black/40 mt-4">
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative">
+      {/* CHAT AREA */}
+      <main className="flex-1 min-h-0 flex flex-col relative z-10">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-6 py-10 space-y-8 custom-scrollbar scroll-smooth">
           
-          {(connectingProgress < 100 || error) && (
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-[100] flex flex-col items-center justify-center gap-8 text-center px-12">
-               {!error ? (
-                 <>
-                   <div className="relative">
-                     <div className={`w-32 h-32 border-[6px] border-cyan-900/20 border-t-cyan-500 rounded-full animate-spin`}></div>
-                     <div className="absolute inset-0 flex items-center justify-center font-black text-2xl text-cyan-400">
-                       {connectingProgress}%
-                     </div>
-                   </div>
-                   <h3 className="text-xl font-black uppercase tracking-[0.3em] text-cyan-400 animate-pulse">Establishing Neural Uplink...</h3>
-                 </>
-               ) : (
-                 <>
-                   <div className="w-24 h-24 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/20">
-                      <i className="fas fa-triangle-exclamation text-3xl text-red-500"></i>
-                   </div>
-                   <div className="space-y-4">
-                     <h3 className="text-2xl font-black uppercase text-red-500">Neural Link Severed</h3>
-                     <p className="text-white/60 text-sm max-w-xs">{error}</p>
-                   </div>
-                   <button onClick={() => initService(config)} className="px-10 py-4 rounded-full bg-white text-black font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-xl">Retry Link</button>
-                 </>
-               )}
+          {(connectingProgress < 100 || isBuffering) && (
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex flex-col items-center justify-center gap-6 text-center px-12 pointer-events-none">
+               <div className="relative">
+                 <div className="w-24 h-24 border-[4px] border-white/5 border-t-white rounded-full animate-spin"></div>
+                 <div className="absolute inset-0 flex items-center justify-center font-black text-xl">{isBuffering ? bufferPercent : connectingProgress}%</div>
+               </div>
+               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Gathering Chronicle Lore...</h3>
             </div>
           )}
 
           {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
-              <div className={`max-w-[85%] p-6 rounded-[2rem] border transition-all ${
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} w-full items-end gap-2 animate-in fade-in slide-in-from-bottom-2`}>
+              <div className={`max-w-[85%] md:max-w-[70%] p-5 md:p-6 rounded-2xl shadow-xl relative ${
                 m.role === 'user' 
-                  ? 'bg-cyan-950/20 border-cyan-500/10 rounded-tr-none' 
-                  : 'bg-white/5 border-white/5 rounded-tl-none shadow-xl'
+                  ? 'bg-red-600/80 text-white rounded-tr-none border border-white/10' 
+                  : 'bg-blue-600/80 text-white rounded-tl-none border border-white/5'
               }`}>
-                <p className={`text-[9px] mb-2 uppercase tracking-[0.3em] font-black ${m.role === 'user' ? 'text-cyan-400' : 'text-white/40'}`}>
-                  {m.role === 'user' ? 'WANDERER' : 'ORACLE'}
-                </p>
-                <p className="text-lg md:text-xl leading-relaxed font-light break-words hyphens-auto">
-                  {m.text}
-                </p>
+                {/* Bubble Tail */}
+                <div className={`absolute top-0 ${m.role === 'user' ? 'right-[-6px]' : 'left-[-6px]'}`}>
+                   <svg viewBox="0 0 8 13" className={`w-3 h-4 fill-current ${m.role === 'user' ? 'text-red-600/80' : 'text-blue-600/80'}`}>
+                     <path d={m.role === 'user' ? "M0 0v13l8-13H0z" : "M8 0v13l-8-13h8z"} />
+                   </svg>
+                </div>
+                <div className="text-[16px] md:text-xl leading-relaxed whitespace-pre-wrap break-words">{m.text}</div>
+                <div className={`flex items-center gap-2 mt-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                   <span className="text-[9px] opacity-40 uppercase tracking-widest font-black">
+                     {m.timestamp} — {m.role === 'user' ? 'The Wanderer' : 'The Oracle'}
+                   </span>
+                   {m.role === 'user' && <i className="fas fa-check-double text-[10px] text-blue-400 opacity-60"></i>}
+                </div>
               </div>
             </div>
           ))}
 
-          {(currentNarratorText || currentUserText) && (
-            <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] p-6 rounded-[2rem] border border-dashed transition-all animate-pulse ${
-                currentUserText ? 'bg-cyan-500/[0.02] border-cyan-500/20 rounded-tr-none' : 'bg-white/[0.02] border-white/10 rounded-tl-none'
+          {(currentModelText || currentUserText) && (
+            <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'} w-full`}>
+              <div className={`max-w-[85%] md:max-w-[70%] p-6 rounded-2xl animate-pulse ${
+                currentUserText ? 'bg-red-600/30 rounded-tr-none' : 'bg-blue-600/30 rounded-tl-none'
               }`}>
-                <p className="text-lg md:text-xl leading-relaxed italic opacity-60 break-words hyphens-auto">
-                  {currentUserText || currentNarratorText}
-                </p>
+                <div className="text-[16px] md:text-xl leading-relaxed italic opacity-60">
+                  {currentModelText || currentUserText}
+                </div>
               </div>
             </div>
           )}
+          <div className="h-4"></div>
         </div>
 
-        <div className="p-8 md:p-10 glass border-t border-white/10 bg-black/60 shrink-0">
-          <div className="flex items-center gap-4 max-w-4xl mx-auto">
-             <button 
-                onClick={handleMicToggle}
-                className={`w-16 h-16 rounded-full border-2 transition-all flex items-center justify-center shadow-2xl shrink-0 ${
+        {/* INPUT FOOTER */}
+        <div className="p-4 md:p-8 bg-black/60 border-t border-white/5 backdrop-blur-xl flex flex-col gap-6 z-20 shrink-0">
+          <div className="max-w-5xl mx-auto w-full flex flex-col md:flex-row items-center gap-6">
+            <div className="flex items-center gap-4 w-full md:w-auto">
+              <button 
+                onClick={handleMicToggle} 
+                className={`flex-1 md:w-16 md:h-16 h-14 rounded-2xl md:rounded-full border transition-all flex items-center justify-center gap-3 md:gap-0 ${
                   inputMode === 'mic' 
-                    ? 'bg-red-600 border-red-400 text-white animate-pulse' 
-                    : 'glass border-white/10 text-white/30 hover:text-white'
+                    ? 'bg-red-600 border-red-400 text-white shadow-2xl animate-pulse' 
+                    : 'glass border-white/10 text-white/40 hover:text-white'
                 }`}
               >
                 <i className={`fas ${inputMode === 'mic' ? 'fa-microphone' : 'fa-microphone-slash'} text-xl`}></i>
+                <span className="md:hidden text-[10px] font-black uppercase tracking-widest">{inputMode === 'mic' ? 'Mic Active' : 'Text Only'}</span>
               </button>
+              
+              <button onClick={() => setIsPaused(!isPaused)} className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl md:rounded-full flex items-center justify-center transition-all ${isPaused ? 'bg-green-600 text-white shadow-2xl' : 'glass border-white/10 hover:bg-white/10'}`}>
+                  <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'} text-xl`}></i>
+              </button>
+            </div>
 
-              <div className="flex-1 relative group">
-                 {inputMode === 'text' ? (
-                    <form onSubmit={handleTextSubmit} className="flex gap-3 w-full">
-                       <input 
-                         type="text" 
-                         value={textInput} 
-                         onChange={(e) => setTextInput(e.target.value)}
-                         placeholder={isPaused ? "Saga Frozen" : "Shape your next chapter..."}
-                         disabled={isPaused}
-                         className="flex-1 glass border-white/10 rounded-full px-8 py-5 outline-none focus:border-cyan-500/30 focus:bg-white/[0.05] transition-all text-lg font-light placeholder:opacity-20"
-                       />
-                       <button 
-                         type="submit" 
-                         disabled={!textInput.trim() || isPaused}
-                         className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center transition-all active:scale-90 disabled:opacity-20 shadow-2xl shrink-0"
-                       >
-                          <i className="fas fa-paper-plane text-lg"></i>
-                       </button>
-                    </form>
-                 ) : (
-                    <div className="w-full h-16 rounded-full glass border border-dashed border-white/10 flex items-center px-8 text-white/20 uppercase tracking-[0.4em] font-black text-xs">
-                       {isUserSpeaking ? "Direct Neural Link Active" : "Waiting for your voice..."}
-                    </div>
-                 )}
-              </div>
+            {inputMode === 'text' && (
+              <form onSubmit={handleTextSubmit} className="flex-1 flex items-center gap-3 w-full">
+                <input 
+                  type="text" 
+                  value={textChoice} 
+                  onChange={(e) => setTextChoice(e.target.value)} 
+                  disabled={isPaused} 
+                  placeholder={isPaused ? "Saga Paused..." : "Respond to the destiny..."} 
+                  className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 outline-none focus:border-white/30 text-base md:text-lg font-light transition-all disabled:opacity-30" 
+                />
+                <button 
+                  type="submit" 
+                  disabled={!textChoice.trim() || isPaused} 
+                  className="w-14 h-14 md:px-10 md:w-auto rounded-2xl bg-white text-black font-black uppercase tracking-widest text-[10px] shadow-2xl transition-all active:scale-95 disabled:opacity-20 flex items-center justify-center"
+                >
+                  <span className="hidden md:block">Send</span>
+                  <i className="fas fa-paper-plane md:hidden"></i>
+                </button>
+              </form>
+            )}
           </div>
         </div>
       </main>
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; } 
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } 
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.1); border-radius: 10px; }
-      ` }} />
+      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }` }} />
     </div>
   );
 };

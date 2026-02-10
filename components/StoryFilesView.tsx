@@ -1,8 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-/* Import LoreData from types.ts instead of geminiLiveService */
-import { Genre, AdventureConfig, NarratorMode, LoreData } from '../types';
-import { StoryScapeService } from '../services/geminiLiveService';
+import { Genre, AdventureConfig, NarratorMode } from '../types';
+import { StoryScapeService, LoreData } from '../services/geminiLiveService';
 import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
@@ -20,7 +19,6 @@ const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.HORROR]: 'https://assets.mixkit.co/sfx/preview/mixkit-horror-atmosphere-drone-953.mp3',
   [Genre.THRILLER]: 'https://assets.mixkit.co/sfx/preview/mixkit-suspense-movie-trailer-ambience-2537.mp3',
   [Genre.DOCUMENTARY]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
-  [Genre.EDUCATION]: 'https://assets.mixkit.co/sfx/preview/mixkit-library-room-ambience-with-distant-chatter-2517.mp3',
 };
 
 const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {

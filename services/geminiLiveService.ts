@@ -1,9 +1,21 @@
-import { GoogleGenAI, LiveServerMessage, Modality, GenerateContentResponse, Blob } from '@google/genai';
+
+import { GoogleGenAI, LiveServerMessage, Modality, GenerateContentResponse } from '@google/genai';
 import { encode, decode, decodeAudioData } from '../utils/audioUtils';
-import { Genre, GeminiVoice, AdventureConfig, NarratorMode, LoreData } from '../types';
+import { Genre, GeminiVoice, AdventureConfig, NarratorMode } from '../types';
+
+export interface LoreData {
+  manifest: string;
+  sources: Array<{ title: string; uri: string }>;
+  verifiedMetadata?: {
+    title: string;
+    year: string;
+    director: string;
+    genre: string;
+  };
+}
 
 export class StoryScapeService {
-  private ai: GoogleGenAI | null = null;
+  private ai: GoogleGenAI;
   private sessionPromise: Promise<any> | null = null;
   private inputAudioContext: AudioContext | null = null;
   private outputAudioContext: AudioContext | null = null;
@@ -18,8 +30,13 @@ export class StoryScapeService {
   public inputAnalyser: AnalyserNode | null = null;
   public outputAnalyser: AnalyserNode | null = null;
 
-  constructor() {}
+  constructor() {
+    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  }
 
+  /**
+   * Fetches a truly random trending topic from the internet based on genre and mode.
+   */
   async fetchTrendingTopic(genre: Genre, mode: string): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Find a single, currently popular or trending ${genre} ${mode === 'explainer' ? 'movie' : 'topic for a podcast'}. 
@@ -32,9 +49,10 @@ export class StoryScapeService {
         contents: prompt,
         config: { 
           tools: [{ googleSearch: {} }],
-          temperature: 1.0 
+          temperature: 1.0 // High temperature for more variety
         },
       });
+      // Fix for TS18048: Check if text exists before calling .trim()
       const text = response.text || "";
       return text.trim().replace(/^"|"$/g, '') || "The Unknown Anomaly";
     } catch (err) {
@@ -82,11 +100,8 @@ export class StoryScapeService {
     lore?: LoreData,
     customSystemInstruction?: string
   ) {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-    const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-    this.inputAudioContext = new AudioContextClass({ sampleRate: 16000 });
-    this.outputAudioContext = new AudioContextClass({ sampleRate: 24000 });
+    this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+    this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
     this.inputAnalyser = this.inputAudioContext.createAnalyser();
     this.outputAnalyser = this.outputAudioContext.createAnalyser();
@@ -96,10 +111,10 @@ export class StoryScapeService {
     const { genre, topic, language, voice } = config;
     const lastTurn = history && history.length > 0 ? history[history.length - 1].text : "";
     const contextSummary = lastTurn 
-      ? `Resume session: ${topic} in ${language}. Previous state: "${lastTurn}".`
-      : `Begin session: ${topic} in ${language}. Welcome the user.`;
+      ? `The session is in progress. Last exchange: "${lastTurn}". Resume immediately.`
+      : `Initiate new session for: ${topic} in ${language}.`;
 
-    const systemInstruction = customSystemInstruction || `You are a Narrator for a ${genre} tale in ${language}. Voice: ${voice}.`;
+    const systemInstruction = customSystemInstruction || `Narrate a ${genre} tale about ${topic} in ${language}. Use ${voice} voice.`;
 
     this.sessionPromise = this.ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
@@ -112,60 +127,31 @@ export class StoryScapeService {
       },
       callbacks: {
         onopen: () => {
-          console.log("WebSocket link opened.");
+          this.sessionPromise?.then(session => session.sendRealtimeInput({ text: contextSummary }));
         },
         onmessage: async (message: LiveServerMessage) => {
           if (this.isPaused) return;
-          
-          const modelTurn = message.serverContent?.modelTurn;
-          const inputTranscription = message.serverContent?.inputTranscription;
-          const outputTranscription = message.serverContent?.outputTranscription;
-          const turnComplete = !!message.serverContent?.turnComplete;
-          const interrupted = !!message.serverContent?.interrupted;
-
-          if (modelTurn?.parts) {
-            for (const part of modelTurn.parts) {
-              if (part.inlineData?.data) {
-                this.handleAudioOutput(part.inlineData.data);
-              }
-              if (part.text) {
-                callbacks.onTranscriptionUpdate('model', part.text, turnComplete);
-              }
-            }
-          }
-
-          if (inputTranscription) {
-            callbacks.onTranscriptionUpdate('user', inputTranscription.text || '', turnComplete);
-          }
-          
-          if (outputTranscription) {
-            callbacks.onTranscriptionUpdate('model', outputTranscription.text || '', turnComplete);
-          }
-
-          if (turnComplete) {
-            callbacks.onTurnComplete?.();
-          }
-
-          if (interrupted) this.stopAllAudio();
+          const b64 = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+          if (b64) this.handleAudioOutput(b64);
+          if (message.serverContent?.inputTranscription) callbacks.onTranscriptionUpdate('user', message.serverContent.inputTranscription.text || '', !!message.serverContent.turnComplete);
+          if (message.serverContent?.outputTranscription) callbacks.onTranscriptionUpdate('model', message.serverContent.outputTranscription.text || '', !!message.serverContent.turnComplete);
+          if (message.serverContent?.turnComplete) callbacks.onTurnComplete?.();
+          if (message.serverContent?.interrupted) this.stopAllAudio();
         },
         onerror: (e: any) => callbacks.onError(e),
         onclose: () => callbacks.onClose(),
       },
     });
 
-    const session = await this.sessionPromise;
-    session.sendRealtimeInput({ text: contextSummary });
+    await this.sessionPromise;
   }
 
   public async setMicActive(active: boolean) {
     this.isMicActive = active;
     
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error("Microphone API not available. This browser is either incompatible or not using a secure context (HTTPS).");
-    }
-
-    if (!this.inputAudioContext || !this.sessionPromise) return;
+    if (!this.inputAudioContext) return;
     
+    // Aggressive resume for APK/WebView
     if (this.inputAudioContext.state === 'suspended') {
       await this.inputAudioContext.resume();
     }
@@ -176,13 +162,7 @@ export class StoryScapeService {
     if (active) {
       if (!this.stream) {
         try {
-          this.stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true
-            } 
-          });
+          this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           const source = this.inputAudioContext.createMediaStreamSource(this.stream);
           this.scriptProcessor = this.inputAudioContext.createScriptProcessor(4096, 1, 1);
           
@@ -191,7 +171,7 @@ export class StoryScapeService {
             const inputData = e.inputBuffer.getChannelData(0);
             const pcmBlob = this.createBlob(inputData);
             
-            this.sessionPromise!.then((session) => {
+            this.sessionPromise.then((session) => {
               session.sendRealtimeInput({ media: pcmBlob });
             });
           };
@@ -216,11 +196,11 @@ export class StoryScapeService {
     }
   }
 
-  private createBlob(data: Float32Array): Blob {
+  private createBlob(data: Float32Array): any {
     const l = data.length;
     const int16 = new Int16Array(l);
     for (let i = 0; i < l; i++) {
-      int16[i] = Math.max(-1, Math.min(1, data[i])) * 32767;
+      int16[i] = Math.max(-1, Math.min(1, data[i])) * 32768;
     }
     return { 
       data: encode(new Uint8Array(int16.buffer)), 
@@ -234,17 +214,18 @@ export class StoryScapeService {
     try {
       const response = await ai.models.generateContent({ 
         model: 'gemini-3-flash-preview', 
-        contents: `Provide a cinematic closing statement for this adventure: \n${transcript}` 
+        contents: `Summarize this exchange: \n${transcript}` 
       });
-      return response.text || "The journey ends.";
+      return response.text || "Conclusion reached.";
     } catch (err) {
-      return "The chronicle concludes.";
+      return "The session ends.";
     }
   }
 
   private async handleAudioOutput(base64: string) {
     if (!this.outputAudioContext || this.isPaused) return;
     
+    // Safety check for APKs that might suspend the context silently
     if (this.outputAudioContext.state === 'suspended') {
       await this.outputAudioContext.resume();
     }
