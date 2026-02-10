@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig, LoreData } from '../types';
 import { StoryScapeService } from '../services/geminiLiveService';
@@ -131,7 +130,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
           const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           
           if (role === 'model') {
-            // Flush user buffer if model starts responding
             if (userBuffer.current.trim()) {
               setMessages(prev => {
                 const textVal = userBuffer.current.trim();
@@ -220,15 +218,28 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   };
 
   const handleMicToggle = async () => {
-    const newMode = inputMode === 'text' ? 'mic' : 'text';
-    setInputMode(newMode);
+    const isActivating = inputMode !== 'mic';
+    
+    // Optimistically update UI if activating, or just switch back
+    if (!isActivating) {
+      setInputMode('text');
+      if (serviceRef.current) await serviceRef.current.setMicActive(false);
+      return;
+    }
+
     if (serviceRef.current) {
       try {
-        await serviceRef.current.setMicActive(newMode === 'mic');
-      } catch (err) {
+        await serviceRef.current.setMicActive(true);
+        setInputMode('mic');
+      } catch (err: any) {
         console.error("Microphone access failed:", err);
+        const msg = err.message || "";
+        if (msg.toLowerCase().includes("permission denied") || msg.toLowerCase().includes("not allowed")) {
+           alert("Microphone access was denied. Please check your browser's site settings and click the lock icon in the address bar to 'Allow' the microphone.");
+        } else {
+           alert("Could not access microphone: " + msg);
+        }
         setInputMode('text');
-        alert("Permission denied. Check device settings.");
       }
     }
   };

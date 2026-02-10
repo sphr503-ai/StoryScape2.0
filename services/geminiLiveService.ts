@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, LiveServerMessage, Modality, GenerateContentResponse, Blob } from '@google/genai';
 import { encode, decode, decodeAudioData } from '../utils/audioUtils';
 import { Genre, GeminiVoice, AdventureConfig, NarratorMode, LoreData } from '../types';
@@ -19,9 +18,7 @@ export class StoryScapeService {
   public inputAnalyser: AnalyserNode | null = null;
   public outputAnalyser: AnalyserNode | null = null;
 
-  constructor() {
-    // ai will be initialized in startAdventure to ensure fresh API key
-  }
+  constructor() {}
 
   async fetchTrendingTopic(genre: Genre, mode: string): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -85,11 +82,11 @@ export class StoryScapeService {
     lore?: LoreData,
     customSystemInstruction?: string
   ) {
-    // Initialize fresh AI client right before connection
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-    this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    this.inputAudioContext = new AudioContextClass({ sampleRate: 16000 });
+    this.outputAudioContext = new AudioContextClass({ sampleRate: 24000 });
 
     this.inputAnalyser = this.inputAudioContext.createAnalyser();
     this.outputAnalyser = this.outputAudioContext.createAnalyser();
@@ -137,7 +134,6 @@ export class StoryScapeService {
             }
           }
 
-          // Crucial: Pass transcription even if text is empty to signal the UI to flush its buffers if isFinal/turnComplete
           if (inputTranscription) {
             callbacks.onTranscriptionUpdate('user', inputTranscription.text || '', turnComplete);
           }
@@ -163,6 +159,11 @@ export class StoryScapeService {
 
   public async setMicActive(active: boolean) {
     this.isMicActive = active;
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Microphone API not available. This browser is either incompatible or not using a secure context (HTTPS).");
+    }
+
     if (!this.inputAudioContext || !this.sessionPromise) return;
     
     if (this.inputAudioContext.state === 'suspended') {
@@ -175,7 +176,13 @@ export class StoryScapeService {
     if (active) {
       if (!this.stream) {
         try {
-          this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          this.stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            } 
+          });
           const source = this.inputAudioContext.createMediaStreamSource(this.stream);
           this.scriptProcessor = this.inputAudioContext.createScriptProcessor(4096, 1, 1);
           
