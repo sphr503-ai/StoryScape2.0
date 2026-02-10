@@ -1,7 +1,8 @@
 
+// Add React import to fix 'Cannot find namespace React' error
 import React, { useEffect, useState, useRef } from 'react';
-import { Genre, AdventureConfig } from '../types';
-import { StoryScapeService, SongData, SongSegment } from '../services/geminiLiveService';
+import { AdventureConfig } from '../types';
+import { StoryScapeService, SongData } from '../services/geminiLiveService';
 import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
@@ -17,10 +18,10 @@ interface SingerViewProps {
 const STAGE_AMBIENCE = 'https://assets.mixkit.co/sfx/preview/mixkit-audience-light-applause-354.mp3';
 
 const VOCAL_FX_PROMPTS: Record<VocalFX, string> = {
-  'Clean': 'Natural, raw a cappella performance.',
-  'Reverb': 'Ethereal cathedral reverb effect.',
-  'Echo': 'Rhythmic phrase echoes.',
-  'Auto-Soul': 'Robotic pitch slides.'
+  'Clean': 'Deliver a raw, soulful, and intimate performance.',
+  'Reverb': 'Ethereal cathedral reverb. Let notes ring in a vast stone hall.',
+  'Echo': 'Rhythmic phrase-end echoes echoing off distant canyon walls.',
+  'Auto-Soul': 'High-fidelity autotune effect with robotic pitch-snapping.'
 };
 
 const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {
@@ -46,6 +47,9 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
   const timerRef = useRef<number | null>(null);
   const bufferIntervalRef = useRef<number | null>(null);
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // FIX: Guard to prevent FX change from triggering app exit
+  const isChangingFX = useRef(false);
 
   useEffect(() => {
     let anim: number;
@@ -81,6 +85,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
 
   const initService = async (advConfig: AdventureConfig, currentFX: VocalFX) => {
     setConnectingProgress(10);
+    isChangingFX.current = false; // Reset guard
     const service = new StoryScapeService();
     serviceRef.current = service;
 
@@ -89,26 +94,21 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
     setSongData(fetchedSong);
     setConnectingProgress(70);
 
-    const firstSegment = fetchedSong.segments[0] || { label: 'Intro', text: 'Humming melody' };
+    const firstSegment = fetchedSong.segments[activeSegmentIndex] || fetchedSong.segments[0] || { label: 'Intro', text: 'Melodic hum' };
 
     const customInstruction = `
       You are a World-Class Musical Performer. 
-      MODE: PURE A CAPPELLA SINGING. NO SPEECH. NO INSTRUMENTS.
+      MODE: PURE A CAPPELLA SINGING. NO SPEAKING. NO INSTRUMENTS.
       
-      SONG CONTEXT:
-      - Title: "${fetchedSong.songTitle}"
-      - Style: Soulful, breathy, emotive.
-      - Full Script: ${fetchedSong.lyrics}
-      - Vocal FX: ${currentFX}
+      SONG PERFORMANCE PROTOCOL (EXTREMELY STRICT):
+      1. DO NOT DRAG: NEVER extend a single vowel or sound (like "Hoo", "Aaa") for more than 2 SECONDS.
+      2. FAST PACE: Prioritize delivering the actual lyrics clearly. 
+      3. NO AMBIENT LOOPING: Do not get stuck in wordless melodic patterns. 
+      4. SING THE TEXT: Translate every segment directly into a soulful, rhythmic melodic performance.
+      5. VOCAL FX: Use ${currentFX} processing logic: ${VOCAL_FX_PROMPTS[currentFX]}.
+      6. NO TALKING: Start singing IMMEDIATELY.
 
-      PERFORMANCE TIMING RULES (CRITICAL):
-      1. DO NOT DRAG: Never expand a single syllable (like "Hoo", "Aaa", "Ooo") for more than 5 seconds.
-      2. PACE: Balance the melodic flourishes with the actual lyrics. Deliver phrases with a clear beginning and end.
-      3. EMOTION: Use your voice to convey the deep soul of the lyrics, but keep the song moving forward.
-      4. STICK TO SCRIPT: Sing the segments provided. Do not deviate into long wordless vocal loops.
-      5. NO TALKING: Start singing the first segment immediately.
-
-      START PERFORMANCE: ${firstSegment.label} - "${firstSegment.text}".
+      PERFORMANCE START: Sing [${firstSegment.label}] - "${firstSegment.text}".
     `;
 
     service.startAdventure(advConfig, {
@@ -129,8 +129,8 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
           setActiveSegmentIndex(prev => {
             const nextIndex = (prev + 1) % fetchedSong.segments.length;
             const nextSeg = fetchedSong.segments[nextIndex];
-            // Authoritative prompt to move to next lyrics
-            service.sendTextChoice(`Finish your melody and immediately sing the NEXT LYRICS: [${nextSeg.label}] "${nextSeg.text}". Maintain tempo, don't drag.`);
+            // FORCE PROGRESSION prompt
+            service.sendTextChoice(`STOP MELODY. SING LYRICS NOW: [${nextSeg.label}] "${nextSeg.text}". NO DRAGGING.`);
             return nextIndex;
           });
           startBuffering();
@@ -140,7 +140,12 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
         startBuffering();
         setTimeout(() => initService(config, vocalFX), 3000);
       },
-      onClose: () => onExit(),
+      onClose: () => {
+        // Only trigger onExit if we are not purposely restarting for an FX change
+        if (!isChangingFX.current) {
+          onExit();
+        }
+      },
     }, transcriptions, undefined, customInstruction).then(() => {
       setConnectingProgress(100);
       setAnalysers({ in: service.inputAnalyser, out: service.outputAnalyser });
@@ -165,10 +170,10 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
 
   const handleFXChange = (fx: VocalFX) => {
     if (fx === vocalFX) return;
+    isChangingFX.current = true; // Set guard
     setVocalFX(fx);
     if (serviceRef.current) {
         serviceRef.current.stopAdventure();
-        setActiveSegmentIndex(0);
         initService(config, fx);
     }
   };
@@ -220,7 +225,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
       });
       const finalBuffer = await offlineCtx.startRendering();
       const wavBlob = await audioBufferToWav(finalBuffer);
-      await downloadOrShareAudio(wavBlob, `Studio_Master_${(songData?.songTitle || config.topic).replace(/\s+/g, '_')}.wav`);
+      await downloadOrShareAudio(wavBlob, `Studio_FX_Master_${vocalFX}_${(songData?.songTitle || config.topic).replace(/\s+/g, '_')}.wav`);
     } catch (err) {
       alert("Export failed.");
     } finally {
@@ -281,7 +286,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
         {showLyrics && songData && (
           <aside className="hidden lg:flex flex-col w-96 glass rounded-[3rem] border-fuchsia-500/10 bg-black/40 overflow-hidden animate-in slide-in-from-left duration-500 shadow-2xl">
             <div className="p-8 border-b border-fuchsia-500/10 bg-fuchsia-500/5 flex justify-between items-center">
-               <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-fuchsia-400">SESSION SCRIPT</h3>
+               <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-fuchsia-400">STUDIO SCRIPT</h3>
                <span className="text-[8px] font-bold text-fuchsia-500/40 uppercase tracking-widest">{songData.isOfficial ? 'SYNCHRONIZED' : 'COMPOSED'}</span>
             </div>
             <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar bg-black/10">
@@ -309,7 +314,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
                    </div>
                  </div>
                  <h3 className="text-2xl font-black uppercase tracking-[0.5em] text-fuchsia-400">
-                   {isBuffering ? 'RETRIEVING NEXT VERSE' : 'INITIALIZING STUDIO'}
+                   {isBuffering ? 'APPLYING FX PROFILE' : 'INITIALIZING STUDIO'}
                  </h3>
               </div>
             )}
@@ -354,7 +359,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
               </div>
               
               <div className="flex items-center gap-8">
-                 <button onClick={togglePause} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 group ${isPaused ? 'bg-fuchsia-600 text-white' : 'glass border-fuchsia-500/20 hover:bg-fuchsia-500/10'}`}>
+                 <button onClick={togglePause} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 group ${isPaused ? 'bg-fuchsia-600 text-white shadow-[0_0_30px_#701a75]' : 'glass border-fuchsia-500/20 hover:bg-fuchsia-500/10'}`}>
                    <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'} text-xl group-hover:scale-110 transition-transform`}></i>
                  </button>
               </div>
