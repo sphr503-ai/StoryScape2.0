@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Genre, ViewMode, AdventureConfig, NarratorMode, GeminiVoice } from './types';
 import AdventureView from './components/AdventureView';
@@ -91,7 +92,7 @@ const THEMES = {
     border: 'border-[#00ff41]/30',
     tabActive: 'bg-[#00ff41] text-black shadow-[0_0_20px_#00ff41]',
     heroTitle: 'NEURAL_TUTOR',
-    heroSub: 'CORE_SYLLAB syllabus_OVERRIDE_V4',
+    heroSub: 'CORE_SYLLABUS_OVERRIDE_V4',
     font: 'font-hacker',
     icon: 'fa-terminal',
     card: 'bg-black border-[#00ff41]/20 hover:border-[#00ff41]/60 hover:shadow-[0_0_30px_rgba(0,255,65,0.1)]',
@@ -171,7 +172,7 @@ const App: React.FC = () => {
         <div className={`absolute bottom-[-15%] right-[-5%] w-[70%] h-[70%] ${theme.glow2} blur-[250px] rounded-full animate-float transition-colors duration-1000`} style={{animationDelay: '-6s'}}></div>
       </div>
 
-      <nav className={`sticky top-6 z-50 w-[95%] max-w-5xl glass-dark border ${theme.border} rounded-full transition-colors duration-700 backdrop-blur-3xl shadow-2xl`}>
+      <nav className={`sticky top-6 z-50 w-[95%] max-w-4xl glass-dark border ${theme.border} rounded-full transition-colors duration-700 backdrop-blur-3xl shadow-2xl`}>
         <div className="px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 ${theme.accent}`}>

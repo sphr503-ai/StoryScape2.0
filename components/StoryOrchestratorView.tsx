@@ -153,7 +153,7 @@ export default function StoryOrchestratorView({ onExit }: StoryOrchestratorViewP
       setScript(scriptData);
 
       setStatus('Studio: Loading atmospheres...');
-      // Explicitly type uniqueMoods as string[] to avoid 'unknown' index type issues in TS.
+      // Fix: Explicitly type uniqueMoods as string[] to avoid 'unknown' index type issues in TS.
       const uniqueMoods: string[] = Array.from(new Set(scriptData.scenes.map(s => s.bgm_mood)));
       await Promise.all(uniqueMoods.map((m: string) => AMBIENT_LIBRARY[m] ? loadAudio(AMBIENT_LIBRARY[m], ctx).then(b => {
         if (ambientBuffersRef.current) ambientBuffersRef.current[m] = b;
@@ -289,7 +289,7 @@ export default function StoryOrchestratorView({ onExit }: StoryOrchestratorViewP
         }
       }
       const renderedBuffer = await offlineCtx.startRendering();
-      // Added await to audioBufferToWav as it returns a Promise<Blob>
+      // FIX: Add await to audioBufferToWav as it returns a Promise<Blob>
       const wavBlob = await audioBufferToWav(renderedBuffer);
       const url = URL.createObjectURL(wavBlob);
       const link = document.createElement('a');

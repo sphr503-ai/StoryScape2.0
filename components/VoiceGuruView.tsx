@@ -267,7 +267,7 @@ export default function VoiceGuruView({ onExit }: VoiceGuruViewProps) {
         }
       }
       const rendered = await offlineCtx.startRendering();
-      // Added await to audioBufferToWav as it returns a Promise<Blob>
+      // FIX: Add await to audioBufferToWav as it returns a Promise<Blob>
       const wav = await audioBufferToWav(rendered);
       const url = URL.createObjectURL(wav);
       const link = document.createElement('a');
