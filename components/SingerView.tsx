@@ -12,6 +12,8 @@ interface SingerViewProps {
   initialHistory?: Array<{ role: 'user' | 'model'; text: string }>;
 }
 
+const STAGE_AMBIENCE = 'https://assets.mixkit.co/sfx/preview/mixkit-audience-light-applause-354.mp3';
+
 const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {
   const [transcriptions, setTranscriptions] = useState<Array<{ role: 'user' | 'model'; text: string }>>(initialHistory);
   const [currentModelText, setCurrentModelText] = useState('');
@@ -22,12 +24,15 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
   const [isDownloading, setIsDownloading] = useState(false);
   const [isOutputActive, setIsOutputActive] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState((config.durationMinutes || 10) * 60);
+  const [ambientVolume, setAmbientVolume] = useState(0.15);
+  const [isMuted, setIsMuted] = useState(false);
   
   const [analysers, setAnalysers] = useState<{in: AnalyserNode | null, out: AnalyserNode | null}>({in: null, out: null});
   const serviceRef = useRef<StoryScapeService | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<number | null>(null);
   const bufferIntervalRef = useRef<number | null>(null);
+  const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let anim: number;
@@ -119,21 +124,50 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
 
   useEffect(() => {
     initService(config);
-    if (connectingProgress === 100 && !isPaused && secondsRemaining > 0) {
-      timerRef.current = window.setInterval(() => {
-        setSecondsRemaining(prev => Math.max(0, prev - 1));
-      }, 1000);
-    }
+    
+    const audio = new Audio(STAGE_AMBIENCE);
+    audio.loop = true;
+    audio.volume = ambientVolume;
+    audio.play().catch(() => {});
+    ambientAudioRef.current = audio;
+
     return () => {
       if (serviceRef.current) serviceRef.current.stopAdventure();
+      if (ambientAudioRef.current) ambientAudioRef.current.pause();
       if (timerRef.current) clearInterval(timerRef.current);
       if (bufferIntervalRef.current) clearInterval(bufferIntervalRef.current);
     };
   }, []);
 
   useEffect(() => {
+    if (ambientAudioRef.current) {
+      ambientAudioRef.current.volume = isMuted ? 0 : ambientVolume;
+    }
+  }, [ambientVolume, isMuted]);
+
+  useEffect(() => {
+    if (connectingProgress === 100 && !isPaused && secondsRemaining > 0) {
+      timerRef.current = window.setInterval(() => {
+        setSecondsRemaining(prev => Math.max(0, prev - 1));
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  }, [connectingProgress, isPaused, secondsRemaining]);
+
+  useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [transcriptions, currentModelText]);
+
+  const togglePause = () => {
+    const next = !isPaused;
+    setIsPaused(next);
+    if (serviceRef.current) serviceRef.current.setPaused(next);
+    if (ambientAudioRef.current) {
+      if (next) ambientAudioRef.current.pause();
+      else if (!isMuted) ambientAudioRef.current.play();
+    }
+  };
 
   const handleDownload = async () => {
     if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) return;
@@ -162,6 +196,12 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
     }
   };
 
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="h-screen bg-[#0d0212] text-fuchsia-50 font-sans flex flex-col p-4 md:p-8 overflow-hidden relative">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,#701a75_0%,transparent_70%)] pointer-events-none opacity-20"></div>
@@ -180,11 +220,19 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={handleDownload} disabled={isDownloading} className="px-6 py-2.5 rounded-full glass border-fuchsia-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
-            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-microphone-lines'}`}></i> RECORD SET
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button onClick={handleDownload} disabled={isDownloading} title="Download Recording" className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0 border-fuchsia-500/20">
+            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm text-fuchsia-400`}></i>
           </button>
-          <button onClick={onExit} className="px-8 py-2.5 rounded-full bg-fuchsia-600 text-white font-black text-[10px] uppercase tracking-widest shadow-2xl hover:bg-fuchsia-500 transition-all">EXIT STAGE</button>
+
+          <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-fuchsia-500/10 shrink-0">
+            <button onClick={() => setIsMuted(!isMuted)} className="opacity-70 w-5">
+              <i className={`fas ${isMuted ? 'fa-volume-mute' : 'fa-volume-low'} text-fuchsia-400`}></i>
+            </button>
+            <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-fuchsia-500" />
+          </div>
+
+          <button onClick={onExit} className="px-8 py-3 rounded-full bg-fuchsia-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-fuchsia-500 transition-all shrink-0 text-center">EXIT STAGE</button>
         </div>
       </header>
 
@@ -225,24 +273,28 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
           )}
         </div>
 
-        <div className="p-10 border-t border-fuchsia-500/10 bg-black/60 shrink-0 flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-8">
-               <div className="flex items-center gap-3">
-                 <div className={`w-3 h-3 rounded-full ${isOutputActive ? 'bg-fuchsia-500 shadow-[0_0_15px_#d946ef]' : 'bg-red-500'}`}></div>
-                 <span className="text-[10px] uppercase tracking-[0.3em] font-black text-fuchsia-300">{isOutputActive ? 'VOCAL_DATA_ACTIVE' : 'IDLE'}</span>
-               </div>
-               <div className="flex items-center gap-3">
-                 <i className="fas fa-clock text-fuchsia-500 text-xs"></i>
-                 <span className="text-sm font-black text-fuchsia-400 tracking-widest">{Math.floor(secondsRemaining/60)}:{(secondsRemaining%60).toString().padStart(2,'0')}</span>
-               </div>
+        <div className="p-8 md:p-10 glass border-t border-fuchsia-500/10 flex flex-col gap-6 bg-black/60 shrink-0">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center gap-12">
+              <div className="flex items-center gap-4">
+                 <div className={`w-3.5 h-3.5 rounded-full ${isOutputActive ? 'bg-fuchsia-500 shadow-[0_0_15px_#d946ef]' : 'bg-red-500'}`}></div>
+                 <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-60 text-fuchsia-300">{isOutputActive ? 'Vocal Active' : 'On Standby'}</span>
+              </div>
+              <div className="h-8 w-px bg-white/10 hidden md:block"></div>
+              <div className="flex items-center gap-4">
+                <i className="fas fa-stopwatch text-fuchsia-400 text-xs"></i>
+                <span className="text-sm font-black tracking-widest text-fuchsia-400">{formatTime(secondsRemaining)} Remaining</span>
+              </div>
             </div>
-            <button onClick={() => setIsPaused(!isPaused)} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl ${isPaused ? 'bg-fuchsia-600 text-white' : 'glass border-fuchsia-500/20 hover:bg-fuchsia-500/10'}`}>
-              <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
-            </button>
+            
+            <div className="flex items-center gap-6">
+               <button onClick={togglePause} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 ${isPaused ? 'bg-fuchsia-600 text-white' : 'glass border-fuchsia-500/20 hover:bg-fuchsia-500/10'}`}>
+                 <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
+               </button>
+            </div>
           </div>
-          <div className="w-full h-1 bg-fuchsia-950/40 rounded-full overflow-hidden">
-            <div className="h-full bg-fuchsia-500 shadow-[0_0_20px_#d946ef] transition-all duration-1000" style={{ width: `${(secondsRemaining / ((config.durationMinutes || 10) * 60)) * 100}%` }}></div>
+          <div className="w-full h-1.5 bg-fuchsia-950/40 rounded-full overflow-hidden">
+            <div className="h-full bg-fuchsia-500 transition-all duration-1000 shadow-[0_0_15px_#d946ef]" style={{ width: `${(secondsRemaining / ((config.durationMinutes || 10) * 60)) * 100}%` }}></div>
           </div>
         </div>
       </main>
