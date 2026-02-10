@@ -1,7 +1,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Genre, AdventureConfig, NarratorMode } from '../types';
-import { StoryScapeService, LoreData } from '../services/geminiLiveService';
+/* Import LoreData from types.ts instead of geminiLiveService */
+import { Genre, AdventureConfig, NarratorMode, LoreData } from '../types';
+import { StoryScapeService } from '../services/geminiLiveService';
 import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
@@ -353,7 +354,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
 
           {currentModelText && (
             <div className="flex justify-start">
-              <div className="max-w-[92%] p-6 md:p-8 rounded-[2.5rem] bg-emerald-500/[0.02] border border-dashed border-emerald-500/20 rounded-tl-none animate-pulse">
+              <div className="max-w-[92%] p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-emerald-500/[0.02] border border-dashed border-violet-500/20 rounded-tl-none animate-pulse">
                 <p className="text-xl md:text-2xl leading-relaxed italic text-emerald-400/60 break-words hyphens-auto">{currentModelText}</p>
               </div>
             </div>

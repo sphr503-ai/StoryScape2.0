@@ -41,11 +41,11 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   const [textInput, setTextInput] = useState('');
   const [inputMode, setInputMode] = useState<'text' | 'mic'>('mic');
   const [isPaused, setIsPaused] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [lore, setLore] = useState<LoreData | null>(null);
   const [connectingProgress, setConnectingProgress] = useState(0);
   const [ambientVolume, setAmbientVolume] = useState(0.2);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   
   const [isNarrating, setIsNarrating] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
@@ -53,11 +53,37 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   const [analysers, setAnalysers] = useState<{in: AnalyserNode | null, out: AnalyserNode | null}>({in: null, out: null});
   const serviceRef = useRef<StoryScapeService | null>(null);
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
-  const historyScrollRef = useRef<HTMLDivElement>(null);
-  
-  // Buffers for streaming text accumulation
-  const narratorTextBuffer = useRef('');
-  const userTextBuffer = useRef('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // TEXT ACCUMULATION ALGORITHM (From Podcast Player)
+  const cleanText = (text: string): string => {
+    return text
+      .replace(/\([^)]*\)/g, '') 
+      .replace(/\[[^\]]*\]/g, '') 
+      .replace(/^[\w\u0900-\u097F]+[:：]\s*/, '') 
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const smartAppend = (prev: string, next: string): string => {
+    if (!prev) return next.trim();
+    if (!next) return prev;
+    const cleanPrev = prev.trim();
+    const cleanNext = next.trim();
+    
+    // Check if the new text is already contained or a suffix
+    if (cleanPrev.endsWith(cleanNext)) return prev;
+    
+    const maxOverlap = Math.min(cleanPrev.length, cleanNext.length);
+    for (let len = maxOverlap; len >= 2; len--) {
+      const suffix = cleanPrev.slice(-len);
+      const prefix = cleanNext.slice(0, len);
+      if (suffix === prefix) return cleanPrev + cleanNext.slice(len);
+    }
+    
+    const needsSpace = !prev.endsWith(' ') && !next.startsWith(' ') && !/^[।.,!?]/.test(cleanNext);
+    return prev + (needsSpace ? ' ' : '') + next;
+  };
 
   useEffect(() => {
     let anim: number;
@@ -92,36 +118,40 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
 
     const systemInstruction = `
       You are the Master Narrator for an immersive ${advConfig.genre} adventure titled "${advConfig.topic}".
-      STYLE: Cinematic, vivid, and responsive. 
-      LORE: Use these facts if relevant: ${fetchedLore.manifest}
-      INSTRUCTION: Keep each turn relatively short (2-4 sentences). Always end with a prompt that invites the user's input.
+      STYLE: Cinematic, vivid, and highly responsive. In ${advConfig.language}.
+      LORE Grounding: ${fetchedLore.manifest}
+      INSTRUCTION: Keep each turn relatively short (2-4 sentences). Always end with a choice or prompt for the user.
       NEVER break character.
     `;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
+        if (!text && !isFinal) return;
+        const processedText = cleanText(text);
+        if (!processedText && !isFinal) return;
+
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
         if (role === 'model') {
-          narratorTextBuffer.current += text;
-          setCurrentNarratorText(narratorTextBuffer.current);
           if (isFinal) {
-            const finalMsg = narratorTextBuffer.current.trim();
-            if (finalMsg) {
-              setMessages(prev => [...prev, { role: 'model', text: finalMsg, timestamp }]);
-            }
+            setMessages(prev => {
+              const fullText = smartAppend(currentNarratorText, processedText).replace(/\s+/g, ' ').trim();
+              if (prev.length > 0 && prev[prev.length - 1].role === 'model' && prev[prev.length - 1].text === fullText) return prev;
+              return [...prev, { role: 'model', text: fullText, timestamp }];
+            });
             setCurrentNarratorText('');
-            narratorTextBuffer.current = '';
+          } else {
+            setCurrentNarratorText(prev => smartAppend(prev, processedText));
           }
         } else {
-          userTextBuffer.current += text;
-          setCurrentUserText(userTextBuffer.current);
           if (isFinal) {
-            const finalMsg = userTextBuffer.current.trim();
-            if (finalMsg) {
-              setMessages(prev => [...prev, { role: 'user', text: finalMsg, timestamp }]);
-            }
+            setMessages(prev => {
+              const fullText = smartAppend(currentUserText, processedText).replace(/\s+/g, ' ').trim();
+              return [...prev, { role: 'user', text: fullText, timestamp }];
+            });
             setCurrentUserText('');
-            userTextBuffer.current = '';
+          } else {
+            setCurrentUserText(prev => smartAppend(prev, processedText));
           }
         }
       },
@@ -139,7 +169,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     const audio = new Audio(AMBIENT_SOUNDS[config.genre]);
     audio.loop = true;
     audio.volume = ambientVolume;
-    audio.play().catch(e => console.warn("Ambient offline", e));
+    audio.play().catch(e => console.warn("Ambient audio failed", e));
     ambientAudioRef.current = audio;
 
     return () => {
@@ -149,14 +179,14 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   }, []);
 
   useEffect(() => {
-    if (ambientAudioRef.current) ambientAudioRef.current.volume = ambientVolume;
-  }, [ambientVolume]);
+    if (ambientAudioRef.current) ambientAudioRef.current.volume = isMuted ? 0 : ambientVolume;
+  }, [ambientVolume, isMuted]);
 
   useEffect(() => {
-    if (historyScrollRef.current) {
-      historyScrollRef.current.scrollTop = historyScrollRef.current.scrollHeight;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, showHistory]);
+  }, [messages, currentNarratorText, currentUserText]);
 
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,7 +208,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
 
   const handleDownload = async () => {
     if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
-      alert("No audio recorded to download yet.");
+      alert("No audio data available for export yet.");
       return;
     }
     setIsDownloading(true);
@@ -198,187 +228,122 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
       });
       const finalBuffer = await offlineCtx.startRendering();
       const wavBlob = await audioBufferToWav(finalBuffer);
-      await downloadOrShareAudio(wavBlob, `StoryScape_Adventure_${config.topic.replace(/\s+/g, '_')}.wav`);
+      await downloadOrShareAudio(wavBlob, `Saga_${config.topic.replace(/\s+/g, '_')}.wav`);
     } catch (err) {
-      alert("Failed to export audio.");
+      alert("Export failed.");
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const getThemeColor = () => {
-    switch(config.genre) {
-      case Genre.FANTASY: return 'from-amber-500/20';
-      case Genre.SCIFI: return 'from-cyan-500/20';
-      case Genre.HORROR: return 'from-red-500/20';
-      case Genre.MYSTERY: return 'from-purple-500/20';
-      default: return 'from-white/10';
+  const togglePause = () => {
+    const next = !isPaused;
+    setIsPaused(next);
+    if (serviceRef.current) serviceRef.current.setPaused(next);
+    if (ambientAudioRef.current) {
+      if (next) ambientAudioRef.current.pause();
+      else if (!isMuted) ambientAudioRef.current.play();
     }
   };
 
   return (
-    <div className={`h-screen bg-black text-white font-sans flex flex-col overflow-hidden relative selection:bg-white selection:text-black`}>
-      {/* Background Ambience Layers */}
-      <div className={`absolute inset-0 bg-gradient-to-b ${getThemeColor()} to-transparent opacity-30 pointer-events-none`}></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.02)_0%,transparent_100%)] pointer-events-none"></div>
+    <div className={`h-screen bg-[#020205] text-white font-sans flex flex-col overflow-hidden relative selection:bg-white selection:text-black`}>
+      <Visualizer inputAnalyser={analysers.in} outputAnalyser={analysers.out} genre={config.genre} isPaused={isPaused} />
 
-      {/* HEADER: Minimal & Floating */}
-      <header className="fixed top-0 left-0 right-0 p-6 flex justify-between items-center z-[100] bg-gradient-to-b from-black/60 to-transparent">
+      {/* HEADER: Podcast-style unified bar */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 z-50 shrink-0 bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="w-10 h-10 rounded-full glass border-white/10 flex items-center justify-center hover:bg-white/10 transition-all">
-            <i className="fas fa-chevron-left text-xs"></i>
+          <button onClick={onBack} className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
+            <i className="fas fa-arrow-left text-cyan-400"></i>
           </button>
-          <div className="flex flex-col">
-            <h1 className="text-sm font-black tracking-[0.3em] uppercase opacity-80">{config.topic}</h1>
-            <span className="text-[9px] font-black uppercase tracking-[0.5em] text-white/40">{config.genre} • {config.language}</span>
+          <div>
+            <h1 className="text-xl md:text-2xl font-black tracking-tight uppercase leading-none">{config.topic}</h1>
+            <div className="flex items-center gap-2 mt-1.5">
+              <div className={`w-2 h-2 rounded-full ${isNarrating ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+              <p className="text-[10px] opacity-60 uppercase tracking-widest font-black text-cyan-200">{config.genre} • {config.language}</p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-           <button 
-             onClick={handleDownload}
-             disabled={isDownloading}
-             className="w-10 h-10 rounded-full glass border-white/10 flex items-center justify-center transition-all hover:bg-white/10"
-             title="Download Adventure Audio"
-           >
-             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-download'} text-xs`}></i>
-           </button>
-           <button 
-             onClick={() => setShowHistory(!showHistory)}
-             className={`w-10 h-10 rounded-full glass border-white/10 flex items-center justify-center transition-all ${showHistory ? 'bg-white text-black' : 'hover:bg-white/10'}`}
-             title="Adventure Log"
-           >
-             <i className="fas fa-scroll text-xs"></i>
-           </button>
-           <button onClick={onExit} className="px-6 py-2 rounded-full glass border-white/10 text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:border-red-500 transition-all">Exit Saga</button>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button onClick={handleDownload} disabled={isDownloading} className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0" title="Export Audio">
+            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm text-cyan-400`}></i>
+          </button>
+          
+          <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-white/5 shrink-0">
+            <button onClick={() => setIsMuted(!isMuted)} className="opacity-70 w-5">
+              <i className={`fas ${isMuted ? 'fa-volume-mute' : 'fa-volume-low'} text-cyan-400`}></i>
+            </button>
+            <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-20 md:w-24 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-cyan-500" />
+          </div>
+
+          <button onClick={togglePause} className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shrink-0 ${isPaused ? 'bg-green-500 text-white' : 'glass border-white/10 hover:bg-white/10'}`}>
+            <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
+          </button>
+
+          <button onClick={onExit} className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/10 flex items-center justify-center hover:bg-red-500/30 transition-all shrink-0">
+            <i className="fas fa-stop text-sm"></i>
+          </button>
         </div>
       </header>
 
-      {/* MAIN CINEMATIC AREA */}
-      <main className="flex-1 flex flex-col items-center justify-center relative p-6 mt-16 mb-32">
-        
-        {/* NEURAL CORE: Central Visualizer Focus */}
-        <div className="relative w-full max-w-lg aspect-square flex items-center justify-center">
-           <div className={`absolute inset-0 transition-all duration-1000 ${isNarrating ? 'scale-110 opacity-100' : 'scale-100 opacity-40'}`}>
-              <Visualizer 
-                inputAnalyser={analysers.in} 
-                outputAnalyser={analysers.out} 
-                genre={config.genre} 
-                isPaused={isPaused} 
-              />
-           </div>
-           
-           {/* Focus Aura */}
-           <div className={`w-48 h-48 rounded-full border border-white/5 flex items-center justify-center transition-all duration-1000 ${isNarrating ? 'border-white/30 shadow-[0_0_100px_rgba(255,255,255,0.1)] scale-105' : 'scale-95'}`}>
-              <div className={`w-32 h-32 rounded-full glass border-white/5 flex items-center justify-center shadow-inner`}>
-                 <i className={`fas ${isNarrating ? 'fa-volume-high animate-pulse' : isUserSpeaking ? 'fa-microphone animate-bounce text-red-500' : 'fa-brain opacity-20'} text-2xl transition-colors`}></i>
-              </div>
-           </div>
-
-           {/* Loading State Overlay */}
-           {connectingProgress < 100 && (
-             <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-black/80 backdrop-blur-3xl z-50 rounded-full">
-                <div className="w-12 h-12 border-2 border-white/10 border-t-white rounded-full animate-spin"></div>
-                <div className="text-center">
-                   <p className="text-[10px] font-black uppercase tracking-[0.6em] text-white/40">Awakening Oracle</p>
-                   <p className="text-xl font-black mt-2">{connectingProgress}%</p>
-                </div>
-             </div>
-           )}
-        </div>
-
-        {/* NARRATION TEXT: Subtitle Style */}
-        <div className="w-full max-w-4xl text-center mt-12 min-h-[160px] flex items-center justify-center px-4 overflow-y-auto">
-           <p className={`text-xl md:text-3xl leading-relaxed font-light transition-all duration-500 ${isNarrating || currentNarratorText ? 'text-white opacity-100' : 'text-white/40 blur-[0.5px]'}`}>
-             {currentNarratorText || messages.filter(m => m.role === 'model').slice(-1)[0]?.text || "The journey begins..."}
-           </p>
-        </div>
-
-        {/* USER INPUT PREVIEW: Bottom-center overlay */}
-        {currentUserText && (
-          <div className="fixed bottom-36 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
-             <div className="glass px-8 py-4 rounded-[2rem] border-white/10 bg-black/60 shadow-2xl flex items-center gap-4">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div>
-                <p className="text-sm md:text-base italic font-medium text-white/80">{currentUserText}</p>
-             </div>
-          </div>
-        )}
-      </main>
-
-      {/* HISTORY SLIDE-OVER */}
-      <div className={`fixed inset-y-0 right-0 w-full md:w-[450px] bg-black/95 backdrop-blur-3xl z-[200] border-l border-white/10 transition-transform duration-700 ease-out shadow-[-50px_0_100px_rgba(0,0,0,0.8)] ${showHistory ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="h-full flex flex-col">
-          <div className="p-8 border-b border-white/5 flex justify-between items-center bg-black/40">
-             <div>
-                <h3 className="text-xl font-black uppercase tracking-tighter">Adventure Log</h3>
-                <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Total Turns: {messages.length}</p>
-             </div>
-             <button onClick={() => setShowHistory(false)} className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10"><i className="fas fa-times"></i></button>
-          </div>
+      {/* MAIN LOG AREA: Podcast-style bubbles */}
+      <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-t-[3rem] overflow-hidden shadow-2xl relative border-white/10 z-10 bg-black/40 mt-4">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative">
           
-          <div ref={historyScrollRef} className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar scroll-smooth">
-             {messages.length === 0 && (
-               <div className="h-full flex flex-col items-center justify-center text-center opacity-20 py-20">
-                  <i className="fas fa-scroll text-5xl mb-6"></i>
-                  <p className="text-xs uppercase tracking-[0.4em] font-black">Archive Empty</p>
+          {connectingProgress < 100 && (
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-[100] flex flex-col items-center justify-center gap-8 text-center px-12">
+               <div className="relative">
+                 <div className={`w-32 h-32 border-[6px] border-cyan-900/20 border-t-cyan-500 rounded-full animate-spin`}></div>
+                 <div className="absolute inset-0 flex items-center justify-center font-black text-2xl text-cyan-400">
+                   {connectingProgress}%
+                 </div>
                </div>
-             )}
-             {messages.map((m, i) => (
-               <div key={i} className={`flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2`}>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-[8px] font-black uppercase tracking-[0.4em] px-3 py-1 rounded-sm ${m.role === 'user' ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'}`}>
-                      {m.role === 'user' ? 'Wanderer' : 'Oracle'}
-                    </span>
-                    <span className="text-[8px] opacity-20 font-black uppercase">{m.timestamp}</span>
-                  </div>
-                  <p className={`text-base md:text-lg leading-relaxed ${m.role === 'user' ? 'text-white/60 italic' : 'text-white/90'}`}>{m.text}</p>
-               </div>
-             ))}
-          </div>
-
-          {lore && lore.sources.length > 0 && (
-            <div className="p-8 border-t border-white/5 bg-black/40">
-               <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-4">Neural Grounding Sources</h4>
-               <div className="flex flex-wrap gap-2">
-                  {lore.sources.slice(0, 3).map((s, i) => (
-                    <a key={i} href={s.uri} target="_blank" rel="noopener noreferrer" className="text-[9px] glass px-3 py-1.5 rounded-full border-white/5 hover:bg-white/10 transition-colors uppercase tracking-widest truncate max-w-[140px]">
-                       {s.title}
-                    </a>
-                  ))}
+               <div className="space-y-2">
+                 <h3 className="text-xl font-black uppercase tracking-[0.3em] text-cyan-400">Forging Neural Link...</h3>
+                 <p className="text-[10px] opacity-40 uppercase tracking-[0.2em]">Synchronizing with the Grand Narrator.</p>
                </div>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* BOTTOM ACTION BAR */}
-      <footer className="fixed bottom-0 left-0 right-0 p-6 md:p-10 z-[150] bg-gradient-to-t from-black via-black/80 to-transparent">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-6">
-           
-           {/* Ambient & System Controls */}
-           <div className="flex items-center gap-4 glass px-6 py-3 rounded-full border-white/10 bg-black/40 shadow-xl">
-              <div className="flex items-center gap-3 pr-4 border-r border-white/10">
-                 <i className="fas fa-volume-low text-[10px] opacity-40"></i>
-                 <input 
-                    type="range" min="0" max="1" step="0.01" value={ambientVolume} 
-                    onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} 
-                    className="w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white" 
-                 />
+          {messages.map((m, i) => (
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
+              <div className={`max-w-[85%] p-6 rounded-[2rem] border transition-all ${
+                m.role === 'user' 
+                  ? 'bg-cyan-950/20 border-cyan-500/10 rounded-tr-none' 
+                  : 'bg-white/5 border-white/5 rounded-tl-none shadow-xl'
+              }`}>
+                <p className={`text-[9px] mb-2 uppercase tracking-[0.3em] font-black flex items-center gap-2 ${m.role === 'user' ? 'text-cyan-400' : 'text-white/40'}`}>
+                  {m.role === 'user' && <span className="w-1.5 h-1.5 rounded-full bg-cyan-500"></span>}
+                  {m.role === 'user' ? 'YOUR ACTION' : 'THE NARRATOR'}
+                </p>
+                <p className="text-lg md:text-xl leading-relaxed font-light break-words hyphens-auto">
+                  {m.text}
+                </p>
+                <p className="text-[8px] opacity-20 mt-3 text-right uppercase tracking-widest">{m.timestamp}</p>
               </div>
-              <button 
-                onClick={() => setIsPaused(!isPaused)}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isPaused ? 'bg-green-500 text-black' : 'hover:bg-white/5 text-white/40'}`}
-                title={isPaused ? "Resume" : "Halt Saga"}
-              >
-                 <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'} text-xs`}></i>
-              </button>
-           </div>
+            </div>
+          ))}
 
-           {/* Central Input Interaction */}
-           <div className="flex-1 w-full flex items-center gap-4">
-              <button 
+          {(currentNarratorText || currentUserText) && (
+            <div className={`flex ${currentUserText ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] p-6 rounded-[2rem] border border-dashed transition-all animate-pulse ${
+                currentUserText ? 'bg-cyan-500/[0.02] border-cyan-500/20 rounded-tr-none' : 'bg-white/[0.02] border-white/10 rounded-tl-none'
+              }`}>
+                <p className="text-lg md:text-xl leading-relaxed italic opacity-60 break-words hyphens-auto">
+                  {currentUserText || currentNarratorText}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* INPUT BAR: High-end interactive control */}
+        <div className="p-8 md:p-10 glass border-t border-white/10 bg-black/60 shrink-0">
+          <div className="flex items-center gap-4 max-w-4xl mx-auto">
+             <button 
                 onClick={handleMicToggle}
-                className={`w-16 h-16 rounded-full border-2 transition-all flex items-center justify-center shadow-2xl shrink-0 group ${
+                className={`w-16 h-16 rounded-full border-2 transition-all flex items-center justify-center shadow-2xl shrink-0 ${
                   inputMode === 'mic' 
                     ? 'bg-red-600 border-red-400 text-white animate-pulse' 
                     : 'glass border-white/10 text-white/30 hover:text-white'
@@ -389,36 +354,37 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
 
               <div className="flex-1 relative group">
                  {inputMode === 'text' ? (
-                    <form onSubmit={handleTextSubmit} className="flex gap-2 w-full">
+                    <form onSubmit={handleTextSubmit} className="flex gap-3 w-full">
                        <input 
                          type="text" 
                          value={textInput} 
                          onChange={(e) => setTextInput(e.target.value)}
-                         placeholder="Describe your action..."
-                         className="flex-1 glass border-white/10 rounded-full px-8 py-5 outline-none focus:border-white/30 focus:bg-white/[0.05] transition-all text-lg font-light placeholder:opacity-20"
+                         placeholder={isPaused ? "Saga Halted" : "What do you do next?"}
+                         disabled={isPaused}
+                         className="flex-1 glass border-white/10 rounded-full px-8 py-5 outline-none focus:border-cyan-500/30 focus:bg-white/[0.05] transition-all text-lg font-light placeholder:opacity-20"
                        />
                        <button 
                          type="submit" 
-                         disabled={!textInput.trim()}
-                         className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center transition-all active:scale-90 disabled:opacity-20 shadow-2xl"
+                         disabled={!textInput.trim() || isPaused}
+                         className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center transition-all active:scale-90 disabled:opacity-20 shadow-2xl shrink-0"
                        >
-                          <i className="fas fa-arrow-up text-lg"></i>
+                          <i className="fas fa-paper-plane text-lg"></i>
                        </button>
                     </form>
                  ) : (
                     <div className="w-full h-16 rounded-full glass border border-dashed border-white/10 flex items-center px-8 text-white/20 uppercase tracking-[0.4em] font-black text-xs">
-                       {isUserSpeaking ? "Neural Link Active" : "Speak to shape destiny..."}
+                       {isUserSpeaking ? "Neural Link Active" : "Listening for your destiny..."}
                     </div>
                  )}
               </div>
-           </div>
+          </div>
         </div>
-      </footer>
+      </main>
 
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 4px; } 
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } 
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(34, 211, 238, 0.1); border-radius: 10px; }
       ` }} />
     </div>
   );
