@@ -8,6 +8,7 @@ import PodcastView from './components/PodcastView';
 import MovieExplainerView from './components/MovieExplainerView';
 import LanguageTutorView from './components/LanguageTutorView';
 import SecretHubView from './components/SecretHubView';
+import VisionView from './components/VisionView';
 import { StoryScapeService } from './services/geminiLiveService';
 
 const LANGUAGES = [
@@ -97,13 +98,28 @@ const THEMES = {
     icon: 'fa-terminal',
     card: 'bg-black border-[#00ff41]/20 hover:border-[#00ff41]/60 hover:shadow-[0_0_30px_rgba(0,255,65,0.1)]',
     tag: 'STATUS: ROOT_ACCESS'
+  },
+  vision: {
+    bg: 'bg-[#050510]',
+    glow1: 'bg-blue-600/20',
+    glow2: 'bg-fuchsia-600/15',
+    accent: 'text-fuchsia-400',
+    accentBg: 'bg-fuchsia-500',
+    border: 'border-blue-500/20',
+    tabActive: 'bg-gradient-to-r from-blue-600 to-fuchsia-600 text-white shadow-[0_0_25px_rgba(192,38,211,0.5)]',
+    heroTitle: 'NEURAL_EYE',
+    heroSub: 'ARTIFICIAL INTELLIGENCE VISUALIZATION',
+    font: 'font-scifi',
+    icon: 'fa-eye',
+    card: 'glass border-fuchsia-500/10',
+    tag: 'STATUS: VISUALIZING'
   }
 };
 
 const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.HOME);
-  const [activeTab, setActiveTab] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor'>('adventures');
-  const [sessionOrigin, setSessionOrigin] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | null>(null);
+  const [activeTab, setActiveTab] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | 'vision'>('adventures');
+  const [sessionOrigin, setSessionOrigin] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | 'vision' | null>(null);
   const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
   const [setupConfig, setSetupConfig] = useState<AdventureConfig | null>(null);
   const [initialHistory, setInitialHistory] = useState<Array<{role: 'user' | 'model', text: string}>>([]);
@@ -172,7 +188,7 @@ const App: React.FC = () => {
         <div className={`absolute bottom-[-15%] right-[-5%] w-[70%] h-[70%] ${theme.glow2} blur-[250px] rounded-full animate-float transition-colors duration-1000`} style={{animationDelay: '-6s'}}></div>
       </div>
 
-      <nav className={`sticky top-6 z-50 w-[95%] max-w-4xl glass-dark border ${theme.border} rounded-full transition-colors duration-700 backdrop-blur-3xl shadow-2xl`}>
+      <nav className={`sticky top-6 z-50 w-[95%] max-w-5xl glass-dark border ${theme.border} rounded-full transition-colors duration-700 backdrop-blur-3xl shadow-2xl`}>
         <div className="px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 ${theme.accent}`}>
@@ -187,6 +203,7 @@ const App: React.FC = () => {
             <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-microphone-lines" activeClass={THEMES.broadcast.tabActive} />
             <TabItem active={activeTab === 'explainer'} onClick={() => setActiveTab('explainer')} label="CINE" icon="fa-film" activeClass={THEMES.explainer.tabActive} />
             <TabItem active={activeTab === 'tutor'} onClick={() => setActiveTab('tutor')} label="TUTOR" icon="fa-terminal" activeClass={THEMES.tutor.tabActive} />
+            <TabItem active={activeTab === 'vision'} onClick={() => setActiveTab('vision')} label="VISION" icon="fa-dna" activeClass={THEMES.vision.tabActive} />
           </div>
 
           <div className="flex items-center gap-2">
@@ -208,7 +225,7 @@ const App: React.FC = () => {
                 {theme.tag}
               </span>
            </div>
-           <h2 className={`text-5xl md:text-[9rem] font-black tracking-tighter mb-4 text-glow bg-clip-text text-transparent bg-gradient-to-b ${activeTab === 'tutor' ? 'from-[#00ff41] to-[#004d13]' : 'from-white to-white/40'} uppercase leading-[0.85] py-2`}>
+           <h2 className={`text-5xl md:text-[9rem] font-black tracking-tighter mb-4 text-glow bg-clip-text text-transparent bg-gradient-to-b ${activeTab === 'tutor' ? 'from-[#00ff41] to-[#004d13]' : activeTab === 'vision' ? 'from-fuchsia-400 to-blue-600' : 'from-white to-white/40'} uppercase leading-[0.85] py-2`}>
               {theme.heroTitle}
            </h2>
            <p className={`text-[10px] md:text-xs font-black uppercase tracking-[0.6em] ${theme.accent} opacity-90 mt-4 max-w-2xl mx-auto leading-relaxed`}>
@@ -216,44 +233,48 @@ const App: React.FC = () => {
            </p>
         </header>
 
-        <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 mb-24">
-          {activeTab === 'adventures' ? (
-            <>
-              <PortalCard genre={Genre.FANTASY} icon="fa-dragon" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
-              <PortalCard genre={Genre.SCIFI} icon="fa-user-astronaut" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
-              <PortalCard genre={Genre.MYSTERY} icon="fa-magnifying-glass" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
-              <PortalCard genre={Genre.HORROR} icon="fa-ghost" theme={theme} onStart={() => handleStartSetup(Genre.HORROR)} />
-            </>
-          ) : activeTab === 'files' ? (
-            <>
-              <PortalCard genre={Genre.FANTASY} icon="fa-hat-wizard" label="Deep Sleep" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
-              <PortalCard genre={Genre.SCIFI} icon="fa-shuttle-space" label="Void Log" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
-              <PortalCard genre={Genre.MYSTERY} icon="fa-mask" label="Noir Deep" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
-              <PortalCard genre={Genre.HORROR} icon="fa-book-skull" label="Grimoire" theme={theme} onStart={() => handleStartSetup(Genre.HORROR)} />
-            </>
-          ) : activeTab === 'broadcast' ? (
-            <>
-              <PortalCard genre={Genre.MYSTERY} icon="fa-user-secret" label="Investigate" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
-              <PortalCard genre={Genre.THRILLER} icon="fa-fingerprint" label="True Crime" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
-              <PortalCard genre={Genre.DOCUMENTARY} icon="fa-earth-americas" label="Deep Dive" theme={theme} onStart={() => handleStartSetup(Genre.DOCUMENTARY)} />
-              <PortalCard genre={Genre.SCIFI} icon="fa-atom" label="Discovery" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
-            </>
-          ) : activeTab === 'explainer' ? (
-            <>
-              <PortalCard genre={Genre.HORROR} icon="fa-skull" label="Horror Recap" theme={theme} onStart={() => handleStartSetup(Genre.HORROR)} />
-              <PortalCard genre={Genre.SCIFI} icon="fa-rocket" label="Action Decoder" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
-              <PortalCard genre={Genre.MYSTERY} icon="fa-mask" label="Crime Explainer" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
-              <PortalCard genre={Genre.THRILLER} icon="fa-bolt" label="War Decoder" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
-            </>
-          ) : (
-            <>
-              <PortalCard genre={Genre.DOCUMENTARY} icon="fa-keyboard" label="Terminal A" theme={theme} onStart={() => handleStartSetup(Genre.DOCUMENTARY)} />
-              <PortalCard genre={Genre.SCIFI} icon="fa-code" label="Terminal B" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
-              <PortalCard genre={Genre.FANTASY} icon="fa-bug" label="Terminal C" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
-              <PortalCard genre={Genre.THRILLER} icon="fa-shield-halved" label="Terminal D" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
-            </>
-          )}
-        </div>
+        {activeTab === 'vision' ? (
+          <VisionView />
+        ) : (
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 mb-24">
+            {activeTab === 'adventures' ? (
+              <>
+                <PortalCard genre={Genre.FANTASY} icon="fa-dragon" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
+                <PortalCard genre={Genre.SCIFI} icon="fa-user-astronaut" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
+                <PortalCard genre={Genre.MYSTERY} icon="fa-magnifying-glass" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
+                <PortalCard genre={Genre.HORROR} icon="fa-ghost" theme={theme} onStart={() => handleStartSetup(Genre.HORROR)} />
+              </>
+            ) : activeTab === 'files' ? (
+              <>
+                <PortalCard genre={Genre.FANTASY} icon="fa-hat-wizard" label="Deep Sleep" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
+                <PortalCard genre={Genre.SCIFI} icon="fa-shuttle-space" label="Void Log" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
+                <PortalCard genre={Genre.MYSTERY} icon="fa-mask" label="Noir Deep" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
+                <PortalCard genre={Genre.HORROR} icon="fa-book-skull" label="Grimoire" theme={theme} onStart={() => handleStartSetup(Genre.HORROR)} />
+              </>
+            ) : activeTab === 'broadcast' ? (
+              <>
+                <PortalCard genre={Genre.MYSTERY} icon="fa-user-secret" label="Investigate" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
+                <PortalCard genre={Genre.THRILLER} icon="fa-fingerprint" label="True Crime" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
+                <PortalCard genre={Genre.DOCUMENTARY} icon="fa-earth-americas" label="Deep Dive" theme={theme} onStart={() => handleStartSetup(Genre.DOCUMENTARY)} />
+                <PortalCard genre={Genre.SCIFI} icon="fa-atom" label="Discovery" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
+              </>
+            ) : activeTab === 'explainer' ? (
+              <>
+                <PortalCard genre={Genre.HORROR} icon="fa-skull" label="Horror Recap" theme={theme} onStart={() => handleStartSetup(Genre.HORROR)} />
+                <PortalCard genre={Genre.SCIFI} icon="fa-rocket" label="Action Decoder" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
+                <PortalCard genre={Genre.MYSTERY} icon="fa-mask" label="Crime Explainer" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
+                <PortalCard genre={Genre.THRILLER} icon="fa-bolt" label="War Decoder" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
+              </>
+            ) : (
+              <>
+                <PortalCard genre={Genre.DOCUMENTARY} icon="fa-keyboard" label="Terminal A" theme={theme} onStart={() => handleStartSetup(Genre.DOCUMENTARY)} />
+                <PortalCard genre={Genre.SCIFI} icon="fa-code" label="Terminal B" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
+                <PortalCard genre={Genre.FANTASY} icon="fa-bug" label="Terminal C" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
+                <PortalCard genre={Genre.THRILLER} icon="fa-shield-halved" label="Terminal D" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
+              </>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
@@ -336,7 +357,7 @@ const PortalCard: React.FC<PortalCardProps> = ({ genre, icon, theme, label = "Li
 
 interface SetupViewProps {
   genre: Genre;
-  origin: 'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor';
+  origin: 'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | 'vision';
   onBack: () => void;
   onConfirm: (config: AdventureConfig) => void;
 }
