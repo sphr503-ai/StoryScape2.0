@@ -18,9 +18,9 @@ const STAGE_AMBIENCE = 'https://assets.mixkit.co/sfx/preview/mixkit-audience-lig
 
 const VOCAL_FX_PROMPTS: Record<VocalFX, string> = {
   'Clean': 'Natural, raw a cappella performance.',
-  'Reverb': 'Ethereal cathedral reverb effect in your vocal delivery.',
+  'Reverb': 'Ethereal cathedral reverb effect.',
   'Echo': 'Rhythmic phrase echoes.',
-  'Auto-Soul': 'Robotic pitch slides and sharp melodic transitions.'
+  'Auto-Soul': 'Robotic pitch slides.'
 };
 
 const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {
@@ -89,28 +89,26 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
     setSongData(fetchedSong);
     setConnectingProgress(70);
 
-    const firstSegment = fetchedSong.segments[0] || { label: 'Intro', text: 'Melodic hum' };
+    const firstSegment = fetchedSong.segments[0] || { label: 'Intro', text: 'Humming melody' };
 
     const customInstruction = `
-      You are a World-Class Neural Vocalist specialized in EMOTIONAL A CAPPELLA PERFORMANCE.
-      YOUR MODE: ONLY SINGING. NO SPEAKING. NO INSTRUMENTS.
+      You are a World-Class Musical Performer. 
+      MODE: PURE A CAPPELLA SINGING. NO SPEECH. NO INSTRUMENTS.
       
-      SONG DATA:
+      SONG CONTEXT:
       - Title: "${fetchedSong.songTitle}"
-      - Artist Context: "${fetchedSong.artist}"
-      - Lyrics: ${fetchedSong.lyrics}
-      - Vocal Style: ${fetchedSong.compositionNotes} (Deep soul, breathy, emotive).
-      - Vocal FX: ${currentFX} (${VOCAL_FX_PROMPTS[currentFX]})
+      - Style: Soulful, breathy, emotive.
+      - Full Script: ${fetchedSong.lyrics}
+      - Vocal FX: ${currentFX}
 
-      RIGID PERFORMANCE PROTOCOL:
-      1. SINGING ONLY: You must translate the text segments into a soulful, melodic singing performance.
-      2. CADENCE: Do NOT use a speaking voice. Use high-fidelity melodic curves, Aalaps, and emotional vibrato.
-      3. PROGRESSION: You will be asked to sing specific segments (Verse, Chorus, etc.). Sing ONLY the requested segment per turn.
-      4. NO REPETITION: Do not loop the same word or sentence. Move through the story of the song.
-      5. PURE VOICE: Focus on the raw beauty of the human (AI) voice. 
-      6. SILENCE THE SPEAKER: Under no circumstances should you talk, explain, or say "I will sing...". Just SING.
+      PERFORMANCE TIMING RULES (CRITICAL):
+      1. DO NOT DRAG: Never expand a single syllable (like "Hoo", "Aaa", "Ooo") for more than 5 seconds.
+      2. PACE: Balance the melodic flourishes with the actual lyrics. Deliver phrases with a clear beginning and end.
+      3. EMOTION: Use your voice to convey the deep soul of the lyrics, but keep the song moving forward.
+      4. STICK TO SCRIPT: Sing the segments provided. Do not deviate into long wordless vocal loops.
+      5. NO TALKING: Start singing the first segment immediately.
 
-      SESSION START: Begin the performance with "${firstSegment.label}: ${firstSegment.text}". Start with a melodic hum intro.
+      START PERFORMANCE: ${firstSegment.label} - "${firstSegment.text}".
     `;
 
     service.startAdventure(advConfig, {
@@ -131,7 +129,8 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
           setActiveSegmentIndex(prev => {
             const nextIndex = (prev + 1) % fetchedSong.segments.length;
             const nextSeg = fetchedSong.segments[nextIndex];
-            service.sendTextChoice(`Now, sing the next part: [${nextSeg.label}] "${nextSeg.text}". Pure melodic singing, high emotion.`);
+            // Authoritative prompt to move to next lyrics
+            service.sendTextChoice(`Finish your melody and immediately sing the NEXT LYRICS: [${nextSeg.label}] "${nextSeg.text}". Maintain tempo, don't drag.`);
             return nextIndex;
           });
           startBuffering();
@@ -238,10 +237,6 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
   return (
     <div className="h-screen bg-[#0d0212] text-fuchsia-50 font-sans flex flex-col p-4 md:p-8 overflow-hidden relative">
       <div className={`absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,${vocalFX === 'Auto-Soul' ? '#06b6d4' : vocalFX === 'Reverb' ? '#8b5cf6' : '#701a75'} 0%,transparent_70%)] pointer-events-none opacity-20 transition-colors duration-1000`}></div>
-      
-      {/* Animated Spotlight Effect */}
-      <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-96 h-full bg-gradient-to-b from-white/10 to-transparent blur-[120px] pointer-events-none transition-opacity duration-1000 ${isOutputActive ? 'opacity-40' : 'opacity-10'}`}></div>
-
       <Visualizer inputAnalyser={null} outputAnalyser={analysers.out} genre={config.genre} isPaused={isPaused} />
 
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 z-10 shrink-0">
@@ -262,9 +257,9 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
           </div>
         </div>
 
-        <div className="flex bg-black/40 p-1 rounded-full border border-fuchsia-500/10 backdrop-blur-xl shrink-0 overflow-x-auto no-scrollbar max-w-[300px] md:max-w-none">
+        <div className="flex bg-black/40 p-1 rounded-full border border-fuchsia-500/10 backdrop-blur-xl shrink-0">
             {(['Clean', 'Reverb', 'Echo', 'Auto-Soul'] as VocalFX[]).map(fx => (
-                <button key={fx} onClick={() => handleFXChange(fx)} className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${vocalFX === fx ? 'bg-fuchsia-600 text-white shadow-[0_0_15px_#d946ef]' : 'text-white/30 hover:text-white/60'}`}>
+                <button key={fx} onClick={() => handleFXChange(fx)} className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${vocalFX === fx ? 'bg-fuchsia-600 text-white shadow-[0_0_15px_#d946ef]' : 'text-white/30 hover:text-white/60'}`}>
                     {fx}
                 </button>
             ))}
@@ -277,7 +272,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
           <button onClick={handleDownload} disabled={isDownloading} className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0 border-fuchsia-500/20">
             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-download'} text-sm text-fuchsia-400`}></i>
           </button>
-          <button onClick={onExit} className="px-8 py-3 rounded-full bg-fuchsia-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-fuchsia-50 transition-all shrink-0 text-center">EXIT STUDIO</button>
+          <button onClick={onExit} className="px-8 py-3 rounded-full bg-fuchsia-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-fuchsia-50 transition-all shrink-0 text-center">EXIT</button>
         </div>
       </header>
 
@@ -286,12 +281,12 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
         {showLyrics && songData && (
           <aside className="hidden lg:flex flex-col w-96 glass rounded-[3rem] border-fuchsia-500/10 bg-black/40 overflow-hidden animate-in slide-in-from-left duration-500 shadow-2xl">
             <div className="p-8 border-b border-fuchsia-500/10 bg-fuchsia-500/5 flex justify-between items-center">
-               <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-fuchsia-400">STUDIO SCORE</h3>
-               <span className="text-[8px] font-bold text-fuchsia-500/40 uppercase tracking-widest">{songData.isOfficial ? 'SYNCHRONIZED' : 'NEURAL'}</span>
+               <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-fuchsia-400">SESSION SCRIPT</h3>
+               <span className="text-[8px] font-bold text-fuchsia-500/40 uppercase tracking-widest">{songData.isOfficial ? 'SYNCHRONIZED' : 'COMPOSED'}</span>
             </div>
             <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar bg-black/10">
                {songData.segments.map((seg, idx) => (
-                 <div key={idx} className={`space-y-2 transition-all duration-700 ${idx === activeSegmentIndex ? 'opacity-100 scale-100 translate-x-1' : 'opacity-20 scale-95'}`}>
+                 <div key={idx} className={`space-y-2 transition-all duration-700 ${idx === activeSegmentIndex ? 'opacity-100 scale-100' : 'opacity-20 scale-95'}`}>
                    <p className="text-[9px] font-black text-fuchsia-500 uppercase tracking-widest">{seg.label}</p>
                    <p className="text-sm leading-relaxed whitespace-pre-wrap font-serif italic text-fuchsia-100">
                      {seg.text}
@@ -313,14 +308,9 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
                      <span className="text-[8px] font-black uppercase tracking-[0.4em] opacity-30 text-fuchsia-200">Neural Sync</span>
                    </div>
                  </div>
-                 <div className="space-y-3">
-                   <h3 className="text-2xl font-black uppercase tracking-[0.5em] text-fuchsia-400">
-                     {isBuffering ? 'RETRIEVING NEXT VERSE' : 'INITIALIZING STUDIO'}
-                   </h3>
-                   <p className="text-[10px] opacity-40 uppercase tracking-[0.3em] max-w-sm mx-auto leading-relaxed">
-                     Optimizing neural pathways for pure a cappella soul.
-                   </p>
-                 </div>
+                 <h3 className="text-2xl font-black uppercase tracking-[0.5em] text-fuchsia-400">
+                   {isBuffering ? 'RETRIEVING NEXT VERSE' : 'INITIALIZING STUDIO'}
+                 </h3>
               </div>
             )}
 
@@ -329,7 +319,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
                 <div className="max-w-[85%] p-10 rounded-[3.5rem] bg-fuchsia-950/10 border border-fuchsia-500/10 rounded-tl-none shadow-inner group relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-1 h-full bg-fuchsia-500/20 group-hover:bg-fuchsia-500 transition-all"></div>
                   <p className="text-[10px] text-fuchsia-500 opacity-60 mb-6 uppercase tracking-[0.5em] font-black flex items-center gap-3">
-                    <i className="fas fa-compact-disc animate-spin-slow"></i> MELODIC_SIGNAL
+                    <i className="fas fa-compact-disc animate-spin-slow"></i> MELODIC SIGNAL
                   </p>
                   <p className="text-3xl md:text-5xl leading-snug font-light text-fuchsia-50/95 italic font-serif tracking-tight">"{t.text}"</p>
                 </div>
@@ -352,8 +342,8 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
                 <div className="flex items-center gap-4">
                    <div className={`w-4 h-4 rounded-full ${isOutputActive ? 'bg-fuchsia-500 shadow-[0_0_20px_#d946ef]' : 'bg-red-500'}`}></div>
                    <div className="flex flex-col">
-                     <span className="text-[10px] uppercase tracking-[0.2em] font-black text-fuchsia-300">STUDIO MASTER</span>
-                     <span className="text-[8px] opacity-40 uppercase font-bold">{isOutputActive ? 'Capturing Soulful Harmony' : 'Awaiting Next Segment'}</span>
+                     <span className="text-[10px] uppercase tracking-[0.2em] font-black text-fuchsia-300">MASTER VOCAL</span>
+                     <span className="text-[8px] opacity-40 uppercase font-bold">{isOutputActive ? 'Capturing High-Fidelity Harmony' : 'Awaiting Next Line'}</span>
                    </div>
                 </div>
                 <div className="h-10 w-px bg-white/5 hidden md:block"></div>
@@ -364,7 +354,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
               </div>
               
               <div className="flex items-center gap-8">
-                 <button onClick={togglePause} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 group ${isPaused ? 'bg-fuchsia-600 text-white shadow-[0_0_30px_#701a75]' : 'glass border-fuchsia-500/20 hover:bg-fuchsia-500/10'}`}>
+                 <button onClick={togglePause} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 group ${isPaused ? 'bg-fuchsia-600 text-white' : 'glass border-fuchsia-500/20 hover:bg-fuchsia-500/10'}`}>
                    <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'} text-xl group-hover:scale-110 transition-transform`}></i>
                  </button>
               </div>
@@ -378,12 +368,9 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
 
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 4px; } 
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(217, 70, 239, 0.2); border-radius: 10px; }
         .animate-spin-slow { animation: spin 4s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       ` }} />
     </div>
   );
