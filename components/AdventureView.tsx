@@ -39,7 +39,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   const [currentNarratorText, setCurrentNarratorText] = useState('');
   const [currentUserText, setCurrentUserText] = useState('');
   const [textInput, setTextInput] = useState('');
-  const [inputMode, setInputMode] = useState<'text' | 'mic'>('text'); // Default to text to avoid auto-mic errors
+  const [inputMode, setInputMode] = useState<'text' | 'mic'>('text'); 
   const [isPaused, setIsPaused] = useState(false);
   const [lore, setLore] = useState<LoreData | null>(null);
   const [connectingProgress, setConnectingProgress] = useState(0);
@@ -54,8 +54,8 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   const serviceRef = useRef<StoryScapeService | null>(null);
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  
-  // Buffers for robust text accumulation (Fixes "single word" bug)
+
+  // Buffers for robust text accumulation
   const narratorBuffer = useRef('');
   const userBuffer = useRef('');
 
@@ -120,43 +120,64 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
 
     const systemInstruction = `
       You are the Master Narrator for an immersive ${advConfig.genre} adventure titled "${advConfig.topic}".
-      STYLE: Cinematic and responsive. In ${advConfig.language}.
-      INSTRUCTION: Keep turns short. Always end with a prompt for the user.
+      STYLE: Cinematic, vivid, and highly responsive. In ${advConfig.language}.
+      LORE Grounding: ${fetchedLore.manifest}
+      INSTRUCTION: Keep each turn relatively short (2-4 sentences). Always end with a choice or prompt for the user.
+      NEVER break character.
     `;
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
-        if (!text && !isFinal) return;
         const processedText = cleanText(text);
-        if (!processedText && !isFinal) return;
-
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
         if (role === 'model') {
-          narratorBuffer.current = smartAppend(narratorBuffer.current, processedText);
-          setCurrentNarratorText(narratorBuffer.current);
-          if (isFinal) {
-            setMessages(prev => [...prev, { role: 'model', text: narratorBuffer.current.trim(), timestamp }]);
+          // As soon as the model responds, finalize the user turn if it hasn't been already
+          if (userBuffer.current.trim()) {
+            setMessages(prev => {
+              const text = userBuffer.current.trim();
+              if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === text) return prev;
+              return [...prev, { role: 'user', text, timestamp }];
+            });
+            setCurrentUserText('');
+            userBuffer.current = '';
+          }
+
+          if (processedText) {
+            narratorBuffer.current = smartAppend(narratorBuffer.current, processedText);
+            setCurrentNarratorText(narratorBuffer.current);
+          }
+          if (isFinal && narratorBuffer.current.trim()) {
+            setMessages(prev => {
+              const text = narratorBuffer.current.trim();
+              if (prev.length > 0 && prev[prev.length - 1].role === 'model' && prev[prev.length - 1].text === text) return prev;
+              return [...prev, { role: 'model', text, timestamp }];
+            });
             setCurrentNarratorText('');
             narratorBuffer.current = '';
           }
         } else {
-          userBuffer.current = smartAppend(userBuffer.current, processedText);
-          setCurrentUserText(userBuffer.current);
-          if (isFinal) {
-            setMessages(prev => [...prev, { role: 'user', text: userBuffer.current.trim(), timestamp }]);
+          if (processedText) {
+            userBuffer.current = smartAppend(userBuffer.current, processedText);
+            setCurrentUserText(userBuffer.current);
+          }
+          // Note: User turn completion is usually handled when the model starts ('role === model' branch above)
+          if (isFinal && userBuffer.current.trim()) {
+            setMessages(prev => {
+              const text = userBuffer.current.trim();
+              if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === text) return prev;
+              return [...prev, { role: 'user', text, timestamp }];
+            });
             setCurrentUserText('');
             userBuffer.current = '';
           }
         }
       },
-      onError: (err) => console.error("Neural link failure:", err),
+      onError: (err) => console.error("Neural Link Failure:", err),
       onClose: () => onExit(),
     }, messages.map(m => ({ role: m.role, text: m.text })), fetchedLore, systemInstruction).then(() => {
       setConnectingProgress(100);
       setAnalysers({ in: service.inputAnalyser, out: service.outputAnalyser });
-      // CRITICAL: DO NOT call setMicActive(true) here. 
-      // It must be called by handleMicToggle to prevent Permission Denied errors.
     });
   };
 
@@ -165,7 +186,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     const audio = new Audio(AMBIENT_SOUNDS[config.genre]);
     audio.loop = true;
     audio.volume = ambientVolume;
-    audio.play().catch(e => console.warn("Ambient audio gestured needed"));
+    audio.play().catch(e => console.warn("Ambient audio requires gesture", e));
     ambientAudioRef.current = audio;
 
     return () => {
@@ -201,16 +222,16 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
       try {
         await serviceRef.current.setMicActive(newMode === 'mic');
       } catch (err) {
-        console.error("Mic access failed", err);
+        console.error("Microphone access failed:", err);
         setInputMode('text');
-        alert("Microphone permission denied or hardware unavailable.");
+        alert("Permission denied. Please ensure microphone access is allowed in your browser/app settings.");
       }
     }
   };
 
   const handleDownload = async () => {
     if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
-      alert("No audio captured yet.");
+      alert("No audio data available for export yet.");
       return;
     }
     setIsDownloading(true);
@@ -249,10 +270,10 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   };
 
   return (
-    <div className={`h-screen bg-[#020205] text-white font-sans flex flex-col overflow-hidden relative`}>
+    <div className={`h-screen bg-[#020205] text-white font-sans flex flex-col overflow-hidden relative selection:bg-white selection:text-black`}>
       <Visualizer inputAnalyser={analysers.in} outputAnalyser={analysers.out} genre={config.genre} isPaused={isPaused} />
 
-      {/* HEADER: High-end unified bar */}
+      {/* HEADER: Podcast-style unified bar */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 z-50 shrink-0 bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
@@ -289,7 +310,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
         </div>
       </header>
 
-      {/* MAIN LOG AREA */}
+      {/* MAIN LOG AREA: Podcast-style bubbles */}
       <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-t-[3rem] overflow-hidden shadow-2xl relative border-white/10 z-10 bg-black/40 mt-4">
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative">
           
@@ -301,23 +322,24 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
                    {connectingProgress}%
                  </div>
                </div>
-               <h3 className="text-xl font-black uppercase tracking-[0.3em] text-cyan-400">Linking Neural Nodes...</h3>
+               <h3 className="text-xl font-black uppercase tracking-[0.3em] text-cyan-400">Establishing Neural Uplink...</h3>
             </div>
           )}
 
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
-              <div className={`max-w-[85%] p-6 rounded-[2rem] border ${
+              <div className={`max-w-[85%] p-6 rounded-[2rem] border transition-all ${
                 m.role === 'user' 
                   ? 'bg-cyan-950/20 border-cyan-500/10 rounded-tr-none' 
                   : 'bg-white/5 border-white/5 rounded-tl-none shadow-xl'
               }`}>
                 <p className={`text-[9px] mb-2 uppercase tracking-[0.3em] font-black ${m.role === 'user' ? 'text-cyan-400' : 'text-white/40'}`}>
-                  {m.role === 'user' ? 'WANDERER' : 'ORACLE'}
+                  {m.role === 'user' ? 'YOUR ACTION' : 'THE NARRATOR'}
                 </p>
-                <p className="text-lg md:text-xl leading-relaxed font-light break-words">
+                <p className="text-lg md:text-xl leading-relaxed font-light break-words hyphens-auto">
                   {m.text}
                 </p>
+                <p className="text-[8px] opacity-20 mt-3 text-right uppercase tracking-widest">{m.timestamp}</p>
               </div>
             </div>
           ))}
@@ -327,7 +349,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
               <div className={`max-w-[85%] p-6 rounded-[2rem] border border-dashed transition-all animate-pulse ${
                 currentUserText ? 'bg-cyan-500/[0.02] border-cyan-500/20 rounded-tr-none' : 'bg-white/[0.02] border-white/10 rounded-tl-none'
               }`}>
-                <p className="text-lg md:text-xl leading-relaxed italic opacity-60 break-words">
+                <p className="text-lg md:text-xl leading-relaxed italic opacity-60 break-words hyphens-auto">
                   {currentUserText || currentNarratorText}
                 </p>
               </div>
@@ -335,7 +357,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
           )}
         </div>
 
-        {/* INPUT BAR */}
         <div className="p-8 md:p-10 glass border-t border-white/10 bg-black/60 shrink-0">
           <div className="flex items-center gap-4 max-w-4xl mx-auto">
              <button 
@@ -356,9 +377,9 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
                          type="text" 
                          value={textInput} 
                          onChange={(e) => setTextInput(e.target.value)}
-                         placeholder={isPaused ? "Saga Paused" : "Describe your next action..."}
+                         placeholder={isPaused ? "Saga Halted" : "What is your next move?"}
                          disabled={isPaused}
-                         className="flex-1 glass border-white/10 rounded-full px-8 py-5 outline-none focus:border-cyan-500/30 transition-all text-lg font-light placeholder:opacity-20"
+                         className="flex-1 glass border-white/10 rounded-full px-8 py-5 outline-none focus:border-cyan-500/30 focus:bg-white/[0.05] transition-all text-lg font-light placeholder:opacity-20"
                        />
                        <button 
                          type="submit" 
@@ -370,7 +391,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
                     </form>
                  ) : (
                     <div className="w-full h-16 rounded-full glass border border-dashed border-white/10 flex items-center px-8 text-white/20 uppercase tracking-[0.4em] font-black text-xs">
-                       {isUserSpeaking ? "Recording voice data..." : "Awaiting user vocalization..."}
+                       {isUserSpeaking ? "Neural Link Active" : "Speak to shape destiny..."}
                     </div>
                  )}
               </div>

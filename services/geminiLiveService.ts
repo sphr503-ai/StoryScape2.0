@@ -3,8 +3,6 @@ import { GoogleGenAI, LiveServerMessage, Modality, GenerateContentResponse, Blob
 import { encode, decode, decodeAudioData } from '../utils/audioUtils';
 import { Genre, GeminiVoice, AdventureConfig, NarratorMode, LoreData } from '../types';
 
-// LoreData interface moved to types.ts to resolve import errors in components
-
 export class StoryScapeService {
   private ai: GoogleGenAI;
   private sessionPromise: Promise<any> | null = null;
@@ -25,9 +23,6 @@ export class StoryScapeService {
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
-  /**
-   * Fetches a truly random trending topic from the internet based on genre and mode.
-   */
   async fetchTrendingTopic(genre: Genre, mode: string): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Find a single, currently popular or trending ${genre} ${mode === 'explainer' ? 'movie' : 'topic for a podcast'}. 
@@ -40,10 +35,9 @@ export class StoryScapeService {
         contents: prompt,
         config: { 
           tools: [{ googleSearch: {} }],
-          temperature: 1.0 // High temperature for more variety
+          temperature: 1.0 
         },
       });
-      // Fix for TS18048: Check if text exists before calling .trim()
       const text = response.text || "";
       return text.trim().replace(/^"|"$/g, '') || "The Unknown Anomaly";
     } catch (err) {
@@ -122,12 +116,38 @@ export class StoryScapeService {
         },
         onmessage: async (message: LiveServerMessage) => {
           if (this.isPaused) return;
-          const b64 = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-          if (b64) this.handleAudioOutput(b64);
-          if (message.serverContent?.inputTranscription) callbacks.onTranscriptionUpdate('user', message.serverContent.inputTranscription.text || '', !!message.serverContent.turnComplete);
-          if (message.serverContent?.outputTranscription) callbacks.onTranscriptionUpdate('model', message.serverContent.outputTranscription.text || '', !!message.serverContent.turnComplete);
-          if (message.serverContent?.turnComplete) callbacks.onTurnComplete?.();
-          if (message.serverContent?.interrupted) this.stopAllAudio();
+          
+          const modelTurn = message.serverContent?.modelTurn;
+          const inputTranscription = message.serverContent?.inputTranscription;
+          const outputTranscription = message.serverContent?.outputTranscription;
+          const turnComplete = !!message.serverContent?.turnComplete;
+          const interrupted = !!message.serverContent?.interrupted;
+
+          if (modelTurn?.parts) {
+            for (const part of modelTurn.parts) {
+              if (part.inlineData?.data) {
+                this.handleAudioOutput(part.inlineData.data);
+              }
+              if (part.text) {
+                callbacks.onTranscriptionUpdate('model', part.text, turnComplete);
+              }
+            }
+          }
+
+          if (inputTranscription) {
+            callbacks.onTranscriptionUpdate('user', inputTranscription.text || '', turnComplete);
+          }
+          
+          if (outputTranscription) {
+            callbacks.onTranscriptionUpdate('model', outputTranscription.text || '', turnComplete);
+          }
+
+          if (turnComplete) {
+            callbacks.onTranscriptionUpdate('model', '', true);
+            callbacks.onTurnComplete?.();
+          }
+
+          if (interrupted) this.stopAllAudio();
         },
         onerror: (e: any) => callbacks.onError(e),
         onclose: () => callbacks.onClose(),
@@ -139,10 +159,8 @@ export class StoryScapeService {
 
   public async setMicActive(active: boolean) {
     this.isMicActive = active;
-    
     if (!this.inputAudioContext) return;
     
-    // Aggressive resume for APK/WebView
     if (this.inputAudioContext.state === 'suspended') {
       await this.inputAudioContext.resume();
     }
@@ -187,7 +205,6 @@ export class StoryScapeService {
     }
   }
 
-  // Properly typed createBlob for Live API compliance
   private createBlob(data: Float32Array): Blob {
     const l = data.length;
     const int16 = new Int16Array(l);
@@ -196,7 +213,6 @@ export class StoryScapeService {
     }
     return { 
       data: encode(new Uint8Array(int16.buffer)), 
-      // The supported audio MIME type is 'audio/pcm'.
       mimeType: 'audio/pcm;rate=16000' 
     };
   }
@@ -218,7 +234,6 @@ export class StoryScapeService {
   private async handleAudioOutput(base64: string) {
     if (!this.outputAudioContext || this.isPaused) return;
     
-    // Safety check for APKs that might suspend the context silently
     if (this.outputAudioContext.state === 'suspended') {
       await this.outputAudioContext.resume();
     }
