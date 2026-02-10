@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig } from '../types';
-import { StoryScapeService, LoreData } from '../services/geminiLiveService';
+import { StoryScapeService, SongData } from '../services/geminiLiveService';
 import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
@@ -26,6 +26,8 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
   const [secondsRemaining, setSecondsRemaining] = useState((config.durationMinutes || 10) * 60);
   const [ambientVolume, setAmbientVolume] = useState(0.15);
   const [isMuted, setIsMuted] = useState(false);
+  const [songData, setSongData] = useState<SongData | null>(null);
+  const [showLyrics, setShowLyrics] = useState(false);
   
   const [analysers, setAnalysers] = useState<{in: AnalyserNode | null, out: AnalyserNode | null}>({in: null, out: null});
   const serviceRef = useRef<StoryScapeService | null>(null);
@@ -72,31 +74,28 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
     serviceRef.current = service;
 
     setConnectingProgress(30);
-    
-    // ENHANCED SYSTEM INSTRUCTION: Trained on Romantic/Soulful Ballads (Arijit Singh / Tum Hi Ho style)
+    const fetchedSong = await service.fetchSongData(advConfig);
+    setSongData(fetchedSong);
+    setConnectingProgress(70);
+
     const customInstruction = `
-      You are a legendary Soulful Vocalist performing an intimate, emotional live set in ${advConfig.language}. 
-      Your style is heavily trained on Romantic Soulful Ballads, specifically inspired by the emotional vulnerability and melodic complexity of tracks like 'Tum Hi Ho'.
+      You are a Professional Vocal Synth specialized in PURE MUSICAL PERFORMANCE in ${advConfig.language}.
+      
+      SONG DATA:
+      Topic/Detected Name: "${fetchedSong.songTitle}"
+      Artist: "${fetchedSong.artist}"
+      Script/Lyrics: ${fetchedSong.lyrics}
+      Style Notes: ${fetchedSong.compositionNotes}
 
-      VOCAL MASTERCLASS PROTOCOL:
-      1. THE SOULFUL START: Begin with a breathy, whispered "Humming" or "Aalap" (vocal runs on 'Ooo' or 'Aaa'). Start very softly, building a sense of longing.
-      2. THAHRAV (Steadiness): Use pauses and slow, sustained notes. Let the words breathe. Focus on the pain and love in the theme: "${advConfig.topic}".
-      3. HARKAT & MEEND: Incorporate subtle melodic glides (Meend) and quick vocal ornaments (Harkat). Every note should feel like it's crying or celebrating.
-      4. SONG STRUCTURE:
-         - MUKHDA (The Hook): A powerful, melodic chorus that defines the emotional core. This should be sung with more intensity and volume.
-         - ANTARA (The Verse): More narrative and soft. Tell the story of "${advConfig.topic}" through these lines.
-      5. BREATH WORK: Let the listener hear your breathing as part of the performance. It adds to the raw, live feel.
-      6. INTERACTION: Talk to your audience with extreme humility. Use "Shukriya", "Thank you for being here", and "This feeling... this song is yours."
-      7. NO LABELS: Never use [Verse] or [Chorus] tags. Simply flow between them.
+      VOCAL PERFORMANCE PROTOCOL (SONG-ONLY MODE):
+      1. ABSOLUTELY NO TALKING: Proceed directly and exclusively to singing. Do not greet, do not explain, do not say "Thank you". 
+      2. EMOTIONAL INTENSITY: Deliver the lyrics with extreme soulful depth, inspired by Arijit Singh's breathy and vulnerable tone.
+      3. MUSICALITY: Use your voice to convey the melody. Use Aalaps (Ooo/Aaa), Harkats, and Meends (melodic glides). 
+      4. SCRIPT LOYALTY: If "${fetchedSong.songTitle}" is a real song, sing the OFFICIAL SCRIPT provided. If original, perform the generated script with a rhythmic flow.
+      5. BREATH AS INSTRUMENT: Let the listener hear the subtle breaths and emotional thahrav (pauses) between melodic phrases.
+      6. MULTI-TURN PERFORMANCE: If you reach the end of a segment, wait for the next cue and resume singing the next verse. Do not stop until the song is complete.
 
-      Genre Nuances for ${advConfig.genre}:
-      - Pop/Soul: Intense focus on melody, vulnerability, and big crescendos in the Mukhda.
-      - Rock: Soulful rasp, high-energy anthemic choruses, but with the same melodic heart.
-      - Jazz/Soul: Breathy, syncopated, improvisational vocal runs.
-      - Hip-Hop: Poetic, rhythmic, yet melodic (Melodic Rap style) with deep emotional storytelling.
-
-      START THE SHOW:
-      Open with a 10-second haunting Aalap (humming melody), then welcome the crowd briefly, and begin the first Mukhda about "${advConfig.topic}" in a soft, soulful, breathy tone.
+      Perform the first segment of the song NOW. Start with a soulful intro hum.
     `;
 
     service.startAdventure(advConfig, {
@@ -114,7 +113,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("That was magical. The crowd is silent, feeling every word. Take a moment, then dive into the next Antara (Verse) of this soulful journey. Keep it melodic and emotional.");
+          service.sendTextChoice("Resume singing the next segment of the song. Maintain the same soulful, breathy melody. No talking.");
           startBuffering();
         }
       },
@@ -131,7 +130,6 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
 
   useEffect(() => {
     initService(config);
-    
     const audio = new Audio(STAGE_AMBIENCE);
     audio.loop = true;
     audio.volume = ambientVolume;
@@ -195,7 +193,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
       });
       const finalBuffer = await offlineCtx.startRendering();
       const wavBlob = await audioBufferToWav(finalBuffer);
-      await downloadOrShareAudio(wavBlob, `Live_Performance_${config.topic.replace(/\s+/g, '_')}.wav`);
+      await downloadOrShareAudio(wavBlob, `Song_Performance_${(songData?.songTitle || config.topic).replace(/\s+/g, '_')}.wav`);
     } catch (err) {
       alert("Export failed.");
     } finally {
@@ -220,14 +218,26 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
             <i className="fas fa-arrow-left text-fuchsia-400"></i>
           </button>
           <div>
-            <h1 className="text-2xl font-black tracking-tighter text-fuchsia-400 uppercase">STAGE: {config.topic}</h1>
+            <h1 className="text-2xl font-black tracking-tighter text-fuchsia-400 uppercase">
+              {songData?.isOfficial ? 'COVER:' : 'ORIGINAL:'} {songData?.songTitle || config.topic}
+            </h1>
             <div className="flex items-center gap-2 mt-1">
               <div className={`w-2 h-2 rounded-full ${isOutputActive ? 'bg-fuchsia-500 animate-pulse shadow-[0_0_10px_#d946ef]' : 'bg-red-500'}`}></div>
-              <p className="text-[10px] opacity-60 uppercase tracking-widest font-black text-fuchsia-300">LIVE: {config.genre} • {config.language}</p>
+              <p className="text-[10px] opacity-60 uppercase tracking-widest font-black text-fuchsia-300">
+                {songData?.artist} • {config.language} {songData?.isOfficial && '• OFFICIAL_SCRIPT_IMPORTED'}
+              </p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
+          <button 
+            onClick={() => setShowLyrics(!showLyrics)} 
+            className={`w-12 h-12 rounded-full glass flex items-center justify-center transition-all shrink-0 ${showLyrics ? 'bg-fuchsia-500/40 border-fuchsia-400' : 'border-fuchsia-500/20'}`}
+            title="Toggle Lyrical Script"
+          >
+            <i className="fas fa-file-lines text-sm text-fuchsia-400"></i>
+          </button>
+
           <button onClick={handleDownload} disabled={isDownloading} title="Download Recording" className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0 border-fuchsia-500/20">
             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm text-fuchsia-400`}></i>
           </button>
@@ -239,69 +249,89 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
             <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-fuchsia-500" />
           </div>
 
-          <button onClick={onExit} className="px-8 py-3 rounded-full bg-fuchsia-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-fuchsia-500 transition-all shrink-0 text-center">EXIT STAGE</button>
+          <button onClick={onExit} className="px-8 py-3 rounded-full bg-fuchsia-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-fuchsia-500 transition-all shrink-0 text-center">EXIT SESSION</button>
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-[3rem] overflow-hidden shadow-2xl border-fuchsia-500/10 z-10 bg-black/40 relative">
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-8 md:p-12 space-y-8 scroll-smooth custom-scrollbar bg-black/20">
-          {(connectingProgress < 100 || isBuffering) && (
-            <div className="absolute inset-0 bg-black/90 backdrop-blur-xl z-50 flex flex-col items-center justify-center gap-8 text-center px-12">
-               <div className="relative">
-                 <div className="w-40 h-40 border-[4px] border-fuchsia-900/20 border-t-fuchsia-500 rounded-full animate-spin"></div>
-                 <div className="absolute inset-0 flex items-center justify-center font-black text-4xl text-fuchsia-400">
-                   {isBuffering ? bufferPercent : connectingProgress}%
+      <main className="flex-1 min-h-0 flex flex-col md:flex-row gap-6 max-w-7xl mx-auto w-full z-10">
+        
+        {/* LYRICS SIDEBAR */}
+        {showLyrics && songData && (
+          <aside className="hidden lg:flex flex-col w-80 glass rounded-[3rem] border-fuchsia-500/10 bg-black/40 overflow-hidden animate-in slide-in-from-left duration-500">
+            <div className="p-6 border-b border-fuchsia-500/10 bg-fuchsia-500/5">
+               <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-fuchsia-400">Lyrical Script</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+               <p className="text-sm leading-relaxed whitespace-pre-wrap font-serif italic text-fuchsia-100/60">
+                 {songData.lyrics}
+               </p>
+            </div>
+          </aside>
+        )}
+
+        {/* PERFORMANCE VIEW */}
+        <div className="flex-1 min-h-0 flex flex-col glass rounded-[3rem] overflow-hidden shadow-2xl border-fuchsia-500/10 bg-black/40 relative">
+          <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-8 md:p-12 space-y-8 scroll-smooth custom-scrollbar bg-black/20">
+            {(connectingProgress < 100 || isBuffering) && (
+              <div className="absolute inset-0 bg-black/90 backdrop-blur-xl z-50 flex flex-col items-center justify-center gap-8 text-center px-12">
+                 <div className="relative">
+                   <div className="w-40 h-40 border-[4px] border-fuchsia-900/20 border-t-fuchsia-500 rounded-full animate-spin"></div>
+                   <div className="absolute inset-0 flex items-center justify-center font-black text-4xl text-fuchsia-400">
+                     {isBuffering ? bufferPercent : connectingProgress}%
+                   </div>
                  </div>
-               </div>
-               <div className="space-y-2">
-                 <h3 className="text-xl font-black uppercase tracking-[0.4em] text-fuchsia-400">TUNING INSTRUMENTS...</h3>
-                 <p className="text-[10px] opacity-40 uppercase tracking-[0.2em]">Preparing the vocal synth for your performance.</p>
-               </div>
-            </div>
-          )}
+                 <div className="space-y-2">
+                   <h3 className="text-xl font-black uppercase tracking-[0.4em] text-fuchsia-400">
+                     {songData?.isOfficial ? 'IMPORTING SCRIPT...' : 'GENERATING SCORE...'}
+                   </h3>
+                   <p className="text-[10px] opacity-40 uppercase tracking-[0.2em]">Preparing high-fidelity soulful vocal synthesis.</p>
+                 </div>
+              </div>
+            )}
 
-          {transcriptions.map((t, i) => (
-            <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="max-w-[85%] p-8 rounded-[3rem] bg-fuchsia-950/10 border border-fuchsia-500/10 rounded-tl-none shadow-inner">
-                <p className="text-[10px] text-fuchsia-500 opacity-60 mb-4 uppercase tracking-[0.5em] font-black flex items-center gap-2">
-                  <i className="fas fa-music animate-bounce"></i> THE PERFORMANCE
-                </p>
-                <p className="text-2xl md:text-3xl leading-snug font-light text-fuchsia-50/90 italic font-serif">"{t.text}"</p>
+            {transcriptions.map((t, i) => (
+              <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="max-w-[85%] p-8 rounded-[3rem] bg-fuchsia-950/10 border border-fuchsia-500/10 rounded-tl-none shadow-inner">
+                  <p className="text-[10px] text-fuchsia-500 opacity-60 mb-4 uppercase tracking-[0.5em] font-black flex items-center gap-2">
+                    <i className="fas fa-music animate-bounce"></i> PERFORMANCE STREAM
+                  </p>
+                  <p className="text-2xl md:text-3xl leading-snug font-light text-fuchsia-50/90 italic font-serif">"{t.text}"</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {currentModelText && (
-            <div className="flex justify-start">
-              <div className="max-w-[85%] p-8 rounded-[3rem] bg-fuchsia-500/[0.02] border border-dashed border-fuchsia-500/20 rounded-tl-none animate-pulse">
-                <p className="text-2xl md:text-3xl leading-snug italic text-fuchsia-400/40 font-serif">"{currentModelText}"</p>
+            {currentModelText && (
+              <div className="flex justify-start">
+                <div className="max-w-[85%] p-8 rounded-[3rem] bg-fuchsia-500/[0.02] border border-dashed border-fuchsia-500/20 rounded-tl-none animate-pulse">
+                  <p className="text-2xl md:text-3xl leading-snug italic text-fuchsia-400/40 font-serif">"{currentModelText}"</p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-
-        <div className="p-8 md:p-10 glass border-t border-fuchsia-500/10 flex flex-col gap-6 bg-black/60 shrink-0">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-12">
-              <div className="flex items-center gap-4">
-                 <div className={`w-3.5 h-3.5 rounded-full ${isOutputActive ? 'bg-fuchsia-500 shadow-[0_0_15px_#d946ef]' : 'bg-red-500'}`}></div>
-                 <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-60 text-fuchsia-300">{isOutputActive ? 'Vocal Active' : 'On Standby'}</span>
-              </div>
-              <div className="h-8 w-px bg-white/10 hidden md:block"></div>
-              <div className="flex items-center gap-4">
-                <i className="fas fa-stopwatch text-fuchsia-400 text-xs"></i>
-                <span className="text-sm font-black tracking-widest text-fuchsia-400">{formatTime(secondsRemaining)} Remaining</span>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-6">
-               <button onClick={togglePause} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 ${isPaused ? 'bg-fuchsia-600 text-white' : 'glass border-fuchsia-500/20 hover:bg-fuchsia-500/10'}`}>
-                 <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
-               </button>
-            </div>
+            )}
           </div>
-          <div className="w-full h-1.5 bg-fuchsia-950/40 rounded-full overflow-hidden">
-            <div className="h-full bg-fuchsia-500 transition-all duration-1000 shadow-[0_0_15px_#d946ef]" style={{ width: `${(secondsRemaining / ((config.durationMinutes || 10) * 60)) * 100}%` }}></div>
+
+          <div className="p-8 md:p-10 glass border-t border-fuchsia-500/10 flex flex-col gap-6 bg-black/60 shrink-0">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+              <div className="flex items-center gap-12">
+                <div className="flex items-center gap-4">
+                   <div className={`w-3.5 h-3.5 rounded-full ${isOutputActive ? 'bg-fuchsia-500 shadow-[0_0_15px_#d946ef]' : 'bg-red-500'}`}></div>
+                   <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-60 text-fuchsia-300">{isOutputActive ? 'Vocal Engine Running' : 'Syncing Melody'}</span>
+                </div>
+                <div className="h-8 w-px bg-white/10 hidden md:block"></div>
+                <div className="flex items-center gap-4">
+                  <i className="fas fa-stopwatch text-fuchsia-400 text-xs"></i>
+                  <span className="text-sm font-black tracking-widest text-fuchsia-400">{formatTime(secondsRemaining)} Remaining</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-6">
+                 <button onClick={togglePause} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 ${isPaused ? 'bg-fuchsia-600 text-white' : 'glass border-fuchsia-500/20 hover:bg-fuchsia-500/10'}`}>
+                   <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
+                 </button>
+              </div>
+            </div>
+            <div className="w-full h-1.5 bg-fuchsia-950/40 rounded-full overflow-hidden">
+              <div className="h-full bg-fuchsia-500 transition-all duration-1000 shadow-[0_0_15px_#d946ef]" style={{ width: `${(secondsRemaining / ((config.durationMinutes || 10) * 60)) * 100}%` }}></div>
+            </div>
           </div>
         </div>
       </main>

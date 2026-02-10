@@ -14,6 +14,14 @@ export interface LoreData {
   };
 }
 
+export interface SongData {
+  lyrics: string;
+  isOfficial: boolean;
+  compositionNotes: string;
+  songTitle: string;
+  artist?: string;
+}
+
 export class StoryScapeService {
   private ai: GoogleGenAI;
   private sessionPromise: Promise<any> | null = null;
@@ -52,12 +60,51 @@ export class StoryScapeService {
           temperature: 1.0 // High temperature for more variety
         },
       });
-      // Fix for TS18048: Check if text exists before calling .trim()
       const text = response.text || "";
       return text.trim().replace(/^"|"$/g, '') || "The Unknown Anomaly";
     } catch (err) {
       const fallbackTopics = ["The Dyatlov Pass", "Interstellar", "Ancient Mars Structures", "The Matrix", "Cicada 3301"];
       return fallbackTopics[Math.floor(Math.random() * fallbackTopics.length)];
+    }
+  }
+
+  /**
+   * Fetches lyrics for a known song or generates a professional script for a new topic.
+   */
+  async fetchSongData(config: AdventureConfig): Promise<SongData> {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const prompt = `Search for: "${config.topic}" (Song). 
+    1. Check if this is a real song (e.g., Bollywood, Pop, etc.).
+    2. If yes, retrieve the FULL OFFICIAL LYRICS and identifying Artist.
+    3. If no, generate a professional, soulful original song script about this topic: "${config.topic}".
+    4. Provide style notes for an "Arijit Singh" type soulful, breathy vocal delivery.
+    Return JSON format: { "songTitle": "...", "artist": "...", "lyrics": "...", "isOfficial": true/false, "compositionNotes": "..." }`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-preview',
+        contents: prompt,
+        config: { 
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json"
+        },
+      });
+      const data = JSON.parse(response.text || "{}");
+      return {
+        songTitle: data.songTitle || config.topic,
+        artist: data.artist || "Original AI Artist",
+        lyrics: data.lyrics || "Lyrics unavailable.",
+        isOfficial: !!data.isOfficial,
+        compositionNotes: data.compositionNotes || "Soulful, breathy, and melodic."
+      };
+    } catch (err) {
+      console.error("Fetch song data failed", err);
+      return { 
+        songTitle: config.topic, 
+        lyrics: "Composition script failed.", 
+        isOfficial: false, 
+        compositionNotes: "Soulful." 
+      };
     }
   }
 
@@ -151,7 +198,6 @@ export class StoryScapeService {
     
     if (!this.inputAudioContext) return;
     
-    // Aggressive resume for APK/WebView
     if (this.inputAudioContext.state === 'suspended') {
       await this.inputAudioContext.resume();
     }
@@ -225,7 +271,6 @@ export class StoryScapeService {
   private async handleAudioOutput(base64: string) {
     if (!this.outputAudioContext || this.isPaused) return;
     
-    // Safety check for APKs that might suspend the context silently
     if (this.outputAudioContext.state === 'suspended') {
       await this.outputAudioContext.resume();
     }
