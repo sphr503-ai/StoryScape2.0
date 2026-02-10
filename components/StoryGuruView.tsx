@@ -250,7 +250,7 @@ export default function StoryGuruView({ onExit }: StoryGuruViewProps) {
         }
       }
       const finalBuffer = await offlineCtx.startRendering();
-      // FIX: Add await to audioBufferToWav as it returns a Promise<Blob>
+      // Added await to audioBufferToWav as it returns a Promise<Blob>
       const wav = await audioBufferToWav(finalBuffer);
       const url = URL.createObjectURL(wav);
       const link = document.createElement('a');
