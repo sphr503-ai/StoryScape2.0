@@ -4,7 +4,7 @@ import { encode, decode, decodeAudioData } from '../utils/audioUtils';
 import { Genre, GeminiVoice, AdventureConfig, NarratorMode, LoreData } from '../types';
 
 export class StoryScapeService {
-  private ai: GoogleGenAI;
+  private ai: GoogleGenAI | null = null;
   private sessionPromise: Promise<any> | null = null;
   private inputAudioContext: AudioContext | null = null;
   private outputAudioContext: AudioContext | null = null;
@@ -20,7 +20,7 @@ export class StoryScapeService {
   public outputAnalyser: AnalyserNode | null = null;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // ai will be initialized in startAdventure to ensure fresh API key
   }
 
   async fetchTrendingTopic(genre: Genre, mode: string): Promise<string> {
@@ -85,6 +85,9 @@ export class StoryScapeService {
     lore?: LoreData,
     customSystemInstruction?: string
   ) {
+    // Initialize fresh AI client right before connection
+    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
     this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
@@ -96,10 +99,10 @@ export class StoryScapeService {
     const { genre, topic, language, voice } = config;
     const lastTurn = history && history.length > 0 ? history[history.length - 1].text : "";
     const contextSummary = lastTurn 
-      ? `The session is in progress. Last exchange: "${lastTurn}". Resume immediately.`
-      : `Initiate new session for: ${topic} in ${language}.`;
+      ? `Resume session: ${topic} in ${language}. Previous state: "${lastTurn}".`
+      : `Begin session: ${topic} in ${language}. Welcome the user.`;
 
-    const systemInstruction = customSystemInstruction || `Narrate a ${genre} tale about ${topic} in ${language}. Use ${voice} voice.`;
+    const systemInstruction = customSystemInstruction || `You are a Narrator for a ${genre} tale in ${language}. Voice: ${voice}.`;
 
     this.sessionPromise = this.ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
@@ -112,7 +115,7 @@ export class StoryScapeService {
       },
       callbacks: {
         onopen: () => {
-          this.sessionPromise?.then(session => session.sendRealtimeInput({ text: contextSummary }));
+          console.log("WebSocket link opened.");
         },
         onmessage: async (message: LiveServerMessage) => {
           if (this.isPaused) return;
@@ -134,6 +137,7 @@ export class StoryScapeService {
             }
           }
 
+          // Crucial: Pass transcription even if text is empty to signal the UI to flush its buffers if isFinal/turnComplete
           if (inputTranscription) {
             callbacks.onTranscriptionUpdate('user', inputTranscription.text || '', turnComplete);
           }
@@ -143,7 +147,6 @@ export class StoryScapeService {
           }
 
           if (turnComplete) {
-            callbacks.onTranscriptionUpdate('model', '', true);
             callbacks.onTurnComplete?.();
           }
 
@@ -154,12 +157,13 @@ export class StoryScapeService {
       },
     });
 
-    await this.sessionPromise;
+    const session = await this.sessionPromise;
+    session.sendRealtimeInput({ text: contextSummary });
   }
 
   public async setMicActive(active: boolean) {
     this.isMicActive = active;
-    if (!this.inputAudioContext) return;
+    if (!this.inputAudioContext || !this.sessionPromise) return;
     
     if (this.inputAudioContext.state === 'suspended') {
       await this.inputAudioContext.resume();
@@ -180,7 +184,7 @@ export class StoryScapeService {
             const inputData = e.inputBuffer.getChannelData(0);
             const pcmBlob = this.createBlob(inputData);
             
-            this.sessionPromise.then((session) => {
+            this.sessionPromise!.then((session) => {
               session.sendRealtimeInput({ media: pcmBlob });
             });
           };
@@ -209,7 +213,7 @@ export class StoryScapeService {
     const l = data.length;
     const int16 = new Int16Array(l);
     for (let i = 0; i < l; i++) {
-      int16[i] = Math.max(-1, Math.min(1, data[i])) * 32768;
+      int16[i] = Math.max(-1, Math.min(1, data[i])) * 32767;
     }
     return { 
       data: encode(new Uint8Array(int16.buffer)), 
@@ -223,11 +227,11 @@ export class StoryScapeService {
     try {
       const response = await ai.models.generateContent({ 
         model: 'gemini-3-flash-preview', 
-        contents: `Summarize this exchange: \n${transcript}` 
+        contents: `Provide a cinematic closing statement for this adventure: \n${transcript}` 
       });
-      return response.text || "Conclusion reached.";
+      return response.text || "The journey ends.";
     } catch (err) {
-      return "The session ends.";
+      return "The chronicle concludes.";
     }
   }
 

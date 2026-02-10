@@ -43,6 +43,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   const [isPaused, setIsPaused] = useState(false);
   const [lore, setLore] = useState<LoreData | null>(null);
   const [connectingProgress, setConnectingProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [ambientVolume, setAmbientVolume] = useState(0.2);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -55,7 +56,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Buffers for robust text accumulation
   const narratorBuffer = useRef('');
   const userBuffer = useRef('');
 
@@ -63,7 +63,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     return text
       .replace(/\([^)]*\)/g, '') 
       .replace(/\[[^\]]*\]/g, '') 
-      .replace(/^[\w\u0900-\u097F]+[:：]\s*/, '') 
       .replace(/\s+/g, ' ')
       .trim();
   };
@@ -73,7 +72,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     if (!next) return prev;
     const cleanPrev = prev.trim();
     const cleanNext = next.trim();
-    
     if (cleanPrev.endsWith(cleanNext)) return prev;
     
     const maxOverlap = Math.min(cleanPrev.length, cleanNext.length);
@@ -109,76 +107,82 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   }, [analysers]);
 
   const initService = async (advConfig: AdventureConfig) => {
+    setError(null);
     setConnectingProgress(10);
     const service = new StoryScapeService();
     serviceRef.current = service;
 
-    setConnectingProgress(30);
-    const fetchedLore = await service.fetchLore(advConfig);
-    setLore(fetchedLore);
-    setConnectingProgress(70);
+    try {
+      setConnectingProgress(30);
+      const fetchedLore = await service.fetchLore(advConfig);
+      setLore(fetchedLore);
+      setConnectingProgress(70);
 
-    const systemInstruction = `
-      You are the Master Narrator for an immersive ${advConfig.genre} adventure titled "${advConfig.topic}".
-      STYLE: Cinematic, vivid, and highly responsive. In ${advConfig.language}.
-      LORE Grounding: ${fetchedLore.manifest}
-      INSTRUCTION: Keep each turn relatively short (2-4 sentences). Always end with a choice or prompt for the user.
-      NEVER break character.
-    `;
+      const systemInstruction = `
+        You are the Master Narrator for an immersive ${advConfig.genre} adventure titled "${advConfig.topic}".
+        STYLE: Cinematic, vivid, and responsive. Language: ${advConfig.language}.
+        LORE Grounding: ${fetchedLore.manifest}
+        INSTRUCTION: Keep each turn short (2-3 sentences). Always prompt the user for their action.
+      `;
 
-    service.startAdventure(advConfig, {
-      onTranscriptionUpdate: (role, text, isFinal) => {
-        const processedText = cleanText(text);
-        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
-        if (role === 'model') {
-          // As soon as the model responds, finalize the user turn if it hasn't been already
-          if (userBuffer.current.trim()) {
-            setMessages(prev => {
-              const text = userBuffer.current.trim();
-              if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === text) return prev;
-              return [...prev, { role: 'user', text, timestamp }];
-            });
-            setCurrentUserText('');
-            userBuffer.current = '';
-          }
+      await service.startAdventure(advConfig, {
+        onTranscriptionUpdate: (role, text, isFinal) => {
+          const processedText = cleanText(text);
+          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          
+          if (role === 'model') {
+            // Flush user buffer if model starts responding
+            if (userBuffer.current.trim()) {
+              setMessages(prev => {
+                const textVal = userBuffer.current.trim();
+                if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === textVal) return prev;
+                return [...prev, { role: 'user', text: textVal, timestamp }];
+              });
+              setCurrentUserText('');
+              userBuffer.current = '';
+            }
 
-          if (processedText) {
-            narratorBuffer.current = smartAppend(narratorBuffer.current, processedText);
-            setCurrentNarratorText(narratorBuffer.current);
+            if (processedText) {
+              narratorBuffer.current = smartAppend(narratorBuffer.current, processedText);
+              setCurrentNarratorText(narratorBuffer.current);
+            }
+            if (isFinal && narratorBuffer.current.trim()) {
+              setMessages(prev => {
+                const textVal = narratorBuffer.current.trim();
+                if (prev.length > 0 && prev[prev.length - 1].role === 'model' && prev[prev.length - 1].text === textVal) return prev;
+                return [...prev, { role: 'model', text: textVal, timestamp }];
+              });
+              setCurrentNarratorText('');
+              narratorBuffer.current = '';
+            }
+          } else {
+            if (processedText) {
+              userBuffer.current = smartAppend(userBuffer.current, processedText);
+              setCurrentUserText(userBuffer.current);
+            }
+            if (isFinal && userBuffer.current.trim()) {
+              setMessages(prev => {
+                const textVal = userBuffer.current.trim();
+                if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === textVal) return prev;
+                return [...prev, { role: 'user', text: textVal, timestamp }];
+              });
+              setCurrentUserText('');
+              userBuffer.current = '';
+            }
           }
-          if (isFinal && narratorBuffer.current.trim()) {
-            setMessages(prev => {
-              const text = narratorBuffer.current.trim();
-              if (prev.length > 0 && prev[prev.length - 1].role === 'model' && prev[prev.length - 1].text === text) return prev;
-              return [...prev, { role: 'model', text, timestamp }];
-            });
-            setCurrentNarratorText('');
-            narratorBuffer.current = '';
-          }
-        } else {
-          if (processedText) {
-            userBuffer.current = smartAppend(userBuffer.current, processedText);
-            setCurrentUserText(userBuffer.current);
-          }
-          // Note: User turn completion is usually handled when the model starts ('role === model' branch above)
-          if (isFinal && userBuffer.current.trim()) {
-            setMessages(prev => {
-              const text = userBuffer.current.trim();
-              if (prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === text) return prev;
-              return [...prev, { role: 'user', text, timestamp }];
-            });
-            setCurrentUserText('');
-            userBuffer.current = '';
-          }
-        }
-      },
-      onError: (err) => console.error("Neural Link Failure:", err),
-      onClose: () => onExit(),
-    }, messages.map(m => ({ role: m.role, text: m.text })), fetchedLore, systemInstruction).then(() => {
+        },
+        onError: (err) => {
+          console.error("Neural Link Failure:", err);
+          setError(err.message || "Unknown Network Error");
+        },
+        onClose: () => onExit(),
+      }, messages.map(m => ({ role: m.role, text: m.text })), fetchedLore, systemInstruction);
+
       setConnectingProgress(100);
       setAnalysers({ in: service.inputAnalyser, out: service.outputAnalyser });
-    });
+    } catch (err: any) {
+      setError(err.message || "Failed to establish link.");
+    }
   };
 
   useEffect(() => {
@@ -224,14 +228,14 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
       } catch (err) {
         console.error("Microphone access failed:", err);
         setInputMode('text');
-        alert("Permission denied. Please ensure microphone access is allowed in your browser/app settings.");
+        alert("Permission denied. Check device settings.");
       }
     }
   };
 
   const handleDownload = async () => {
     if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
-      alert("No audio data available for export yet.");
+      alert("No audio data recorded.");
       return;
     }
     setIsDownloading(true);
@@ -273,7 +277,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     <div className={`h-screen bg-[#020205] text-white font-sans flex flex-col overflow-hidden relative selection:bg-white selection:text-black`}>
       <Visualizer inputAnalyser={analysers.in} outputAnalyser={analysers.out} genre={config.genre} isPaused={isPaused} />
 
-      {/* HEADER: Podcast-style unified bar */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 z-50 shrink-0 bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
@@ -310,19 +313,33 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
         </div>
       </header>
 
-      {/* MAIN LOG AREA: Podcast-style bubbles */}
       <main className="flex-1 min-h-0 flex flex-col max-w-5xl mx-auto w-full glass rounded-t-[3rem] overflow-hidden shadow-2xl relative border-white/10 z-10 bg-black/40 mt-4">
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 md:p-10 space-y-6 scroll-smooth custom-scrollbar relative">
           
-          {connectingProgress < 100 && (
+          {(connectingProgress < 100 || error) && (
             <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-[100] flex flex-col items-center justify-center gap-8 text-center px-12">
-               <div className="relative">
-                 <div className={`w-32 h-32 border-[6px] border-cyan-900/20 border-t-cyan-500 rounded-full animate-spin`}></div>
-                 <div className="absolute inset-0 flex items-center justify-center font-black text-2xl text-cyan-400">
-                   {connectingProgress}%
-                 </div>
-               </div>
-               <h3 className="text-xl font-black uppercase tracking-[0.3em] text-cyan-400">Establishing Neural Uplink...</h3>
+               {!error ? (
+                 <>
+                   <div className="relative">
+                     <div className={`w-32 h-32 border-[6px] border-cyan-900/20 border-t-cyan-500 rounded-full animate-spin`}></div>
+                     <div className="absolute inset-0 flex items-center justify-center font-black text-2xl text-cyan-400">
+                       {connectingProgress}%
+                     </div>
+                   </div>
+                   <h3 className="text-xl font-black uppercase tracking-[0.3em] text-cyan-400 animate-pulse">Establishing Neural Uplink...</h3>
+                 </>
+               ) : (
+                 <>
+                   <div className="w-24 h-24 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/20">
+                      <i className="fas fa-triangle-exclamation text-3xl text-red-500"></i>
+                   </div>
+                   <div className="space-y-4">
+                     <h3 className="text-2xl font-black uppercase text-red-500">Neural Link Severed</h3>
+                     <p className="text-white/60 text-sm max-w-xs">{error}</p>
+                   </div>
+                   <button onClick={() => initService(config)} className="px-10 py-4 rounded-full bg-white text-black font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-xl">Retry Link</button>
+                 </>
+               )}
             </div>
           )}
 
@@ -334,12 +351,11 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
                   : 'bg-white/5 border-white/5 rounded-tl-none shadow-xl'
               }`}>
                 <p className={`text-[9px] mb-2 uppercase tracking-[0.3em] font-black ${m.role === 'user' ? 'text-cyan-400' : 'text-white/40'}`}>
-                  {m.role === 'user' ? 'YOUR ACTION' : 'THE NARRATOR'}
+                  {m.role === 'user' ? 'WANDERER' : 'ORACLE'}
                 </p>
                 <p className="text-lg md:text-xl leading-relaxed font-light break-words hyphens-auto">
                   {m.text}
                 </p>
-                <p className="text-[8px] opacity-20 mt-3 text-right uppercase tracking-widest">{m.timestamp}</p>
               </div>
             </div>
           ))}
@@ -377,7 +393,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
                          type="text" 
                          value={textInput} 
                          onChange={(e) => setTextInput(e.target.value)}
-                         placeholder={isPaused ? "Saga Halted" : "What is your next move?"}
+                         placeholder={isPaused ? "Saga Frozen" : "Shape your next chapter..."}
                          disabled={isPaused}
                          className="flex-1 glass border-white/10 rounded-full px-8 py-5 outline-none focus:border-cyan-500/30 focus:bg-white/[0.05] transition-all text-lg font-light placeholder:opacity-20"
                        />
@@ -391,7 +407,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
                     </form>
                  ) : (
                     <div className="w-full h-16 rounded-full glass border border-dashed border-white/10 flex items-center px-8 text-white/20 uppercase tracking-[0.4em] font-black text-xs">
-                       {isUserSpeaking ? "Neural Link Active" : "Speak to shape destiny..."}
+                       {isUserSpeaking ? "Direct Neural Link Active" : "Waiting for your voice..."}
                     </div>
                  )}
               </div>
