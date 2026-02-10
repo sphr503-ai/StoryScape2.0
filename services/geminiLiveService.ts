@@ -20,6 +20,7 @@ export interface SongData {
   compositionNotes: string;
   songTitle: string;
   artist?: string;
+  originalUrl?: string;
 }
 
 export class StoryScapeService {
@@ -69,16 +70,24 @@ export class StoryScapeService {
   }
 
   /**
-   * Fetches lyrics for a known song or generates a professional script for a new topic.
+   * Fetches lyrics for a known song (even from URL) or generates a professional script.
    */
   async fetchSongData(config: AdventureConfig): Promise<SongData> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = `Search for: "${config.topic}" (Song). 
-    1. Check if this is a real song (e.g., Bollywood, Pop, etc.).
-    2. If yes, retrieve the FULL OFFICIAL LYRICS and identifying Artist.
-    3. If no, generate a professional, soulful original song script about this topic: "${config.topic}".
-    4. Provide style notes for an "Arijit Singh" type soulful, breathy vocal delivery.
-    Return JSON format: { "songTitle": "...", "artist": "...", "lyrics": "...", "isOfficial": true/false, "compositionNotes": "..." }`;
+    const isUrl = /^(http|https):\/\/[^ "]+$/.test(config.topic.trim());
+    
+    const prompt = isUrl 
+      ? `A user has provided this link: "${config.topic}". 
+         1. Visit the link (it's likely a YouTube/Spotify/Lyrics page).
+         2. Identify the Song Name and Artist.
+         3. Retrieve the FULL OFFICIAL LYRICS for this song.
+         4. Analyze the musical style (mood, tempo, emotional delivery like Arijit Singh/soulful).
+         Return ONLY a valid JSON object: { "songTitle": "...", "artist": "...", "lyrics": "...", "isOfficial": true, "compositionNotes": "..." }`
+      : `Search for: "${config.topic}" (Song). 
+         1. Check if this is a real song. If yes, get OFFICIAL LYRICS and Artist.
+         2. If original, generate a professional, soulful original song script about "${config.topic}".
+         3. Provide style notes for an "Arijit Singh" type soulful, breathy vocal delivery.
+         Return ONLY a valid JSON object: { "songTitle": "...", "artist": "...", "lyrics": "...", "isOfficial": true/false, "compositionNotes": "..." }`;
 
     try {
       const response = await ai.models.generateContent({
@@ -92,10 +101,11 @@ export class StoryScapeService {
       const data = JSON.parse(response.text || "{}");
       return {
         songTitle: data.songTitle || config.topic,
-        artist: data.artist || "Original AI Artist",
+        artist: data.artist || (isUrl ? "Linked Performer" : "Original AI Artist"),
         lyrics: data.lyrics || "Lyrics unavailable.",
         isOfficial: !!data.isOfficial,
-        compositionNotes: data.compositionNotes || "Soulful, breathy, and melodic."
+        compositionNotes: data.compositionNotes || "Soulful, breathy, and melodic.",
+        originalUrl: isUrl ? config.topic : undefined
       };
     } catch (err) {
       console.error("Fetch song data failed", err);
@@ -103,7 +113,7 @@ export class StoryScapeService {
         songTitle: config.topic, 
         lyrics: "Composition script failed.", 
         isOfficial: false, 
-        compositionNotes: "Soulful." 
+        compositionNotes: "Soulful, breathy melody." 
       };
     }
   }

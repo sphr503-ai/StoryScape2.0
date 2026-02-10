@@ -27,7 +27,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
   const [ambientVolume, setAmbientVolume] = useState(0.15);
   const [isMuted, setIsMuted] = useState(false);
   const [songData, setSongData] = useState<SongData | null>(null);
-  const [showLyrics, setShowLyrics] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(true); // Default to true for a 'Studio' feel
   
   const [analysers, setAnalysers] = useState<{in: AnalyserNode | null, out: AnalyserNode | null}>({in: null, out: null});
   const serviceRef = useRef<StoryScapeService | null>(null);
@@ -79,23 +79,26 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
     setConnectingProgress(70);
 
     const customInstruction = `
-      You are a Professional Vocal Synth specialized in PURE MUSICAL PERFORMANCE in ${advConfig.language}.
+      You are a World-Class Vocal Performer and Studio Musician specialized in PURE MUSICAL PERFORMANCE in ${advConfig.language}.
       
-      SONG DATA:
-      Topic/Detected Name: "${fetchedSong.songTitle}"
-      Artist: "${fetchedSong.artist}"
-      Script/Lyrics: ${fetchedSong.lyrics}
-      Style Notes: ${fetchedSong.compositionNotes}
+      STUDIO SESSION DATA:
+      - Song Identified: "${fetchedSong.songTitle}"
+      - Original Artist Context: "${fetchedSong.artist}"
+      - Official Script/Lyrics to follow: ${fetchedSong.lyrics}
+      - Vocal Style Guidelines: ${fetchedSong.compositionNotes}
 
-      VOCAL PERFORMANCE PROTOCOL (SONG-ONLY MODE):
-      1. ABSOLUTELY NO TALKING: Proceed directly and exclusively to singing. Do not greet, do not explain, do not say "Thank you". 
-      2. EMOTIONAL INTENSITY: Deliver the lyrics with extreme soulful depth, inspired by Arijit Singh's breathy and vulnerable tone.
-      3. MUSICALITY: Use your voice to convey the melody. Use Aalaps (Ooo/Aaa), Harkats, and Meends (melodic glides). 
-      4. SCRIPT LOYALTY: If "${fetchedSong.songTitle}" is a real song, sing the OFFICIAL SCRIPT provided. If original, perform the generated script with a rhythmic flow.
-      5. BREATH AS INSTRUMENT: Let the listener hear the subtle breaths and emotional thahrav (pauses) between melodic phrases.
-      6. MULTI-TURN PERFORMANCE: If you reach the end of a segment, wait for the next cue and resume singing the next verse. Do not stop until the song is complete.
+      STRICT PERFORMANCE PROTOCOL:
+      1. ONLY SINGING: Do NOT speak. Do NOT greet the listener. Do NOT say "Thank you" or explain the song. Start singing immediately.
+      2. EMOTIONAL DEPTH: Deliver the lyrics with extreme soulful intensity. Use your voice like a melodic instrument.
+      3. VOCAL TECHNIQUES: 
+         - Incorporate soulful Aalaps (runs on Ooo/Aaa).
+         - Use breathy textures and melodic glides (Meend).
+         - High focus on "Thahrav" (steadiness and emotional pauses within melody).
+      4. SCRIPT ADHERENCE: Perform the lyrics provided in the session data accurately. If this is a cover, emulate the soul of the original but make it a unique AI performance.
+      5. BREATH AS ART: Ensure the audience can feel the 'live' nature through subtle breathing and melodic phrasing.
+      6. CONTINUOUS FLOW: If you reach a natural pause, wait for the next cue and resume singing the next verse/chorus immediately. NO TALKING between parts.
 
-      Perform the first segment of the song NOW. Start with a soulful intro hum.
+      Perform the first part of the song NOW. Start with a soulful melodic hum.
     `;
 
     service.startAdventure(advConfig, {
@@ -113,7 +116,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
       },
       onTurnComplete: () => {
         if (secondsRemaining > 0) {
-          service.sendTextChoice("Resume singing the next segment of the song. Maintain the same soulful, breathy melody. No talking.");
+          service.sendTextChoice("Maintain the melodic performance. Continue to the next verse or chorus of the song. No speaking, only soulful singing.");
           startBuffering();
         }
       },
@@ -193,7 +196,7 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
       });
       const finalBuffer = await offlineCtx.startRendering();
       const wavBlob = await audioBufferToWav(finalBuffer);
-      await downloadOrShareAudio(wavBlob, `Song_Performance_${(songData?.songTitle || config.topic).replace(/\s+/g, '_')}.wav`);
+      await downloadOrShareAudio(wavBlob, `Studio_Session_${(songData?.songTitle || config.topic).replace(/\s+/g, '_')}.wav`);
     } catch (err) {
       alert("Export failed.");
     } finally {
@@ -218,13 +221,13 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
             <i className="fas fa-arrow-left text-fuchsia-400"></i>
           </button>
           <div>
-            <h1 className="text-2xl font-black tracking-tighter text-fuchsia-400 uppercase">
-              {songData?.isOfficial ? 'COVER:' : 'ORIGINAL:'} {songData?.songTitle || config.topic}
+            <h1 className="text-2xl font-black tracking-tighter text-fuchsia-400 uppercase truncate max-w-[200px] md:max-w-md">
+              {songData?.isOfficial ? 'VOCAL_SYNC:' : 'ORIGINAL:'} {songData?.songTitle || config.topic}
             </h1>
             <div className="flex items-center gap-2 mt-1">
               <div className={`w-2 h-2 rounded-full ${isOutputActive ? 'bg-fuchsia-500 animate-pulse shadow-[0_0_10px_#d946ef]' : 'bg-red-500'}`}></div>
               <p className="text-[10px] opacity-60 uppercase tracking-widest font-black text-fuchsia-300">
-                {songData?.artist} • {config.language} {songData?.isOfficial && '• OFFICIAL_SCRIPT_IMPORTED'}
+                {songData?.artist} • {config.language} {songData?.originalUrl && '• SOURCE_LINK_SYNCED'}
               </p>
             </div>
           </div>
@@ -233,12 +236,12 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
           <button 
             onClick={() => setShowLyrics(!showLyrics)} 
             className={`w-12 h-12 rounded-full glass flex items-center justify-center transition-all shrink-0 ${showLyrics ? 'bg-fuchsia-500/40 border-fuchsia-400' : 'border-fuchsia-500/20'}`}
-            title="Toggle Lyrical Script"
+            title="Toggle Studio Script"
           >
-            <i className="fas fa-file-lines text-sm text-fuchsia-400"></i>
+            <i className="fas fa-file-audio text-sm text-fuchsia-400"></i>
           </button>
 
-          <button onClick={handleDownload} disabled={isDownloading} title="Download Recording" className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0 border-fuchsia-500/20">
+          <button onClick={handleDownload} disabled={isDownloading} title="Export Studio Recording" className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0 border-fuchsia-500/20">
             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm text-fuchsia-400`}></i>
           </button>
 
@@ -249,94 +252,115 @@ const SingerView: React.FC<SingerViewProps> = ({ config, onBack, onExit, initial
             <input type="range" min="0" max="1" step="0.01" value={ambientVolume} onChange={(e) => setAmbientVolume(parseFloat(e.target.value))} className="w-24 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-fuchsia-500" />
           </div>
 
-          <button onClick={onExit} className="px-8 py-3 rounded-full bg-fuchsia-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-fuchsia-500 transition-all shrink-0 text-center">EXIT SESSION</button>
+          <button onClick={onExit} className="px-8 py-3 rounded-full bg-fuchsia-600 text-white font-black text-xs uppercase tracking-widest shadow-2xl hover:bg-fuchsia-500 transition-all shrink-0 text-center">EXIT STUDIO</button>
         </div>
       </header>
 
       <main className="flex-1 min-h-0 flex flex-col md:flex-row gap-6 max-w-7xl mx-auto w-full z-10">
         
-        {/* LYRICS SIDEBAR */}
+        {/* STUDIO SCRIPT SIDEBAR */}
         {showLyrics && songData && (
-          <aside className="hidden lg:flex flex-col w-80 glass rounded-[3rem] border-fuchsia-500/10 bg-black/40 overflow-hidden animate-in slide-in-from-left duration-500">
-            <div className="p-6 border-b border-fuchsia-500/10 bg-fuchsia-500/5">
-               <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-fuchsia-400">Lyrical Script</h3>
+          <aside className="hidden lg:flex flex-col w-96 glass rounded-[3rem] border-fuchsia-500/10 bg-black/40 overflow-hidden animate-in slide-in-from-left duration-500 shadow-2xl">
+            <div className="p-8 border-b border-fuchsia-500/10 bg-fuchsia-500/5 flex justify-between items-center">
+               <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-fuchsia-400">STUDIO_SCRIPT</h3>
+               <span className="text-[8px] font-bold text-fuchsia-500/40 uppercase tracking-widest">{songData.isOfficial ? 'VERIFIED' : 'COMPOSED'}</span>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-               <p className="text-sm leading-relaxed whitespace-pre-wrap font-serif italic text-fuchsia-100/60">
-                 {songData.lyrics}
-               </p>
+            <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-black/10">
+               <div className="space-y-4">
+                 <p className="text-[9px] font-black text-fuchsia-400/30 uppercase tracking-[0.2em]">Technique Notes:</p>
+                 <p className="text-xs italic text-fuchsia-100/40 leading-relaxed font-serif">{songData.compositionNotes}</p>
+               </div>
+               <div className="h-px w-full bg-fuchsia-500/10"></div>
+               <div className="space-y-2">
+                 <p className="text-[9px] font-black text-fuchsia-400/30 uppercase tracking-[0.2em]">Lyrical Score:</p>
+                 <p className="text-sm leading-relaxed whitespace-pre-wrap font-serif italic text-fuchsia-100/70">
+                   {songData.lyrics}
+                 </p>
+               </div>
             </div>
           </aside>
         )}
 
-        {/* PERFORMANCE VIEW */}
+        {/* LIVE STREAM VIEW */}
         <div className="flex-1 min-h-0 flex flex-col glass rounded-[3rem] overflow-hidden shadow-2xl border-fuchsia-500/10 bg-black/40 relative">
-          <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-8 md:p-12 space-y-8 scroll-smooth custom-scrollbar bg-black/20">
+          <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-8 md:p-12 space-y-12 scroll-smooth custom-scrollbar bg-black/20">
             {(connectingProgress < 100 || isBuffering) && (
-              <div className="absolute inset-0 bg-black/90 backdrop-blur-xl z-50 flex flex-col items-center justify-center gap-8 text-center px-12">
+              <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl z-50 flex flex-col items-center justify-center gap-10 text-center px-12">
                  <div className="relative">
-                   <div className="w-40 h-40 border-[4px] border-fuchsia-900/20 border-t-fuchsia-500 rounded-full animate-spin"></div>
-                   <div className="absolute inset-0 flex items-center justify-center font-black text-4xl text-fuchsia-400">
-                     {isBuffering ? bufferPercent : connectingProgress}%
+                   <div className="w-48 h-48 border-[2px] border-fuchsia-900/10 border-t-fuchsia-500 rounded-full animate-spin"></div>
+                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                     <span className="font-black text-5xl text-fuchsia-400">{isBuffering ? bufferPercent : connectingProgress}%</span>
+                     <span className="text-[8px] font-black uppercase tracking-[0.4em] opacity-30 text-fuchsia-200">Processing</span>
                    </div>
                  </div>
-                 <div className="space-y-2">
-                   <h3 className="text-xl font-black uppercase tracking-[0.4em] text-fuchsia-400">
-                     {songData?.isOfficial ? 'IMPORTING SCRIPT...' : 'GENERATING SCORE...'}
+                 <div className="space-y-3">
+                   <h3 className="text-2xl font-black uppercase tracking-[0.5em] text-fuchsia-400">
+                     {songData?.isOfficial ? 'SYNCHRONIZING SCORE' : 'COMPOSING HARMONY'}
                    </h3>
-                   <p className="text-[10px] opacity-40 uppercase tracking-[0.2em]">Preparing high-fidelity soulful vocal synthesis.</p>
+                   <p className="text-[10px] opacity-40 uppercase tracking-[0.3em] max-w-sm mx-auto leading-relaxed">
+                     {songData?.isOfficial ? `Matching neural vocal model to ${songData.songTitle} official acoustics.` : 'Generating an original soulful performance script for the session.'}
+                   </p>
                  </div>
               </div>
             )}
 
             {transcriptions.map((t, i) => (
-              <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="max-w-[85%] p-8 rounded-[3rem] bg-fuchsia-950/10 border border-fuchsia-500/10 rounded-tl-none shadow-inner">
-                  <p className="text-[10px] text-fuchsia-500 opacity-60 mb-4 uppercase tracking-[0.5em] font-black flex items-center gap-2">
-                    <i className="fas fa-music animate-bounce"></i> PERFORMANCE STREAM
+              <div key={i} className="flex justify-start animate-in fade-in slide-in-from-bottom-6 duration-700">
+                <div className="max-w-[85%] p-10 rounded-[3rem] bg-fuchsia-950/10 border border-fuchsia-500/10 rounded-tl-none shadow-inner group">
+                  <p className="text-[10px] text-fuchsia-500 opacity-60 mb-6 uppercase tracking-[0.5em] font-black flex items-center gap-3">
+                    <i className="fas fa-compact-disc animate-spin-slow"></i> PERFECTION_SYNC
                   </p>
-                  <p className="text-2xl md:text-3xl leading-snug font-light text-fuchsia-50/90 italic font-serif">"{t.text}"</p>
+                  <p className="text-3xl md:text-4xl leading-snug font-light text-fuchsia-50/95 italic font-serif tracking-tight">"{t.text}"</p>
                 </div>
               </div>
             ))}
 
             {currentModelText && (
               <div className="flex justify-start">
-                <div className="max-w-[85%] p-8 rounded-[3rem] bg-fuchsia-500/[0.02] border border-dashed border-fuchsia-500/20 rounded-tl-none animate-pulse">
-                  <p className="text-2xl md:text-3xl leading-snug italic text-fuchsia-400/40 font-serif">"{currentModelText}"</p>
+                <div className="max-w-[85%] p-10 rounded-[3rem] bg-fuchsia-500/[0.01] border border-dashed border-fuchsia-500/20 rounded-tl-none animate-pulse">
+                  <p className="text-3xl md:text-4xl leading-snug italic text-fuchsia-400/30 font-serif tracking-tight">"{currentModelText}"</p>
                 </div>
               </div>
             )}
+            <div className="h-12"></div>
           </div>
 
-          <div className="p-8 md:p-10 glass border-t border-fuchsia-500/10 flex flex-col gap-6 bg-black/60 shrink-0">
+          <div className="p-8 md:p-12 glass border-t border-fuchsia-500/10 flex flex-col gap-8 bg-black/60 shrink-0">
             <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-              <div className="flex items-center gap-12">
+              <div className="flex items-center gap-16">
                 <div className="flex items-center gap-4">
-                   <div className={`w-3.5 h-3.5 rounded-full ${isOutputActive ? 'bg-fuchsia-500 shadow-[0_0_15px_#d946ef]' : 'bg-red-500'}`}></div>
-                   <span className="text-[10px] uppercase tracking-[0.2em] font-black opacity-60 text-fuchsia-300">{isOutputActive ? 'Vocal Engine Running' : 'Syncing Melody'}</span>
+                   <div className={`w-4 h-4 rounded-full ${isOutputActive ? 'bg-fuchsia-500 shadow-[0_0_20px_#d946ef]' : 'bg-red-500'}`}></div>
+                   <div className="flex flex-col">
+                     <span className="text-[10px] uppercase tracking-[0.2em] font-black text-fuchsia-300">Vocal_Link</span>
+                     <span className="text-[8px] opacity-40 uppercase font-bold">{isOutputActive ? 'Capturing Melodic Stream' : 'Standby'}</span>
+                   </div>
                 </div>
-                <div className="h-8 w-px bg-white/10 hidden md:block"></div>
+                <div className="h-10 w-px bg-white/5 hidden md:block"></div>
                 <div className="flex items-center gap-4">
-                  <i className="fas fa-stopwatch text-fuchsia-400 text-xs"></i>
-                  <span className="text-sm font-black tracking-widest text-fuchsia-400">{formatTime(secondsRemaining)} Remaining</span>
+                  <i className="fas fa-clock text-fuchsia-400 text-xs opacity-50"></i>
+                  <span className="text-sm font-black tracking-widest text-fuchsia-400">{formatTime(secondsRemaining)} REEL LEFT</span>
                 </div>
               </div>
               
-              <div className="flex items-center gap-6">
-                 <button onClick={togglePause} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 ${isPaused ? 'bg-fuchsia-600 text-white' : 'glass border-fuchsia-500/20 hover:bg-fuchsia-500/10'}`}>
-                   <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'}`}></i>
+              <div className="flex items-center gap-8">
+                 <button onClick={togglePause} className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-2xl shrink-0 group ${isPaused ? 'bg-fuchsia-600 text-white' : 'glass border-fuchsia-500/20 hover:bg-fuchsia-500/10'}`}>
+                   <i className={`fas ${isPaused ? 'fa-play' : 'fa-pause'} text-xl group-hover:scale-110 transition-transform`}></i>
                  </button>
               </div>
             </div>
-            <div className="w-full h-1.5 bg-fuchsia-950/40 rounded-full overflow-hidden">
-              <div className="h-full bg-fuchsia-500 transition-all duration-1000 shadow-[0_0_15px_#d946ef]" style={{ width: `${(secondsRemaining / ((config.durationMinutes || 10) * 60)) * 100}%` }}></div>
+            <div className="w-full h-2 bg-fuchsia-950/40 rounded-full overflow-hidden p-0.5 border border-white/5 shadow-inner">
+              <div className="h-full bg-fuchsia-500 transition-all duration-1000 shadow-[0_0_20px_#d946ef] rounded-full" style={{ width: `${(secondsRemaining / ((config.durationMinutes || 10) * 60)) * 100}%` }}></div>
             </div>
           </div>
         </div>
       </main>
 
-      <style dangerouslySetInnerHTML={{ __html: `.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(217, 70, 239, 0.2); border-radius: 10px; }` }} />
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; } 
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(217, 70, 239, 0.2); border-radius: 10px; }
+        .animate-spin-slow { animation: spin 4s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      ` }} />
     </div>
   );
 };
