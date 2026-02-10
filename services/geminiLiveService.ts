@@ -14,8 +14,14 @@ export interface LoreData {
   };
 }
 
+export interface SongSegment {
+  label: string;
+  text: string;
+}
+
 export interface SongData {
   lyrics: string;
+  segments: SongSegment[];
   isOfficial: boolean;
   compositionNotes: string;
   songTitle: string;
@@ -43,9 +49,6 @@ export class StoryScapeService {
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
-  /**
-   * Fetches a truly random trending topic from the internet based on genre and mode.
-   */
   async fetchTrendingTopic(genre: Genre, mode: string): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Find a single, currently popular or trending ${genre} ${mode === 'explainer' ? 'movie' : 'topic for a podcast'}. 
@@ -58,7 +61,7 @@ export class StoryScapeService {
         contents: prompt,
         config: { 
           tools: [{ googleSearch: {} }],
-          temperature: 1.0 // High temperature for more variety
+          temperature: 1.0 
         },
       });
       const text = response.text || "";
@@ -69,25 +72,23 @@ export class StoryScapeService {
     }
   }
 
-  /**
-   * Fetches lyrics for a known song (even from URL) or generates a professional script.
-   */
   async fetchSongData(config: AdventureConfig): Promise<SongData> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const isUrl = /^(http|https):\/\/[^ "]+$/.test(config.topic.trim());
     
-    const prompt = isUrl 
-      ? `A user has provided this link: "${config.topic}". 
-         1. Visit the link (it's likely a YouTube/Spotify/Lyrics page).
-         2. Identify the Song Name and Artist.
-         3. Retrieve the FULL OFFICIAL LYRICS for this song.
-         4. Analyze the musical style (mood, tempo, emotional delivery like Arijit Singh/soulful).
-         Return ONLY a valid JSON object: { "songTitle": "...", "artist": "...", "lyrics": "...", "isOfficial": true, "compositionNotes": "..." }`
-      : `Search for: "${config.topic}" (Song). 
-         1. Check if this is a real song. If yes, get OFFICIAL LYRICS and Artist.
-         2. If original, generate a professional, soulful original song script about "${config.topic}".
-         3. Provide style notes for an "Arijit Singh" type soulful, breathy vocal delivery.
-         Return ONLY a valid JSON object: { "songTitle": "...", "artist": "...", "lyrics": "...", "isOfficial": true/false, "compositionNotes": "..." }`;
+    const prompt = `Target: "${config.topic}". 
+    1. If this is a URL or a known song name, use Google Search to find the FULL OFFICIAL LYRICS/SCRIPT.
+    2. Identify the Song Name, Artist, and the musical vibe.
+    3. If no official song is found, generate a high-quality, soulful original song script.
+    4. BREAK the lyrics into logical segments: Verse 1, Chorus, Verse 2, Outro, etc.
+    Return ONLY a valid JSON object: { 
+      "songTitle": "...", 
+      "artist": "...", 
+      "lyrics": "...", 
+      "isOfficial": true/false, 
+      "compositionNotes": "...",
+      "segments": [{"label": "Verse 1", "text": "..."}, {"label": "Chorus", "text": "..."}, ...] 
+    }`;
 
     try {
       const response = await ai.models.generateContent({
@@ -101,19 +102,21 @@ export class StoryScapeService {
       const data = JSON.parse(response.text || "{}");
       return {
         songTitle: data.songTitle || config.topic,
-        artist: data.artist || (isUrl ? "Linked Performer" : "Original AI Artist"),
-        lyrics: data.lyrics || "Lyrics unavailable.",
+        artist: data.artist || (isUrl ? "Featured Artist" : "Neural Performer"),
+        lyrics: data.lyrics || "Lyrics search failed.",
+        segments: data.segments || [{ label: "Full Song", text: data.lyrics }],
         isOfficial: !!data.isOfficial,
-        compositionNotes: data.compositionNotes || "Soulful, breathy, and melodic.",
+        compositionNotes: data.compositionNotes || "Soulful performance.",
         originalUrl: isUrl ? config.topic : undefined
       };
     } catch (err) {
       console.error("Fetch song data failed", err);
       return { 
         songTitle: config.topic, 
-        lyrics: "Composition script failed.", 
+        lyrics: "Search failed.", 
+        segments: [],
         isOfficial: false, 
-        compositionNotes: "Soulful, breathy melody." 
+        compositionNotes: "Soulful performance." 
       };
     }
   }
@@ -122,7 +125,7 @@ export class StoryScapeService {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const isExplainer = config.durationMinutes !== undefined; 
     const prompt = isExplainer 
-      ? `Act as a Professional Film Historian. Verify movie: "${config.topic}". Provide summary, key characters, ending meaning, Year, Director. Format: [METADATA], [PLOT], [ENDING], [THEMES].`
+      ? `Act as a Professional Film Historian. Verify movie: "${config.topic}". Provide summary, Year, Director. Format: [METADATA], [PLOT], [ENDING], [THEMES].`
       : `Act as a Cinematic Research Assistant. For a ${config.genre} about "${config.topic}", search real-world facts. Lore Manifest format.`;
 
     try {
@@ -165,26 +168,20 @@ export class StoryScapeService {
     this.inputAnalyser.fftSize = 256;
     this.outputAnalyser.fftSize = 256;
 
-    const { genre, topic, language, voice } = config;
-    const lastTurn = history && history.length > 0 ? history[history.length - 1].text : "";
-    const contextSummary = lastTurn 
-      ? `The session is in progress. Last exchange: "${lastTurn}". Resume immediately.`
-      : `Initiate new session for: ${topic} in ${language}.`;
-
-    const systemInstruction = customSystemInstruction || `Narrate a ${genre} tale about ${topic} in ${language}. Use ${voice} voice.`;
+    const { voice } = config;
 
     this.sessionPromise = this.ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
       config: {
         responseModalities: [Modality.AUDIO],
-        systemInstruction,
+        systemInstruction: customSystemInstruction || `Perform a song.`,
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
         inputAudioTranscription: {},
         outputAudioTranscription: {},
       },
       callbacks: {
         onopen: () => {
-          this.sessionPromise?.then(session => session.sendRealtimeInput({ text: contextSummary }));
+          this.sessionPromise?.then(session => session.sendRealtimeInput({ text: "Please begin the performance now. Remember: NO SPEAKING, ONLY SINGING." }));
         },
         onmessage: async (message: LiveServerMessage) => {
           if (this.isPaused) return;
@@ -205,15 +202,9 @@ export class StoryScapeService {
 
   public async setMicActive(active: boolean) {
     this.isMicActive = active;
-    
     if (!this.inputAudioContext) return;
-    
-    if (this.inputAudioContext.state === 'suspended') {
-      await this.inputAudioContext.resume();
-    }
-    if (this.outputAudioContext && this.outputAudioContext.state === 'suspended') {
-      await this.outputAudioContext.resume();
-    }
+    if (this.inputAudioContext.state === 'suspended') await this.inputAudioContext.resume();
+    if (this.outputAudioContext && this.outputAudioContext.state === 'suspended') await this.outputAudioContext.resume();
 
     if (active) {
       if (!this.stream) {
@@ -221,17 +212,14 @@ export class StoryScapeService {
           this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           const source = this.inputAudioContext.createMediaStreamSource(this.stream);
           this.scriptProcessor = this.inputAudioContext.createScriptProcessor(4096, 1, 1);
-          
           this.scriptProcessor.onaudioprocess = (e) => {
             if (this.isPaused || !this.isMicActive || !this.sessionPromise) return;
             const inputData = e.inputBuffer.getChannelData(0);
             const pcmBlob = this.createBlob(inputData);
-            
             this.sessionPromise.then((session) => {
               session.sendRealtimeInput({ media: pcmBlob });
             });
           };
-
           source.connect(this.inputAnalyser!);
           this.inputAnalyser!.connect(this.scriptProcessor);
           this.scriptProcessor.connect(this.inputAudioContext.destination);
@@ -280,11 +268,7 @@ export class StoryScapeService {
 
   private async handleAudioOutput(base64: string) {
     if (!this.outputAudioContext || this.isPaused) return;
-    
-    if (this.outputAudioContext.state === 'suspended') {
-      await this.outputAudioContext.resume();
-    }
-
+    if (this.outputAudioContext.state === 'suspended') await this.outputAudioContext.resume();
     this.nextStartTime = Math.max(this.nextStartTime, this.outputAudioContext.currentTime);
     const buf = await decodeAudioData(decode(base64), this.outputAudioContext, 24000, 1);
     this.recordedBuffers.push(buf);
