@@ -5,13 +5,7 @@ export enum Genre {
   MYSTERY = 'Mystery',
   HORROR = 'Horror',
   THRILLER = 'Thriller',
-  DOCUMENTARY = 'Documentary',
-  POP = 'Pop',
-  ROCK = 'Rock',
-  JAZZ = 'Jazz',
-  HIPHOP = 'Hip-Hop',
-  CLASSICAL = 'Classical',
-  SOUL = 'Soul'
+  DOCUMENTARY = 'Documentary'
 }
 
 export enum ViewMode {

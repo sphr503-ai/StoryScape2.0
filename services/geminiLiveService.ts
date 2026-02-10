@@ -14,21 +14,6 @@ export interface LoreData {
   };
 }
 
-export interface SongSegment {
-  label: string;
-  text: string;
-}
-
-export interface SongData {
-  lyrics: string;
-  segments: SongSegment[];
-  isOfficial: boolean;
-  compositionNotes: string;
-  songTitle: string;
-  artist?: string;
-  originalUrl?: string;
-}
-
 export class StoryScapeService {
   private ai: GoogleGenAI;
   private sessionPromise: Promise<any> | null = null;
@@ -49,6 +34,9 @@ export class StoryScapeService {
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
+  /**
+   * Fetches a truly random trending topic from the internet based on genre and mode.
+   */
   async fetchTrendingTopic(genre: Genre, mode: string): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Find a single, currently popular or trending ${genre} ${mode === 'explainer' ? 'movie' : 'topic for a podcast'}. 
@@ -61,9 +49,10 @@ export class StoryScapeService {
         contents: prompt,
         config: { 
           tools: [{ googleSearch: {} }],
-          temperature: 1.0 
+          temperature: 1.0 // High temperature for more variety
         },
       });
+      // Fix for TS18048: Check if text exists before calling .trim()
       const text = response.text || "";
       return text.trim().replace(/^"|"$/g, '') || "The Unknown Anomaly";
     } catch (err) {
@@ -72,60 +61,11 @@ export class StoryScapeService {
     }
   }
 
-  async fetchSongData(config: AdventureConfig): Promise<SongData> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const isUrl = /^(http|https):\/\/[^ "]+$/.test(config.topic.trim());
-    
-    const prompt = `Target: "${config.topic}". 
-    1. If this is a URL or a known song name, use Google Search to find the FULL OFFICIAL LYRICS/SCRIPT.
-    2. Identify the Song Name, Artist, and the musical vibe.
-    3. If no official song is found, generate a high-quality, soulful original song script.
-    4. BREAK the lyrics into logical segments: Verse 1, Chorus, Verse 2, Outro, etc.
-    Return ONLY a valid JSON object: { 
-      "songTitle": "...", 
-      "artist": "...", 
-      "lyrics": "...", 
-      "isOfficial": true/false, 
-      "compositionNotes": "...",
-      "segments": [{"label": "Verse 1", "text": "..."}, {"label": "Chorus", "text": "..."}, ...] 
-    }`;
-
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: prompt,
-        config: { 
-          tools: [{ googleSearch: {} }],
-          responseMimeType: "application/json"
-        },
-      });
-      const data = JSON.parse(response.text || "{}");
-      return {
-        songTitle: data.songTitle || config.topic,
-        artist: data.artist || (isUrl ? "Featured Artist" : "Neural Performer"),
-        lyrics: data.lyrics || "Lyrics search failed.",
-        segments: data.segments || [{ label: "Full Song", text: data.lyrics }],
-        isOfficial: !!data.isOfficial,
-        compositionNotes: data.compositionNotes || "Soulful performance.",
-        originalUrl: isUrl ? config.topic : undefined
-      };
-    } catch (err) {
-      console.error("Fetch song data failed", err);
-      return { 
-        songTitle: config.topic, 
-        lyrics: "Search failed.", 
-        segments: [],
-        isOfficial: false, 
-        compositionNotes: "Soulful performance." 
-      };
-    }
-  }
-
   async fetchLore(config: AdventureConfig): Promise<LoreData> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const isExplainer = config.durationMinutes !== undefined; 
     const prompt = isExplainer 
-      ? `Act as a Professional Film Historian. Verify movie: "${config.topic}". Provide summary, Year, Director. Format: [METADATA], [PLOT], [ENDING], [THEMES].`
+      ? `Act as a Professional Film Historian. Verify movie: "${config.topic}". Provide summary, key characters, ending meaning, Year, Director. Format: [METADATA], [PLOT], [ENDING], [THEMES].`
       : `Act as a Cinematic Research Assistant. For a ${config.genre} about "${config.topic}", search real-world facts. Lore Manifest format.`;
 
     try {
@@ -168,20 +108,26 @@ export class StoryScapeService {
     this.inputAnalyser.fftSize = 256;
     this.outputAnalyser.fftSize = 256;
 
-    const { voice } = config;
+    const { genre, topic, language, voice } = config;
+    const lastTurn = history && history.length > 0 ? history[history.length - 1].text : "";
+    const contextSummary = lastTurn 
+      ? `The session is in progress. Last exchange: "${lastTurn}". Resume immediately.`
+      : `Initiate new session for: ${topic} in ${language}.`;
+
+    const systemInstruction = customSystemInstruction || `Narrate a ${genre} tale about ${topic} in ${language}. Use ${voice} voice.`;
 
     this.sessionPromise = this.ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
       config: {
         responseModalities: [Modality.AUDIO],
-        systemInstruction: customSystemInstruction || `Perform a song.`,
+        systemInstruction,
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
         inputAudioTranscription: {},
         outputAudioTranscription: {},
       },
       callbacks: {
         onopen: () => {
-          this.sessionPromise?.then(session => session.sendRealtimeInput({ text: "Please begin the performance now. Remember: NO SPEAKING, ONLY SINGING." }));
+          this.sessionPromise?.then(session => session.sendRealtimeInput({ text: contextSummary }));
         },
         onmessage: async (message: LiveServerMessage) => {
           if (this.isPaused) return;
@@ -202,9 +148,16 @@ export class StoryScapeService {
 
   public async setMicActive(active: boolean) {
     this.isMicActive = active;
+    
     if (!this.inputAudioContext) return;
-    if (this.inputAudioContext.state === 'suspended') await this.inputAudioContext.resume();
-    if (this.outputAudioContext && this.outputAudioContext.state === 'suspended') await this.outputAudioContext.resume();
+    
+    // Aggressive resume for APK/WebView
+    if (this.inputAudioContext.state === 'suspended') {
+      await this.inputAudioContext.resume();
+    }
+    if (this.outputAudioContext && this.outputAudioContext.state === 'suspended') {
+      await this.outputAudioContext.resume();
+    }
 
     if (active) {
       if (!this.stream) {
@@ -212,14 +165,17 @@ export class StoryScapeService {
           this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           const source = this.inputAudioContext.createMediaStreamSource(this.stream);
           this.scriptProcessor = this.inputAudioContext.createScriptProcessor(4096, 1, 1);
+          
           this.scriptProcessor.onaudioprocess = (e) => {
             if (this.isPaused || !this.isMicActive || !this.sessionPromise) return;
             const inputData = e.inputBuffer.getChannelData(0);
             const pcmBlob = this.createBlob(inputData);
+            
             this.sessionPromise.then((session) => {
               session.sendRealtimeInput({ media: pcmBlob });
             });
           };
+
           source.connect(this.inputAnalyser!);
           this.inputAnalyser!.connect(this.scriptProcessor);
           this.scriptProcessor.connect(this.inputAudioContext.destination);
@@ -268,7 +224,12 @@ export class StoryScapeService {
 
   private async handleAudioOutput(base64: string) {
     if (!this.outputAudioContext || this.isPaused) return;
-    if (this.outputAudioContext.state === 'suspended') await this.outputAudioContext.resume();
+    
+    // Safety check for APKs that might suspend the context silently
+    if (this.outputAudioContext.state === 'suspended') {
+      await this.outputAudioContext.resume();
+    }
+
     this.nextStartTime = Math.max(this.nextStartTime, this.outputAudioContext.currentTime);
     const buf = await decodeAudioData(decode(base64), this.outputAudioContext, 24000, 1);
     this.recordedBuffers.push(buf);
