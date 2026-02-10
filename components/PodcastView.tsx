@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig, NarratorMode } from '../types';
 import { StoryScapeService, LoreData } from '../services/geminiLiveService';
@@ -44,6 +43,14 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onBack, onExit, initi
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<number | null>(null);
   const bufferIntervalRef = useRef<number | null>(null);
+
+  const truncateTopic = (text: string) => {
+    const words = text.split(/\s+/);
+    if (words.length > 5) {
+      return words.slice(0, 5).join(' ') + ' (....)';
+    }
+    return text;
+  };
 
   useEffect(() => {
     let anim: number;
@@ -268,7 +275,7 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onBack, onExit, initi
             <i className="fas fa-arrow-left text-violet-400"></i>
           </button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-violet-400">CAST: {config.topic}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-violet-400">CAST: {truncateTopic(config.topic)}</h1>
             <div className="flex items-center gap-2 mt-0.5">
               <div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-violet-500 animate-pulse' : 'bg-red-500'}`}></div>
               <p className="text-[10px] opacity-60 uppercase tracking-widest font-black text-violet-300">{config.language} • {config.genre}</p>

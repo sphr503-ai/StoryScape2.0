@@ -44,6 +44,14 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onBack, o
   const userTextAccumulator = useRef<string>('');
   const bufferIntervalRef = useRef<number | null>(null);
 
+  const truncateTopic = (text: string) => {
+    const words = text.split(/\s+/);
+    if (words.length > 5) {
+      return words.slice(0, 5).join(' ') + ' (....)';
+    }
+    return text;
+  };
+
   const renderFormattedText = (text: string) => {
     const parts = text.split(/(<sea>.*?<\/sea>|<fail>.*?<\/fail>|<pass>.*?<\/pass>|<p>.*?<\/p>)/g);
     return parts.map((part, index) => {
@@ -270,7 +278,7 @@ Whenever the user makes a mistake: "Aapko <fail>[User's Mistake]</fail> ki jagah
             <i className="fas fa-chevron-left text-[#00ff41]"></i>
           </button>
           <div className="flex flex-col">
-            <h1 className="text-sm font-black tracking-tight text-[#00ff41] uppercase">NEURAL_TERMINAL: {config.topic}</h1>
+            <h1 className="text-sm font-black tracking-tight text-[#00ff41] uppercase">NEURAL_TERMINAL: {truncateTopic(config.topic)}</h1>
             <div className="flex items-center gap-2">
               <span className={`w-1.5 h-1.5 rounded-full ${connectingProgress === 100 ? 'bg-[#00ff41] animate-pulse shadow-[0_0_8px_#00ff41]' : 'bg-red-600'}`}></span>
               <span className="text-[10px] font-black uppercase tracking-widest text-[#00ff41]/40">HW_STATUS: {hwStatus} • {config.language}</span>

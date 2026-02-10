@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig, NarratorMode } from '../types';
 import { StoryScapeService, LoreData } from '../services/geminiLiveService';
@@ -38,6 +37,14 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<number | null>(null);
   const bufferIntervalRef = useRef<number | null>(null);
+
+  const truncateTopic = (text: string) => {
+    const words = text.split(/\s+/);
+    if (words.length > 5) {
+      return words.slice(0, 5).join(' ') + ' (....)';
+    }
+    return text;
+  };
 
   useEffect(() => {
     let anim: number;
@@ -284,7 +291,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
           </button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-emerald-400 leading-none uppercase">
-              {config.isOriginalScript ? 'DESIRE-DECODER' : 'RECAPPER'}: {config.topic}
+              {config.isOriginalScript ? 'DESIRE-DECODER' : 'RECAPPER'}: {truncateTopic(config.topic)}
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <div className={`w-2 h-2 rounded-full ${isOutputActive ? 'bg-emerald-500 animate-pulse shadow-[0_0_15px_#10b981]' : 'bg-red-500'}`}></div>
@@ -353,7 +360,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
 
           {currentModelText && (
             <div className="flex justify-start">
-              <div className="max-w-[92%] p-6 md:p-8 rounded-[2.5rem] bg-emerald-500/[0.02] border border-dashed border-emerald-500/20 rounded-tl-none animate-pulse">
+              <div className="max-w-[92%] p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] bg-emerald-500/[0.02] border border-dashed border-emerald-500/20 rounded-tl-none animate-pulse">
                 <p className="text-xl md:text-2xl leading-relaxed italic text-emerald-400/60 break-words hyphens-auto">{currentModelText}</p>
               </div>
             </div>
@@ -380,9 +387,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
                </button>
             </div>
           </div>
-          <div className="w-full h-1.5 bg-emerald-950/40 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-500 transition-all duration-1000 shadow-[0_0_15px_#10b981]" style={{ width: `${(secondsRemaining / ((config.durationMinutes || 25) * 60)) * 100}%` }}></div>
-          </div>
+          <div className="w-full h-1.5 bg-emerald-950/40 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 transition-all duration-1000 shadow-[0_0_15px_#10b981]" style={{ width: `${(secondsRemaining / ((config.durationMinutes || 25) * 60)) * 100}%` }}></div></div>
         </div>
       </main>
 

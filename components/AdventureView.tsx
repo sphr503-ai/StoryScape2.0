@@ -61,6 +61,14 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   const narratorAccumulator = useRef<string>('');
   const userAccumulator = useRef<string>('');
 
+  const truncateTopic = (text: string) => {
+    const words = text.split(/\s+/);
+    if (words.length > 5) {
+      return words.slice(0, 5).join(' ') + ' (....)';
+    }
+    return text;
+  };
+
   const cleanText = (text: string): string => {
     return text
       .replace(/\([^)]*\)/g, '') 
@@ -337,7 +345,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
             <i className="fas fa-chevron-left text-white/40"></i>
           </button>
           <div className="flex flex-col">
-            <h1 className="text-sm font-bold tracking-tight text-white uppercase">{config.topic}</h1>
+            <h1 className="text-sm font-bold tracking-tight text-white uppercase">{truncateTopic(config.topic)}</h1>
             <div className="flex items-center gap-2">
               <span className={`w-1.5 h-1.5 rounded-full ${isNarrating ? 'bg-green-500 animate-pulse' : 'bg-white/20'}`}></span>
               <span className="text-[10px] font-black uppercase tracking-widest text-white/30">{config.genre} • {config.language}</span>

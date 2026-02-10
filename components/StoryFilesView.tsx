@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig, NarratorMode } from '../types';
 import { StoryScapeService, LoreData } from '../services/geminiLiveService';
@@ -48,6 +47,14 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit,
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<number | null>(null);
   const bufferIntervalRef = useRef<number | null>(null);
+
+  const truncateTopic = (text: string) => {
+    const words = text.split(/\s+/);
+    if (words.length > 5) {
+      return words.slice(0, 5).join(' ') + ' (....)';
+    }
+    return text;
+  };
 
   useEffect(() => {
     let anim: number;
@@ -270,7 +277,7 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit,
           <button onClick={onBack} className="w-10 h-10 rounded-full glass border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
             <i className="fas fa-arrow-left"></i>
           </button>
-          <div><h1 className="text-2xl font-bold tracking-tight">{config.genre}: {config.topic}</h1><div className="flex items-center gap-2 mt-0.5"><div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div><p className="text-[10px] opacity-60 uppercase tracking-widest font-black">{config.language} • {config.voice}</p></div></div>
+          <div><h1 className="text-2xl font-bold tracking-tight">{config.genre}: {truncateTopic(config.topic)}</h1><div className="flex items-center gap-2 mt-0.5"><div className={`w-2.5 h-2.5 rounded-full ${isOutputActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div><p className="text-[10px] opacity-60 uppercase tracking-widest font-black">{config.language} • {config.voice}</p></div></div>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button onClick={handleDownloadSession} disabled={isDownloading} className="w-12 h-12 rounded-full glass border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
