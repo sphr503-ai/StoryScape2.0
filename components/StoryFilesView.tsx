@@ -12,6 +12,7 @@ interface StoryFilesViewProps {
   initialHistory?: Array<{ role: 'user' | 'model'; text: string }>;
 }
 
+// Added missing music genres to fulfill Record<Genre, string> requirements
 const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.FANTASY]: 'https://assets.mixkit.co/sfx/preview/mixkit-forest-at-night-with-crickets-1224.mp3',
   [Genre.SCIFI]: 'https://assets.mixkit.co/sfx/preview/mixkit-deep-space-wind-vibe-1204.mp3',
@@ -19,6 +20,12 @@ const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.HORROR]: 'https://assets.mixkit.co/sfx/preview/mixkit-horror-atmosphere-drone-953.mp3',
   [Genre.THRILLER]: 'https://assets.mixkit.co/sfx/preview/mixkit-suspense-movie-trailer-ambience-2537.mp3',
   [Genre.DOCUMENTARY]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
+  [Genre.POP]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
+  [Genre.ROCK]: 'https://assets.mixkit.co/sfx/preview/mixkit-battle-ambient-with-explosions-2780.mp3',
+  [Genre.JAZZ]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
+  [Genre.HIPHOP]: 'https://assets.mixkit.co/sfx/preview/mixkit-suspense-movie-trailer-ambience-2537.mp3',
+  [Genre.CLASSICAL]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
+  [Genre.SOUL]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
 };
 
 const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {

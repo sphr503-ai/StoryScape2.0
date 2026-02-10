@@ -8,6 +8,7 @@ import PodcastView from './components/PodcastView';
 import MovieExplainerView from './components/MovieExplainerView';
 import LanguageTutorView from './components/LanguageTutorView';
 import SecretHubView from './components/SecretHubView';
+import SingerView from './components/SingerView';
 import { StoryScapeService } from './services/geminiLiveService';
 
 const LANGUAGES = [
@@ -97,13 +98,28 @@ const THEMES = {
     icon: 'fa-terminal',
     card: 'bg-black border-[#00ff41]/20 hover:border-[#00ff41]/60 hover:shadow-[0_0_30px_rgba(0,255,65,0.1)]',
     tag: 'STATUS: ROOT_ACCESS'
+  },
+  singer: {
+    bg: 'bg-[#0d0212]',
+    glow1: 'bg-fuchsia-600/20',
+    glow2: 'bg-purple-900/15',
+    accent: 'text-fuchsia-400',
+    accentBg: 'bg-fuchsia-600',
+    border: 'border-fuchsia-500/20',
+    tabActive: 'bg-fuchsia-600 text-white shadow-[0_0_25px_#d946ef]',
+    heroTitle: 'LIVE_VOCAL',
+    heroSub: 'AI GENERATED MUSICAL PERFORMANCE',
+    font: 'font-sans',
+    icon: 'fa-music',
+    card: 'glass border-fuchsia-500/10 hover:border-fuchsia-400/50 hover:shadow-[0_0_35px_rgba(217,70,239,0.15)]',
+    tag: 'MODE: MUSICAL'
   }
 };
 
 const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.HOME);
-  const [activeTab, setActiveTab] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor'>('adventures');
-  const [sessionOrigin, setSessionOrigin] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | null>(null);
+  const [activeTab, setActiveTab] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | 'singer'>('adventures');
+  const [sessionOrigin, setSessionOrigin] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | 'singer' | null>(null);
   const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
   const [setupConfig, setSetupConfig] = useState<AdventureConfig | null>(null);
   const [initialHistory, setInitialHistory] = useState<Array<{role: 'user' | 'model', text: string}>>([]);
@@ -130,7 +146,7 @@ const App: React.FC = () => {
 
   const finalizeSetup = (config: AdventureConfig) => {
     let finalTopic = config.topic.trim();
-    if (!finalTopic && activeTab !== 'explainer' && activeTab !== 'tutor') {
+    if (!finalTopic && activeTab !== 'explainer' && activeTab !== 'tutor' && activeTab !== 'singer') {
       const randomTopics: Record<string, string[]> = {
         [Genre.FANTASY]: ["The Floating Citadel", "A Whisper in the Iron Woods", "The Alchemist's Mistake"],
         [Genre.SCIFI]: ["Glitched Orbit 44", "The Last Signal from Europa", "Neon Rain Over Sector 7"],
@@ -146,6 +162,8 @@ const App: React.FC = () => {
         finalTopic = config.isOriginalScript ? "The Shadow Protocol" : moviePool[Math.floor(Math.random() * moviePool.length)];
     } else if (activeTab === 'tutor' && !finalTopic) {
         finalTopic = "Daily Conversation";
+    } else if (activeTab === 'singer' && !finalTopic) {
+        finalTopic = "Echoes of the Void";
     }
 
     setSetupConfig({ ...config, topic: finalTopic });
@@ -172,8 +190,8 @@ const App: React.FC = () => {
         <div className={`absolute bottom-[-15%] right-[-5%] w-[70%] h-[70%] ${theme.glow2} blur-[250px] rounded-full animate-float transition-colors duration-1000`} style={{animationDelay: '-6s'}}></div>
       </div>
 
-      <nav className={`sticky top-6 z-50 w-[95%] max-w-4xl glass-dark border ${theme.border} rounded-full transition-colors duration-700 backdrop-blur-3xl shadow-2xl`}>
-        <div className="px-6 h-16 flex items-center justify-between">
+      <nav className={`sticky top-6 z-50 w-[95%] max-w-5xl glass-dark border ${theme.border} rounded-full transition-colors duration-700 backdrop-blur-3xl shadow-2xl overflow-x-auto`}>
+        <div className="px-6 h-16 flex items-center justify-between min-w-max">
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 ${theme.accent}`}>
                <i className={`fas ${theme.icon} text-sm animate-pulse`}></i>
@@ -181,12 +199,13 @@ const App: React.FC = () => {
             <h1 className="text-sm font-black tracking-tighter hidden lg:block uppercase opacity-90">StoryScape 2.0</h1>
           </div>
           
-          <div className="flex bg-white/5 rounded-full p-1 border border-white/5 scale-90 sm:scale-100 overflow-x-auto no-scrollbar">
+          <div className="flex bg-white/5 rounded-full p-1 border border-white/5 scale-90 sm:scale-100">
             <TabItem active={activeTab === 'adventures'} onClick={() => setActiveTab('adventures')} label="SAGA" icon="fa-rocket" activeClass={THEMES.adventures.tabActive} />
             <TabItem active={activeTab === 'files'} onClick={() => setActiveTab('files')} label="VAULT" icon="fa-moon" activeClass={THEMES.files.tabActive} />
             <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-microphone-lines" activeClass={THEMES.broadcast.tabActive} />
             <TabItem active={activeTab === 'explainer'} onClick={() => setActiveTab('explainer')} label="CINE" icon="fa-film" activeClass={THEMES.explainer.tabActive} />
             <TabItem active={activeTab === 'tutor'} onClick={() => setActiveTab('tutor')} label="TUTOR" icon="fa-terminal" activeClass={THEMES.tutor.tabActive} />
+            <TabItem active={activeTab === 'singer'} onClick={() => setActiveTab('singer')} label="SING" icon="fa-music" activeClass={THEMES.singer.tabActive} />
           </div>
 
           <div className="flex items-center gap-2">
@@ -245,6 +264,13 @@ const App: React.FC = () => {
               <PortalCard genre={Genre.MYSTERY} icon="fa-mask" label="Crime Explainer" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
               <PortalCard genre={Genre.THRILLER} icon="fa-bolt" label="War Decoder" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
             </>
+          ) : activeTab === 'singer' ? (
+            <>
+              <PortalCard genre={Genre.POP} icon="fa-microphone" label="Pop Studio" theme={theme} onStart={() => handleStartSetup(Genre.POP)} />
+              <PortalCard genre={Genre.ROCK} icon="fa-guitar" label="Rock Arena" theme={theme} onStart={() => handleStartSetup(Genre.ROCK)} />
+              <PortalCard genre={Genre.JAZZ} icon="fa-saxophone" label="Jazz Lounge" theme={theme} onStart={() => handleStartSetup(Genre.JAZZ)} />
+              <PortalCard genre={Genre.HIPHOP} icon="fa-record-vinyl" label="Hip-Hop Booth" theme={theme} onStart={() => handleStartSetup(Genre.HIPHOP)} />
+            </>
           ) : (
             <>
               <PortalCard genre={Genre.DOCUMENTARY} icon="fa-keyboard" label="Terminal A" theme={theme} onStart={() => handleStartSetup(Genre.DOCUMENTARY)} />
@@ -276,6 +302,9 @@ const App: React.FC = () => {
       }
       if (sessionOrigin === 'tutor') {
         return <LanguageTutorView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
+      }
+      if (sessionOrigin === 'singer') {
+        return <SingerView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
       }
       return <AdventureView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
     }
@@ -333,10 +362,13 @@ const PortalCard: React.FC<PortalCardProps> = ({ genre, icon, theme, label = "Li
     <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.4em] opacity-30 group-hover:opacity-80 group-hover:text-white transition-all">Link Protocol</span>
   </button>
 );
+// ... SetupView remains largely same, just ensure it handles the new genres if needed ...
+// But SetupView already uses 'genre' prop and displays it.
+// We just need to make sure VOICES and languages are accessible.
 
 interface SetupViewProps {
   genre: Genre;
-  origin: 'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor';
+  origin: 'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | 'singer';
   onBack: () => void;
   onConfirm: (config: AdventureConfig) => void;
 }
@@ -346,7 +378,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
   const [language, setLanguage] = useState('English');
   const [voice, setVoice] = useState<GeminiVoice>('Zephyr');
   const [mode, setMode] = useState<NarratorMode>(NarratorMode.SINGLE);
-  const [duration, setDuration] = useState(25);
+  const [duration, setDuration] = useState(origin === 'singer' ? 10 : 25);
   const [isOriginal, setIsOriginal] = useState(false);
   const [isRandomizing, setIsRandomizing] = useState(false);
 
@@ -483,7 +515,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
         <div className="text-center space-y-4">
           <p className={`${currentTheme.accent} uppercase tracking-[0.4em] md:tracking-[0.6em] text-[9px] md:text-[10px] font-black animate-pulse`}>Link Verification Protocol</p>
           <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none text-white">
-            {origin === 'broadcast' ? 'Initiate Cast' : origin === 'files' ? 'Seal Vault' : origin === 'explainer' ? 'Initiate Decoder' : 'Forge Saga'}
+            {origin === 'broadcast' ? 'Initiate Cast' : origin === 'files' ? 'Seal Vault' : origin === 'explainer' ? 'Initiate Decoder' : origin === 'singer' ? 'Studio Session' : 'Forge Saga'}
           </h2>
         </div>
 
@@ -492,7 +524,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
           <div className="space-y-3">
             <div className="flex justify-between items-end ml-4">
               <label className="text-[9px] md:text-[10px] uppercase font-black opacity-40 tracking-[0.3em]">
-                  {origin === 'explainer' ? (isOriginal ? 'Original Movie Title' : 'Existing Movie Name') : 'Chronicle Seed (Optional)'}
+                  {origin === 'explainer' ? (isOriginal ? 'Original Movie Title' : 'Existing Movie Name') : origin === 'singer' ? 'Song Topic / Premise' : 'Chronicle Seed (Optional)'}
               </label>
               <button 
                 onClick={handleRandomize} 
@@ -508,7 +540,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
                 type="text" 
                 value={topic} 
                 onChange={e => setTopic(e.target.value)}
-                placeholder={origin === 'explainer' ? "e.g. Inception..." : "Leave empty for AI choice..."}
+                placeholder={origin === 'explainer' ? "e.g. Inception..." : origin === 'singer' ? "e.g. Broken hearts under neon lights..." : "Leave empty for AI choice..."}
                 className="w-full bg-white/5 border border-white/10 rounded-[1.5rem] md:rounded-[2rem] px-6 md:px-8 py-5 md:py-6 outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all text-lg md:text-xl font-light placeholder:opacity-20 shadow-inner group-hover:border-white/20"
               />
               <div className={`absolute bottom-0 left-8 right-8 h-[1px] ${currentTheme.accentBg} opacity-0 group-focus-within:opacity-100 transition-opacity blur-[2px]`}></div>
@@ -517,7 +549,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
 
           {/* Language Selection (Scrollable Pills) */}
           <div className="space-y-3">
-            <label className="text-[9px] md:text-[10px] uppercase font-black opacity-40 ml-4 tracking-[0.3em]">Narrator Language</label>
+            <label className="text-[9px] md:text-[10px] uppercase font-black opacity-40 ml-4 tracking-[0.3em]">Language</label>
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 px-1">
                {LANGUAGES.map(lang => (
                  <button 
@@ -533,7 +565,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
 
           {/* Persona Grid Selection */}
           <div className="space-y-3">
-            <label className="text-[9px] md:text-[10px] uppercase font-black opacity-40 ml-4 tracking-[0.3em]">Persona Deck</label>
+            <label className="text-[9px] md:text-[10px] uppercase font-black opacity-40 ml-4 tracking-[0.3em]">Performer Vocal Profile</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                {VOICES.map(v => (
                  <button 
@@ -561,7 +593,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
             className={`w-full py-5 md:py-6 rounded-[1.5rem] md:rounded-[2.5rem] ${currentTheme.accentBg} text-black text-[10px] font-black uppercase tracking-[0.4em] hover:scale-[1.02] transition-all shadow-2xl active:scale-95 relative group overflow-hidden`}
           >
             <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
-            <span className="relative z-10">{origin === 'explainer' ? 'Start Recap' : `Launch Protocol`}</span>
+            <span className="relative z-10">{origin === 'singer' ? 'Enter Studio' : origin === 'explainer' ? 'Start Recap' : `Launch Protocol`}</span>
           </button>
           <button 
             onClick={onBack} 
