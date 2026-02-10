@@ -5,7 +5,8 @@ export enum Genre {
   MYSTERY = 'Mystery',
   HORROR = 'Horror',
   THRILLER = 'Thriller',
-  DOCUMENTARY = 'Documentary'
+  DOCUMENTARY = 'Documentary',
+  EDUCATION = 'Education'
 }
 
 export enum ViewMode {

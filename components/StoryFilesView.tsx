@@ -19,6 +19,8 @@ const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.HORROR]: 'https://assets.mixkit.co/sfx/preview/mixkit-horror-atmosphere-drone-953.mp3',
   [Genre.THRILLER]: 'https://assets.mixkit.co/sfx/preview/mixkit-suspense-movie-trailer-ambience-2537.mp3',
   [Genre.DOCUMENTARY]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
+  // Fix: Ensure exhaustive mapping for the Record after adding Genre.EDUCATION
+  [Genre.EDUCATION]: 'https://assets.mixkit.co/sfx/preview/mixkit-library-room-ambience-with-distant-chatter-2517.mp3',
 };
 
 const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit, initialHistory = [] }) => {

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, LiveServerMessage, Modality, GenerateContentResponse } from '@google/genai';
 import { encode, decode, decodeAudioData } from '../utils/audioUtils';
 import { Genre, GeminiVoice, AdventureConfig, NarratorMode } from '../types';
@@ -34,9 +33,6 @@ export class StoryScapeService {
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
-  /**
-   * Fetches a truly random trending topic from the internet based on genre and mode.
-   */
   async fetchTrendingTopic(genre: Genre, mode: string): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `Find a single, currently popular or trending ${genre} ${mode === 'explainer' ? 'movie' : 'topic for a podcast'}. 
@@ -49,10 +45,9 @@ export class StoryScapeService {
         contents: prompt,
         config: { 
           tools: [{ googleSearch: {} }],
-          temperature: 1.0 // High temperature for more variety
+          temperature: 1.0 
         },
       });
-      // Fix for TS18048: Check if text exists before calling .trim()
       const text = response.text || "";
       return text.trim().replace(/^"|"$/g, '') || "The Unknown Anomaly";
     } catch (err) {
@@ -100,8 +95,9 @@ export class StoryScapeService {
     lore?: LoreData,
     customSystemInstruction?: string
   ) {
-    this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-    this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    this.inputAudioContext = new AudioCtx({ sampleRate: 16000 });
+    this.outputAudioContext = new AudioCtx({ sampleRate: 24000 });
 
     this.inputAnalyser = this.inputAudioContext.createAnalyser();
     this.outputAnalyser = this.outputAudioContext.createAnalyser();
@@ -131,12 +127,37 @@ export class StoryScapeService {
         },
         onmessage: async (message: LiveServerMessage) => {
           if (this.isPaused) return;
-          const b64 = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+
+          const serverContent = message.serverContent;
+          if (!serverContent) return;
+
+          // Handle Audio
+          const b64 = serverContent.modelTurn?.parts?.[0]?.inlineData?.data;
           if (b64) this.handleAudioOutput(b64);
-          if (message.serverContent?.inputTranscription) callbacks.onTranscriptionUpdate('user', message.serverContent.inputTranscription.text || '', !!message.serverContent.turnComplete);
-          if (message.serverContent?.outputTranscription) callbacks.onTranscriptionUpdate('model', message.serverContent.outputTranscription.text || '', !!message.serverContent.turnComplete);
-          if (message.serverContent?.turnComplete) callbacks.onTurnComplete?.();
-          if (message.serverContent?.interrupted) this.stopAllAudio();
+
+          // Handle Model Turn Parts (Text)
+          const textParts = serverContent.modelTurn?.parts?.filter(p => p.text).map(p => p.text).join(' ');
+          if (textParts) {
+            callbacks.onTranscriptionUpdate('model', textParts, !!serverContent.turnComplete);
+          }
+
+          // Handle Input Transcription (User)
+          if (serverContent.inputTranscription) {
+            callbacks.onTranscriptionUpdate('user', serverContent.inputTranscription.text || '', !!serverContent.turnComplete);
+          }
+
+          // Handle Output Transcription (Model)
+          if (serverContent.outputTranscription) {
+            callbacks.onTranscriptionUpdate('model', serverContent.outputTranscription.text || '', !!serverContent.turnComplete);
+          }
+
+          if (serverContent.turnComplete) {
+            callbacks.onTurnComplete?.();
+          }
+
+          if (serverContent.interrupted) {
+            this.stopAllAudio();
+          }
         },
         onerror: (e: any) => callbacks.onError(e),
         onclose: () => callbacks.onClose(),
@@ -151,7 +172,6 @@ export class StoryScapeService {
     
     if (!this.inputAudioContext) return;
     
-    // Aggressive resume for APK/WebView
     if (this.inputAudioContext.state === 'suspended') {
       await this.inputAudioContext.resume();
     }
@@ -171,7 +191,7 @@ export class StoryScapeService {
             const inputData = e.inputBuffer.getChannelData(0);
             const pcmBlob = this.createBlob(inputData);
             
-            this.sessionPromise.then((session) => {
+            this.sessionPromise!.then((session) => {
               session.sendRealtimeInput({ media: pcmBlob });
             });
           };
@@ -200,7 +220,7 @@ export class StoryScapeService {
     const l = data.length;
     const int16 = new Int16Array(l);
     for (let i = 0; i < l; i++) {
-      int16[i] = Math.max(-1, Math.min(1, data[i])) * 32768;
+      int16[i] = Math.max(-1, Math.min(1, data[i])) * 32767;
     }
     return { 
       data: encode(new Uint8Array(int16.buffer)), 
@@ -225,7 +245,6 @@ export class StoryScapeService {
   private async handleAudioOutput(base64: string) {
     if (!this.outputAudioContext || this.isPaused) return;
     
-    // Safety check for APKs that might suspend the context silently
     if (this.outputAudioContext.state === 'suspended') {
       await this.outputAudioContext.resume();
     }
