@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Modality, Type, GenerateContentResponse } from '@google/genai';
 import { OrchestratorScript, GeminiVoice } from '../types';
-import { decode, decodeAudioData, audioBufferToWav } from '../utils/audioUtils';
+// Fix: Renamed audioBufferToWav to fastAudioBuffersToWav
+import { decode, decodeAudioData, fastAudioBuffersToWav } from '../utils/audioUtils';
 
 interface StoryOrchestratorViewProps {
   onExit: () => void;
@@ -289,8 +290,8 @@ export default function StoryOrchestratorView({ onExit }: StoryOrchestratorViewP
         }
       }
       const renderedBuffer = await offlineCtx.startRendering();
-      // FIX: Add await to audioBufferToWav as it returns a Promise<Blob>
-      const wavBlob = await audioBufferToWav(renderedBuffer);
+      // Fix: Use fastAudioBuffersToWav and wrap the single renderedBuffer in an array.
+      const wavBlob = await fastAudioBuffersToWav([renderedBuffer]);
       const url = URL.createObjectURL(wavBlob);
       const link = document.createElement('a');
       link.href = url;

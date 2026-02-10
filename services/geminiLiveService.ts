@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, LiveServerMessage, Modality, GenerateContentResponse } from '@google/genai';
-import { encode, decode, decodeAudioData } from '../utils/audioUtils';
+import { encode, decode, decodeAudioData, saveChunkToCache } from '../utils/audioUtils';
 import { Genre, GeminiVoice, AdventureConfig, NarratorMode } from '../types';
 
 export interface LoreData {
@@ -24,6 +25,8 @@ export class StoryScapeService {
   private scriptProcessor: ScriptProcessorNode | null = null;
   private isPaused: boolean = false;
   private isMicActive: boolean = false;
+  private sessionId: string;
+  private chunkCounter: number = 0;
   
   public recordedBuffers: AudioBuffer[] = [];
   public inputAnalyser: AnalyserNode | null = null;
@@ -31,6 +34,7 @@ export class StoryScapeService {
 
   constructor() {
     this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    this.sessionId = `session_${Date.now()}`;
   }
 
   async fetchTrendingTopic(genre: Genre, mode: string): Promise<string> {
@@ -116,7 +120,6 @@ export class StoryScapeService {
 
     const systemInstruction = customSystemInstruction || `Narrate a ${genre} tale about ${topic} in ${language}. Use ${voice} voice.`;
 
-    // CRITICAL: Use local variable for session promise to avoid TS2531 "Object is possibly 'null'"
     const activeSessionPromise = this.ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
       config: {
@@ -136,22 +139,18 @@ export class StoryScapeService {
           const serverContent = message.serverContent;
           if (!serverContent) return;
 
-          // Handle Audio
           const b64 = serverContent.modelTurn?.parts?.[0]?.inlineData?.data;
           if (b64) this.handleAudioOutput(b64);
 
-          // Handle Model Turn Parts (Text)
           const textParts = serverContent.modelTurn?.parts?.filter(p => p.text).map(p => p.text).join(' ');
           if (textParts) {
             callbacks.onTranscriptionUpdate('model', textParts, !!serverContent.turnComplete);
           }
 
-          // Handle Input Transcription (User)
           if (serverContent.inputTranscription) {
             callbacks.onTranscriptionUpdate('user', serverContent.inputTranscription.text || '', !!serverContent.turnComplete);
           }
 
-          // Handle Output Transcription (Model)
           if (serverContent.outputTranscription) {
             callbacks.onTranscriptionUpdate('model', serverContent.outputTranscription.text || '', !!serverContent.turnComplete);
           }
@@ -175,15 +174,9 @@ export class StoryScapeService {
 
   public async setMicActive(active: boolean) {
     this.isMicActive = active;
-    
     if (!this.inputAudioContext) return;
-    
-    if (this.inputAudioContext.state === 'suspended') {
-      await this.inputAudioContext.resume();
-    }
-    if (this.outputAudioContext && this.outputAudioContext.state === 'suspended') {
-      await this.outputAudioContext.resume();
-    }
+    if (this.inputAudioContext.state === 'suspended') await this.inputAudioContext.resume();
+    if (this.outputAudioContext && this.outputAudioContext.state === 'suspended') await this.outputAudioContext.resume();
 
     if (active) {
       if (!this.stream) {
@@ -196,8 +189,6 @@ export class StoryScapeService {
             if (this.isPaused || !this.isMicActive || !this.sessionPromise) return;
             const inputData = e.inputBuffer.getChannelData(0);
             const pcmBlob = this.createBlob(inputData);
-            
-            // TS fix: Explicit check before then
             if (this.sessionPromise) {
               this.sessionPromise.then((session) => {
                 session.sendRealtimeInput({ media: pcmBlob });
@@ -257,14 +248,17 @@ export class StoryScapeService {
 
   private async handleAudioOutput(base64: string) {
     if (!this.outputAudioContext || this.isPaused) return;
-    
-    if (this.outputAudioContext.state === 'suspended') {
-      await this.outputAudioContext.resume();
-    }
+    if (this.outputAudioContext.state === 'suspended') await this.outputAudioContext.resume();
 
     this.nextStartTime = Math.max(this.nextStartTime, this.outputAudioContext.currentTime);
     const buf = await decodeAudioData(decode(base64), this.outputAudioContext, 24000, 1);
+    
+    // Efficiently Store Buffer for later fast export
     this.recordedBuffers.push(buf);
+    
+    // "Live Saving" to IndexedDB Cache
+    saveChunkToCache(this.sessionId, this.chunkCounter++, buf.getChannelData(0));
+
     const source = this.outputAudioContext.createBufferSource();
     source.buffer = buf;
     if (this.outputAnalyser) {
@@ -288,11 +282,7 @@ export class StoryScapeService {
   async stopAdventure() {
     if (this.sessionPromise) {
       const session = await this.sessionPromise;
-      if (session) {
-        try {
-          await session.close();
-        } catch (e) {}
-      }
+      if (session) try { await session.close(); } catch (e) {}
     }
     if (this.stream) this.stream.getTracks().forEach(t => t.stop());
     this.stopAllAudio();

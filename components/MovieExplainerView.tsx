@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig, NarratorMode } from '../types';
 import { StoryScapeService, LoreData } from '../services/geminiLiveService';
-import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
+import { fastAudioBuffersToWav, downloadOrShareAudio } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
 interface MovieExplainerViewProps {
@@ -22,7 +22,6 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
   const [bufferPercent, setBufferPercent] = useState(0);
   const [lore, setLore] = useState<LoreData | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
   
   const [secondsRemaining, setSecondsRemaining] = useState((config.durationMinutes || 25) * 60);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -83,26 +82,12 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
 
   const handleDownloadSession = async () => {
     if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
-      alert("No audio archived.");
+      alert("No audio data archived.");
       return;
     }
     setIsDownloading(true);
     try {
-      const buffers = serviceRef.current.recordedBuffers;
-      const sampleRate = buffers[0].sampleRate;
-      let totalLength = 0;
-      buffers.forEach(b => totalLength += b.length);
-      const offlineCtx = new OfflineAudioContext(1, totalLength, sampleRate);
-      let offset = 0;
-      buffers.forEach(buffer => {
-        const source = offlineCtx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(offlineCtx.destination);
-        source.start(offset);
-        offset += buffer.duration;
-      });
-      const finalBuffer = await offlineCtx.startRendering();
-      const wavBlob = await audioBufferToWav(finalBuffer);
+      const wavBlob = await fastAudioBuffersToWav(serviceRef.current.recordedBuffers);
       await downloadOrShareAudio(wavBlob, `CineRecap_${config.topic.replace(/\s+/g, '_')}.wav`);
     } catch (err) {
       alert("Export failed.");
@@ -303,7 +288,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button onClick={handleDownloadSession} disabled={isDownloading} title="Export Recap" className="w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
-            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm text-emerald-400`}></i>
+            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-arrow-down-long'} text-sm text-emerald-400`}></i>
           </button>
           
           <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-emerald-500/10 shrink-0">
@@ -333,7 +318,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
                <div className="relative">
                  <div className={`w-36 h-36 border-[6px] border-emerald-900/20 ${isDownloading ? 'border-t-blue-400' : 'border-t-emerald-500'} rounded-full animate-spin`}></div>
                  <div className="absolute inset-0 flex items-center justify-center font-black text-3xl text-emerald-400">
-                   {isDownloading ? downloadProgress : (isBuffering ? bufferPercent : connectingProgress)}%
+                   {isDownloading ? '...' : (isBuffering ? bufferPercent : connectingProgress)}%
                  </div>
                </div>
                <div className="space-y-3">
@@ -341,7 +326,7 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
                    {isDownloading ? 'ARCHIVING RECAP...' : currentPhase.toUpperCase()}
                  </h3>
                  <p className="text-[10px] opacity-40 uppercase tracking-[0.2em] max-w-xs mx-auto">
-                   {isDownloading ? 'Finalizing the decoded analysis for local storage.' : (config.isOriginalScript ? 'Crafting your unrestricted cinema dream...' : 'Verifying film facts to prevent plot hallucinations...')}
+                   {isDownloading ? 'Generating finalized audio from neural data stores.' : (config.isOriginalScript ? 'Crafting your unrestricted cinema dream...' : 'Verifying film facts to prevent plot hallucinations...')}
                  </p>
                </div>
             </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig, NarratorMode } from '../types';
 import { StoryScapeService, LoreData } from '../services/geminiLiveService';
-import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
+import { fastAudioBuffersToWav, downloadOrShareAudio } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
 interface StoryFilesViewProps {
@@ -18,7 +18,6 @@ const AMBIENT_SOUNDS: Record<Genre, string> = {
   [Genre.HORROR]: 'https://assets.mixkit.co/sfx/preview/mixkit-horror-atmosphere-drone-953.mp3',
   [Genre.THRILLER]: 'https://assets.mixkit.co/sfx/preview/mixkit-suspense-movie-trailer-ambience-2537.mp3',
   [Genre.DOCUMENTARY]: 'https://assets.mixkit.co/sfx/preview/mixkit-pensive-ambient-piano-loop-2384.mp3',
-  // Fix: Ensure exhaustive mapping for the Record after adding Genre.EDUCATION
   [Genre.EDUCATION]: 'https://assets.mixkit.co/sfx/preview/mixkit-library-room-ambience-with-distant-chatter-2517.mp3',
 };
 
@@ -33,7 +32,6 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit,
   const [bufferPercent, setBufferPercent] = useState(0);
   const [lore, setLore] = useState<LoreData | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
 
   const [secondsRemaining, setSecondsRemaining] = useState((config.durationMinutes || 15) * 60);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -118,29 +116,15 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit,
 
   const handleDownloadSession = async () => {
     if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
-      alert("The chronicle audio hasn't been archived yet.");
+      alert("No audio data available for download.");
       return;
     }
     setIsDownloading(true);
     try {
-      const buffers = serviceRef.current.recordedBuffers;
-      const sampleRate = buffers[0].sampleRate;
-      let totalLength = 0;
-      buffers.forEach(b => totalLength += b.length);
-      const offlineCtx = new OfflineAudioContext(1, totalLength, sampleRate);
-      let offset = 0;
-      buffers.forEach(buffer => {
-        const source = offlineCtx.createBufferSource();
-        source.buffer = buffer;
-        source.connect(offlineCtx.destination);
-        source.start(offset);
-        offset += buffer.duration;
-      });
-      const finalBuffer = await offlineCtx.startRendering();
-      const wavBlob = await audioBufferToWav(finalBuffer);
+      const wavBlob = await fastAudioBuffersToWav(serviceRef.current.recordedBuffers);
       await downloadOrShareAudio(wavBlob, `Archived_Saga_${config.topic.replace(/\s+/g, '_')}.wav`);
     } catch (err) {
-      alert("Failed to compile audio.");
+      alert("Failed to archive audio.");
     } finally {
       setIsDownloading(false);
     }
@@ -281,7 +265,7 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit,
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button onClick={handleDownloadSession} disabled={isDownloading} className="w-12 h-12 rounded-full glass border border-white/5 flex items-center justify-center hover:bg-white/10 transition-all shrink-0">
-            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-share-nodes'} text-sm`}></i>
+            <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-arrow-down-long'} text-sm`}></i>
           </button>
           <div className="flex items-center gap-3 glass px-5 py-2.5 rounded-full flex-1 md:flex-none border-white/5 shrink-0">
             <button onClick={() => setIsMuted(!isMuted)} className="opacity-70 w-5"><i className={`fas ${isMuted ? 'fa-volume-mute' : 'fa-volume-low'}`}></i></button>
@@ -302,11 +286,11 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit,
                <div className="relative">
                  <div className={`w-32 h-32 border-[6px] border-white/5 ${isDownloading ? 'border-t-blue-400' : 'border-t-white'} rounded-full animate-spin`}></div>
                  <div className="absolute inset-0 flex items-center justify-center font-black text-2xl">
-                   {isDownloading ? downloadProgress : isBuffering ? bufferPercent : connectingProgress}%
+                   {isDownloading ? '...' : isBuffering ? bufferPercent : connectingProgress}%
                  </div>
                </div>
                <p className="text-xs font-black uppercase tracking-widest opacity-60">
-                 {isDownloading ? 'Compiling Audio Archive...' : connectingProgress < 50 ? 'Mining Lore Archives...' : isBuffering ? 'Retrieving next chapter...' : 'Establishing Link...'}
+                 {isDownloading ? 'Finalizing Audio Track...' : connectingProgress < 50 ? 'Mining Lore Archives...' : isBuffering ? 'Retrieving next chapter...' : 'Establishing Link...'}
                </p>
             </div>
           )}

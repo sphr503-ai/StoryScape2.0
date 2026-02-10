@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI, Modality, Type, GenerateContentResponse } from '@google/genai';
 import { VoiceGuruManifest, CastMember, GeminiVoice } from '../types';
-import { decode, decodeAudioData, audioBufferToWav } from '../utils/audioUtils';
+// Fix: Renamed audioBufferToWav to fastAudioBuffersToWav
+import { decode, decodeAudioData, fastAudioBuffersToWav } from '../utils/audioUtils';
 
 interface VoiceGuruViewProps {
   onExit: () => void;
@@ -267,8 +268,8 @@ export default function VoiceGuruView({ onExit }: VoiceGuruViewProps) {
         }
       }
       const rendered = await offlineCtx.startRendering();
-      // FIX: Add await to audioBufferToWav as it returns a Promise<Blob>
-      const wav = await audioBufferToWav(rendered);
+      // Fix: Use fastAudioBuffersToWav and wrap the single rendered buffer in an array.
+      const wav = await fastAudioBuffersToWav([rendered]);
       const url = URL.createObjectURL(wav);
       const link = document.createElement('a');
       link.href = url;
