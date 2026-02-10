@@ -152,9 +152,14 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
           const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
           if (role === 'model') {
+            // Commit any active user transcription when model starts responding
             if (userAccumulator.current.trim()) {
                const finalUserText = userAccumulator.current.trim();
-               setMessages(prev => [...prev, { role: 'user', text: finalUserText, timestamp }]);
+               setMessages(prev => {
+                  const alreadyPresent = prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === finalUserText;
+                  if (alreadyPresent) return prev;
+                  return [...prev, { role: 'user', text: finalUserText, timestamp }];
+               });
                userAccumulator.current = '';
                setCurrentUserText('');
             }
@@ -165,7 +170,11 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
             if (isFinal) {
               const finalNarratorText = narratorAccumulator.current.trim();
               if (finalNarratorText) {
-                setMessages(prev => [...prev, { role: 'model', text: finalNarratorText, timestamp }]);
+                setMessages(prev => {
+                  const alreadyPresent = prev.length > 0 && prev[prev.length - 1].role === 'model' && prev[prev.length - 1].text === finalNarratorText;
+                  if (alreadyPresent) return prev;
+                  return [...prev, { role: 'model', text: finalNarratorText, timestamp }];
+                });
                 setCurrentNarratorText('');
                 narratorAccumulator.current = '';
                 stopBuffering();
@@ -178,7 +187,11 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
             if (isFinal) {
               const finalUserText = userAccumulator.current.trim();
               if (finalUserText) {
-                setMessages(prev => [...prev, { role: 'user', text: finalUserText, timestamp }]);
+                setMessages(prev => {
+                  const alreadyPresent = prev.length > 0 && prev[prev.length - 1].role === 'user' && prev[prev.length - 1].text === finalUserText;
+                  if (alreadyPresent) return prev;
+                  return [...prev, { role: 'user', text: finalUserText, timestamp }];
+                });
                 setCurrentUserText('');
                 userAccumulator.current = '';
               }
@@ -187,10 +200,14 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
         },
         onTurnComplete: () => {
           stopBuffering();
-          if (narratorAccumulator.current.trim()) {
-             const txt = narratorAccumulator.current.trim();
+          const finalNarratorText = narratorAccumulator.current.trim();
+          if (finalNarratorText) {
              const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-             setMessages(prev => [...prev, { role: 'model', text: txt, timestamp: ts }]);
+             setMessages(prev => {
+                const alreadyPresent = prev.length > 0 && prev[prev.length - 1].role === 'model' && prev[prev.length - 1].text === finalNarratorText;
+                if (alreadyPresent) return prev;
+                return [...prev, { role: 'model', text: finalNarratorText, timestamp: ts }];
+             });
              setCurrentNarratorText('');
              narratorAccumulator.current = '';
           }

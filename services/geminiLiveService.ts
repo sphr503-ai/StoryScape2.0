@@ -99,10 +99,14 @@ export class StoryScapeService {
     this.inputAudioContext = new AudioCtx({ sampleRate: 16000 });
     this.outputAudioContext = new AudioCtx({ sampleRate: 24000 });
 
-    this.inputAnalyser = this.inputAudioContext.createAnalyser();
-    this.outputAnalyser = this.outputAudioContext.createAnalyser();
-    this.inputAnalyser.fftSize = 256;
-    this.outputAnalyser.fftSize = 256;
+    if (this.inputAudioContext) {
+      this.inputAnalyser = this.inputAudioContext.createAnalyser();
+      this.inputAnalyser.fftSize = 256;
+    }
+    if (this.outputAudioContext) {
+      this.outputAnalyser = this.outputAudioContext.createAnalyser();
+      this.outputAnalyser.fftSize = 256;
+    }
 
     const { genre, topic, language, voice } = config;
     const lastTurn = history && history.length > 0 ? history[history.length - 1].text : "";
@@ -112,7 +116,8 @@ export class StoryScapeService {
 
     const systemInstruction = customSystemInstruction || `Narrate a ${genre} tale about ${topic} in ${language}. Use ${voice} voice.`;
 
-    this.sessionPromise = this.ai.live.connect({
+    // CRITICAL: Use local variable for session promise to avoid TS2531 "Object is possibly 'null'"
+    const activeSessionPromise = this.ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
       config: {
         responseModalities: [Modality.AUDIO],
@@ -123,7 +128,7 @@ export class StoryScapeService {
       },
       callbacks: {
         onopen: () => {
-          this.sessionPromise?.then(session => session.sendRealtimeInput({ text: contextSummary }));
+          activeSessionPromise.then(session => session.sendRealtimeInput({ text: contextSummary }));
         },
         onmessage: async (message: LiveServerMessage) => {
           if (this.isPaused) return;
@@ -164,6 +169,7 @@ export class StoryScapeService {
       },
     });
 
+    this.sessionPromise = activeSessionPromise;
     await this.sessionPromise;
   }
 
@@ -191,13 +197,20 @@ export class StoryScapeService {
             const inputData = e.inputBuffer.getChannelData(0);
             const pcmBlob = this.createBlob(inputData);
             
-            this.sessionPromise!.then((session) => {
-              session.sendRealtimeInput({ media: pcmBlob });
-            });
+            // TS fix: Explicit check before then
+            if (this.sessionPromise) {
+              this.sessionPromise.then((session) => {
+                session.sendRealtimeInput({ media: pcmBlob });
+              });
+            }
           };
 
-          source.connect(this.inputAnalyser!);
-          this.inputAnalyser!.connect(this.scriptProcessor);
+          if (this.inputAnalyser) {
+            source.connect(this.inputAnalyser);
+            this.inputAnalyser.connect(this.scriptProcessor);
+          } else {
+            source.connect(this.scriptProcessor);
+          }
           this.scriptProcessor.connect(this.inputAudioContext.destination);
         } catch (err) {
           this.isMicActive = false;
@@ -257,6 +270,8 @@ export class StoryScapeService {
     if (this.outputAnalyser) {
       source.connect(this.outputAnalyser);
       this.outputAnalyser.connect(this.outputAudioContext.destination);
+    } else {
+      source.connect(this.outputAudioContext.destination);
     }
     source.start(this.nextStartTime);
     this.nextStartTime += buf.duration;
@@ -273,7 +288,11 @@ export class StoryScapeService {
   async stopAdventure() {
     if (this.sessionPromise) {
       const session = await this.sessionPromise;
-      await session.close();
+      if (session) {
+        try {
+          await session.close();
+        } catch (e) {}
+      }
     }
     if (this.stream) this.stream.getTracks().forEach(t => t.stop());
     this.stopAllAudio();
