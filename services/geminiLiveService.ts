@@ -1,18 +1,9 @@
 
-import { GoogleGenAI, LiveServerMessage, Modality, GenerateContentResponse } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality, GenerateContentResponse, Blob } from '@google/genai';
 import { encode, decode, decodeAudioData } from '../utils/audioUtils';
-import { Genre, GeminiVoice, AdventureConfig, NarratorMode } from '../types';
+import { Genre, GeminiVoice, AdventureConfig, NarratorMode, LoreData } from '../types';
 
-export interface LoreData {
-  manifest: string;
-  sources: Array<{ title: string; uri: string }>;
-  verifiedMetadata?: {
-    title: string;
-    year: string;
-    director: string;
-    genre: string;
-  };
-}
+// LoreData interface moved to types.ts to resolve import errors in components
 
 export class StoryScapeService {
   private ai: GoogleGenAI;
@@ -196,7 +187,8 @@ export class StoryScapeService {
     }
   }
 
-  private createBlob(data: Float32Array): any {
+  // Properly typed createBlob for Live API compliance
+  private createBlob(data: Float32Array): Blob {
     const l = data.length;
     const int16 = new Int16Array(l);
     for (let i = 0; i < l; i++) {
@@ -204,6 +196,7 @@ export class StoryScapeService {
     }
     return { 
       data: encode(new Uint8Array(int16.buffer)), 
+      // The supported audio MIME type is 'audio/pcm'.
       mimeType: 'audio/pcm;rate=16000' 
     };
   }

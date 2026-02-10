@@ -1,7 +1,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Genre, AdventureConfig } from '../types';
-import { StoryScapeService, LoreData } from '../services/geminiLiveService';
+import { Genre, AdventureConfig, LoreData } from '../types';
+import { StoryScapeService } from '../services/geminiLiveService';
+import { audioBufferToWav, downloadOrShareAudio } from '../utils/audioUtils';
 import Visualizer from './Visualizer';
 
 interface Message {
@@ -44,6 +45,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   const [lore, setLore] = useState<LoreData | null>(null);
   const [connectingProgress, setConnectingProgress] = useState(0);
   const [ambientVolume, setAmbientVolume] = useState(0.2);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const [isNarrating, setIsNarrating] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
@@ -52,6 +54,10 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
   const serviceRef = useRef<StoryScapeService | null>(null);
   const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
   const historyScrollRef = useRef<HTMLDivElement>(null);
+  
+  // Buffers for streaming text accumulation
+  const narratorTextBuffer = useRef('');
+  const userTextBuffer = useRef('');
 
   useEffect(() => {
     let anim: number;
@@ -96,16 +102,26 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
       onTranscriptionUpdate: (role, text, isFinal) => {
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         if (role === 'model') {
-          setCurrentNarratorText(text);
+          narratorTextBuffer.current += text;
+          setCurrentNarratorText(narratorTextBuffer.current);
           if (isFinal) {
-            setMessages(prev => [...prev, { role: 'model', text, timestamp }]);
+            const finalMsg = narratorTextBuffer.current.trim();
+            if (finalMsg) {
+              setMessages(prev => [...prev, { role: 'model', text: finalMsg, timestamp }]);
+            }
             setCurrentNarratorText('');
+            narratorTextBuffer.current = '';
           }
         } else {
-          setCurrentUserText(text);
+          userTextBuffer.current += text;
+          setCurrentUserText(userTextBuffer.current);
           if (isFinal) {
-            setMessages(prev => [...prev, { role: 'user', text, timestamp }]);
+            const finalMsg = userTextBuffer.current.trim();
+            if (finalMsg) {
+              setMessages(prev => [...prev, { role: 'user', text: finalMsg, timestamp }]);
+            }
             setCurrentUserText('');
+            userTextBuffer.current = '';
           }
         }
       },
@@ -114,7 +130,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     }, messages.map(m => ({ role: m.role, text: m.text })), fetchedLore, systemInstruction).then(() => {
       setConnectingProgress(100);
       setAnalysers({ in: service.inputAnalyser, out: service.outputAnalyser });
-      // Start with Mic Active by default for immersion
       service.setMicActive(true);
     });
   };
@@ -153,12 +168,41 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     setTextInput('');
   };
 
-  // Fix: handleMicToggle was used in the render but not defined
   const handleMicToggle = async () => {
     const newMode = inputMode === 'text' ? 'mic' : 'text';
     setInputMode(newMode);
     if (serviceRef.current) {
       await serviceRef.current.setMicActive(newMode === 'mic');
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!serviceRef.current || serviceRef.current.recordedBuffers.length === 0) {
+      alert("No audio recorded to download yet.");
+      return;
+    }
+    setIsDownloading(true);
+    try {
+      const buffers = serviceRef.current.recordedBuffers;
+      const sampleRate = buffers[0].sampleRate;
+      let totalLength = 0;
+      buffers.forEach(b => totalLength += b.length);
+      const offlineCtx = new OfflineAudioContext(1, totalLength, sampleRate);
+      let offset = 0;
+      buffers.forEach(buffer => {
+        const source = offlineCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(offlineCtx.destination);
+        source.start(offset);
+        offset += buffer.duration;
+      });
+      const finalBuffer = await offlineCtx.startRendering();
+      const wavBlob = await audioBufferToWav(finalBuffer);
+      await downloadOrShareAudio(wavBlob, `StoryScape_Adventure_${config.topic.replace(/\s+/g, '_')}.wav`);
+    } catch (err) {
+      alert("Failed to export audio.");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -191,6 +235,14 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
         </div>
 
         <div className="flex items-center gap-2">
+           <button 
+             onClick={handleDownload}
+             disabled={isDownloading}
+             className="w-10 h-10 rounded-full glass border-white/10 flex items-center justify-center transition-all hover:bg-white/10"
+             title="Download Adventure Audio"
+           >
+             <i className={`fas ${isDownloading ? 'fa-spinner fa-spin' : 'fa-download'} text-xs`}></i>
+           </button>
            <button 
              onClick={() => setShowHistory(!showHistory)}
              className={`w-10 h-10 rounded-full glass border-white/10 flex items-center justify-center transition-all ${showHistory ? 'bg-white text-black' : 'hover:bg-white/10'}`}
@@ -236,9 +288,9 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
         </div>
 
         {/* NARRATION TEXT: Subtitle Style */}
-        <div className="w-full max-w-4xl text-center mt-12 min-h-[120px] flex items-center justify-center px-4">
-           <p className={`text-xl md:text-3xl leading-relaxed font-light transition-all duration-700 ${isNarrating ? 'text-white opacity-100' : 'text-white/40 blur-[1px]'}`}>
-             {currentNarratorText || messages[messages.length - 1]?.text || "The journey begins..."}
+        <div className="w-full max-w-4xl text-center mt-12 min-h-[160px] flex items-center justify-center px-4 overflow-y-auto">
+           <p className={`text-xl md:text-3xl leading-relaxed font-light transition-all duration-500 ${isNarrating || currentNarratorText ? 'text-white opacity-100' : 'text-white/40 blur-[0.5px]'}`}>
+             {currentNarratorText || messages.filter(m => m.role === 'model').slice(-1)[0]?.text || "The journey begins..."}
            </p>
         </div>
 
@@ -267,7 +319,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
           <div ref={historyScrollRef} className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar scroll-smooth">
              {messages.length === 0 && (
                <div className="h-full flex flex-col items-center justify-center text-center opacity-20 py-20">
-                  <i className="fas fa-scroll-old text-5xl mb-6"></i>
+                  <i className="fas fa-scroll text-5xl mb-6"></i>
                   <p className="text-xs uppercase tracking-[0.4em] font-black">Archive Empty</p>
                </div>
              )}
@@ -367,14 +419,6 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
         .custom-scrollbar::-webkit-scrollbar { width: 4px; } 
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } 
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-        
-        @keyframes subtle-pulse {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(1.05); }
-        }
-        .neural-orb-glow {
-          animation: subtle-pulse 5s ease-in-out infinite;
-        }
       ` }} />
     </div>
   );

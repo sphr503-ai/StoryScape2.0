@@ -94,3 +94,17 @@ export interface VoiceGuruManifest {
   }>;
   cast: CastMember[];
 }
+
+/**
+ * Interface for grounding metadata and lore manifest data
+ */
+export interface LoreData {
+  manifest: string;
+  sources: Array<{ title: string; uri: string }>;
+  verifiedMetadata?: {
+    title: string;
+    year: string;
+    director: string;
+    genre: string;
+  };
+}
