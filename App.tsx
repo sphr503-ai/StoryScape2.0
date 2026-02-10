@@ -203,7 +203,7 @@ const App: React.FC = () => {
             <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-microphone-lines" activeClass={THEMES.broadcast.tabActive} />
             <TabItem active={activeTab === 'explainer'} onClick={() => setActiveTab('explainer')} label="CINE" icon="fa-film" activeClass={THEMES.explainer.tabActive} />
             <TabItem active={activeTab === 'tutor'} onClick={() => setActiveTab('tutor')} label="TUTOR" icon="fa-terminal" activeClass={THEMES.tutor.tabActive} />
-            <TabItem active={activeTab === 'vision'} onClick={() => setActiveTab('vision')} label="VISION" icon="fa-dna" activeClass={THEMES.vision.tabActive} />
+            <TabItem active={activeTab === 'vision'} onClick={() => setActiveTab('vision')} label="VISION" icon="fa-eye" activeClass={THEMES.vision.tabActive} />
           </div>
 
           <div className="flex items-center gap-2">
