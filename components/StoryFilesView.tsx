@@ -122,7 +122,7 @@ const StoryFilesView: React.FC<StoryFilesViewProps> = ({ config, onBack, onExit,
     setIsDownloading(true);
     try {
       const wavBlob = await fastAudioBuffersToWav(serviceRef.current.recordedBuffers);
-      await downloadOrShareAudio(wavBlob, `Archived_Saga_${config.topic.replace(/\s+/g, '_')}.wav`);
+      await downloadOrShareAudio(wavBlob, `Archived_Adventure_${config.topic.replace(/\s+/g, '_')}.wav`);
     } catch (err) {
       alert("Failed to archive audio.");
     } finally {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Genre, ViewMode, AdventureConfig, NarratorMode, GeminiVoice } from './types';
 import AdventureView from './components/AdventureView';
@@ -182,7 +181,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex bg-white/5 rounded-full p-1 border border-white/5 scale-90 sm:scale-100 overflow-x-auto no-scrollbar">
-            <TabItem active={activeTab === 'adventures'} onClick={() => setActiveTab('adventures')} label="SAGA" icon="fa-rocket" activeClass={THEMES.adventures.tabActive} />
+            <TabItem active={activeTab === 'adventures'} onClick={() => setActiveTab('adventures'} label="ADVENTURE" icon="fa-rocket" activeClass={THEMES.adventures.tabActive} />
             <TabItem active={activeTab === 'files'} onClick={() => setActiveTab('files')} label="VAULT" icon="fa-moon" activeClass={THEMES.files.tabActive} />
             <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-microphone-lines" activeClass={THEMES.broadcast.tabActive} />
             <TabItem active={activeTab === 'explainer'} onClick={() => setActiveTab('explainer')} label="CINE" icon="fa-film" activeClass={THEMES.explainer.tabActive} />
@@ -483,7 +482,7 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
         <div className="text-center space-y-4">
           <p className={`${currentTheme.accent} uppercase tracking-[0.4em] md:tracking-[0.6em] text-[9px] md:text-[10px] font-black animate-pulse`}>Link Verification Protocol</p>
           <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none text-white">
-            {origin === 'broadcast' ? 'Initiate Cast' : origin === 'files' ? 'Seal Vault' : origin === 'explainer' ? 'Initiate Decoder' : 'Forge Saga'}
+            {origin === 'broadcast' ? 'Initiate Cast' : origin === 'files' ? 'Seal Vault' : origin === 'explainer' ? 'Initiate Decoder' : 'Forge Adventure'}
           </h2>
         </div>
 

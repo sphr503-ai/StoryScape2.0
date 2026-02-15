@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { Genre, AdventureConfig } from '../types';
 import { StoryScapeService, LoreData } from '../services/geminiLiveService';
@@ -257,7 +256,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     setIsDownloading(true);
     try {
       const wavBlob = await fastAudioBuffersToWav(serviceRef.current.recordedBuffers);
-      await downloadOrShareAudio(wavBlob, `Saga_${config.topic.replace(/\s+/g, '_')}.wav`);
+      await downloadOrShareAudio(wavBlob, `Adventure_${config.topic.replace(/\s+/g, '_')}.wav`);
     } catch (err) { alert("Export failed."); } finally { setIsDownloading(false); }
   };
 
@@ -310,7 +309,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center gap-6 p-12">
                {!error ? (
                  <><div className="w-12 h-12 border-4 border-white/5 border-t-white rounded-full animate-spin"></div>
-                   <p className="text-[10px] font-black tracking-[0.3em] uppercase opacity-40">Syncing Saga Protocols...</p></>
+                   <p className="text-[10px] font-black tracking-[0.3em] uppercase opacity-40">Syncing Adventure Protocols...</p></>
                ) : (
                  <div className="text-center space-y-4">
                    <i className="fas fa-triangle-exclamation text-3xl text-red-500 mb-2"></i>
@@ -365,7 +364,7 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
               <div className="flex-1 flex items-center gap-3 relative">
                  {inputMode === 'text' ? (
                     <form onSubmit={handleTextSubmit} className="flex-1 flex gap-2">
-                       <input type="text" value={textInput} onChange={(e) => setTextInput(e.target.value)} placeholder={isPaused ? "Saga Halted" : "Type your action..."} disabled={isPaused} className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-3.5 md:py-4 outline-none focus:border-white/30 transition-all text-sm md:text-base font-light placeholder:opacity-20" />
+                       <input type="text" value={textInput} onChange={(e) => setTextInput(e.target.value)} placeholder={isPaused ? "Adventure Halted" : "Type your action..."} disabled={isPaused} className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-3.5 md:py-4 outline-none focus:border-white/30 transition-all text-sm md:text-base font-light placeholder:opacity-20" />
                        <button type="submit" disabled={!textInput.trim() || isPaused} className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-20 transition-all shrink-0"><i className="fas fa-paper-plane text-sm md:text-base"></i></button>
                     </form>
                  ) : (
