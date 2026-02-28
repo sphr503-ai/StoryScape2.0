@@ -139,8 +139,6 @@ export class StoryScapeService {
           activeSessionPromise.then(session => session.sendRealtimeInput({ text: contextSummary }));
         },
         onmessage: async (message: LiveServerMessage) => {
-          if (this.isPaused) return;
-
           const serverContent = message.serverContent;
           if (!serverContent) return;
 
@@ -263,7 +261,7 @@ export class StoryScapeService {
   }
 
   private async handleAudioOutput(base64: string) {
-    if (!this.outputAudioContext || this.isPaused) return;
+    if (!this.outputAudioContext) return;
     if (this.outputAudioContext.state === 'suspended') await this.outputAudioContext.resume();
 
     const buf = await decodeAudioData(decode(base64), this.outputAudioContext, 24000, 1);
@@ -276,7 +274,9 @@ export class StoryScapeService {
 
     // Add to jitter buffer
     this.audioQueue.push(buf);
-    this.processQueue();
+    if (!this.isPaused) {
+      this.processQueue();
+    }
   }
 
   private async processQueue() {
@@ -363,8 +363,22 @@ export class StoryScapeService {
     }
   }
   
-  public setPaused(paused: boolean) { 
+  public async setPaused(paused: boolean) { 
     this.isPaused = paused; 
-    if (paused) this.stopAllAudio(); 
+    if (paused) {
+      // Stop currently playing sources but keep the queue
+      this.sources.forEach(s => { try { s.stop(); } catch(e) {} });
+      this.sources.clear();
+      this.nextStartTime = 0; // Reset to recalibrate on resume
+    } else {
+      if (this.outputAudioContext && this.outputAudioContext.state === 'suspended') {
+        await this.outputAudioContext.resume();
+      }
+      // If we have audio in queue, we want to resume playback immediately
+      if (this.audioQueue.length > 0 && this.nextStartTime === 0 && this.outputAudioContext) {
+        this.nextStartTime = this.outputAudioContext.currentTime + 0.1;
+      }
+      this.processQueue();
+    }
   }
 }
