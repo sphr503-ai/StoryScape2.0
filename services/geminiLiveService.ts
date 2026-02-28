@@ -21,6 +21,11 @@ export class StoryScapeService {
   private outputAudioContext: AudioContext | null = null;
   private nextStartTime = 0;
   private sources = new Set<AudioBufferSourceNode>();
+  private audioQueue: AudioBuffer[] = [];
+  private isProcessingQueue: boolean = false;
+  private isBuffering: boolean = false;
+  private onBufferingChange: ((isBuffering: boolean) => void) | null = null;
+  private readonly JITTER_BUFFER_SIZE = 3; // Buffer 3 chunks (approx 300-600ms) for maximum smoothness
   private stream: MediaStream | null = null;
   private scriptProcessor: ScriptProcessorNode | null = null;
   private isPaused: boolean = false;
@@ -246,11 +251,21 @@ export class StoryScapeService {
     }
   }
 
+  public setOnBufferingChange(callback: (isBuffering: boolean) => void) {
+    this.onBufferingChange = callback;
+  }
+
+  private setBuffering(buffering: boolean) {
+    if (this.isBuffering !== buffering) {
+      this.isBuffering = buffering;
+      this.onBufferingChange?.(buffering);
+    }
+  }
+
   private async handleAudioOutput(base64: string) {
     if (!this.outputAudioContext || this.isPaused) return;
     if (this.outputAudioContext.state === 'suspended') await this.outputAudioContext.resume();
 
-    this.nextStartTime = Math.max(this.nextStartTime, this.outputAudioContext.currentTime);
     const buf = await decodeAudioData(decode(base64), this.outputAudioContext, 24000, 1);
     
     // Efficiently Store Buffer for later fast export
@@ -259,24 +274,76 @@ export class StoryScapeService {
     // "Live Saving" to IndexedDB Cache
     saveChunkToCache(this.sessionId, this.chunkCounter++, buf.getChannelData(0));
 
-    const source = this.outputAudioContext.createBufferSource();
-    source.buffer = buf;
-    if (this.outputAnalyser) {
-      source.connect(this.outputAnalyser);
-      this.outputAnalyser.connect(this.outputAudioContext.destination);
-    } else {
-      source.connect(this.outputAudioContext.destination);
+    // Add to jitter buffer
+    this.audioQueue.push(buf);
+    this.processQueue();
+  }
+
+  private async processQueue() {
+    if (this.isProcessingQueue || !this.outputAudioContext || this.audioQueue.length === 0) return;
+
+    // If we haven't started playing yet, wait for the jitter buffer to fill
+    if (this.nextStartTime === 0) {
+      if (this.audioQueue.length < this.JITTER_BUFFER_SIZE) {
+        this.setBuffering(true);
+        return;
+      }
+      this.setBuffering(false);
     }
-    source.start(this.nextStartTime);
-    this.nextStartTime += buf.duration;
-    this.sources.add(source);
-    source.onended = () => this.sources.delete(source);
+
+    this.isProcessingQueue = true;
+
+    while (this.audioQueue.length > 0 && !this.isPaused) {
+      const buf = this.audioQueue.shift();
+      if (!buf) break;
+
+      const now = this.outputAudioContext.currentTime;
+      
+      // If we fell behind, we need to re-buffer to maintain smoothness
+      if (this.nextStartTime < now - 0.05) {
+        // If the queue is empty, we definitely need to re-buffer
+        if (this.audioQueue.length === 0) {
+          this.nextStartTime = 0; // Reset to trigger jitter buffer on next chunk
+          this.setBuffering(true);
+          break;
+        }
+        this.nextStartTime = now + 0.15; // 150ms safety margin
+      }
+
+      const source = this.outputAudioContext.createBufferSource();
+      source.buffer = buf;
+      
+      if (this.outputAnalyser) {
+        source.connect(this.outputAnalyser);
+        this.outputAnalyser.connect(this.outputAudioContext.destination);
+      } else {
+        source.connect(this.outputAudioContext.destination);
+      }
+
+      source.start(this.nextStartTime);
+      this.nextStartTime += buf.duration;
+      this.sources.add(source);
+      
+      source.onended = () => {
+        this.sources.delete(source);
+      };
+
+      // Yield if we have many chunks to allow UI/other tasks to run
+      if (this.audioQueue.length > 3) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
+
+    this.isProcessingQueue = false;
   }
 
   private stopAllAudio() {
     this.sources.forEach(s => { try { s.stop(); } catch(e) {} });
     this.sources.clear();
     this.nextStartTime = 0;
+    this.audioQueue = [];
+    this.isProcessingQueue = false;
+    this.setBuffering(false);
   }
 
   async stopAdventure() {

@@ -147,6 +147,11 @@ const PodcastView: React.FC<PodcastViewProps> = ({ config, onBack, onExit, initi
     const service = new StoryScapeService();
     serviceRef.current = service;
 
+    service.setOnBufferingChange((buffering) => {
+      if (buffering) startBuffering();
+      else stopBuffering();
+    });
+
     setConnectingProgress(15);
     const fetchedLore = await service.fetchLore(advConfig);
     setLore(fetchedLore);

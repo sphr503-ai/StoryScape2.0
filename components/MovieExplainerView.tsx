@@ -142,6 +142,11 @@ const MovieExplainerView: React.FC<MovieExplainerViewProps> = ({ config, onBack,
     const service = new StoryScapeService();
     serviceRef.current = service;
 
+    service.setOnBufferingChange((buffering) => {
+      if (buffering) startBuffering();
+      else stopBuffering();
+    });
+
     setConnectingProgress(15);
     
     let movieLore: LoreData;

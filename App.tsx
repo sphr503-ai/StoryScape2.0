@@ -99,6 +99,52 @@ const THEMES = {
   }
 };
 
+interface TabItemProps {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon: string;
+  activeClass: string;
+}
+
+const TabItem: React.FC<TabItemProps> = ({ active, onClick, label, icon, activeClass }) => (
+  <button 
+    onClick={onClick}
+    className={`px-3 sm:px-5 py-2.5 rounded-full flex items-center gap-2 transition-all duration-500 border border-transparent shrink-0 ${
+      active 
+        ? `${activeClass} scale-[1.05] z-10 font-black` 
+        : 'text-white/30 hover:text-white/60 hover:bg-white/5 font-bold'
+    }`}
+  >
+    <i className={`fas ${icon} text-[10px]`}></i>
+    <span className="text-[9px] tracking-[0.2em]">{label}</span>
+  </button>
+);
+
+interface PortalCardProps {
+  genre: Genre;
+  icon: string;
+  theme: any;
+  label?: string;
+  onStart: () => void;
+}
+
+const PortalCard: React.FC<PortalCardProps> = ({ genre, icon, theme, label = "Link", onStart }) => (
+  <button 
+    onClick={onStart}
+    className={`group relative p-8 md:p-12 rounded-[2.5rem] md:rounded-[4rem] border transition-all duration-700 hover:scale-[1.03] active:scale-95 flex flex-col items-center text-center overflow-hidden h-[280px] md:h-[340px] justify-center ${theme.card}`}
+  >
+    <div className={`absolute inset-0 bg-gradient-to-b from-transparent to-white/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-1000`}></div>
+    <div className={`w-16 h-16 md:w-20 md:h-20 rounded-[2rem] md:rounded-[2.5rem] bg-white/5 flex items-center justify-center mb-6 md:mb-10 group-hover:scale-110 group-hover:rotate-6 transition-all duration-700 ${theme.accent} border border-white/5 shadow-inner`}>
+       <i className={`fas ${icon} text-2xl md:text-3xl`}></i>
+    </div>
+    <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tighter mb-2 group-hover:tracking-[0.1em] transition-all duration-700 leading-none">
+        {label === "Link" ? genre : label}
+    </h3>
+    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.4em] opacity-30 group-hover:opacity-80 group-hover:text-white transition-all">Link Protocol</span>
+  </button>
+);
+
 const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.HOME);
   const [activeTab, setActiveTab] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor'>('adventures');
@@ -181,7 +227,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex bg-white/5 rounded-full p-1 border border-white/5 scale-90 sm:scale-100 overflow-x-auto no-scrollbar">
-            <TabItem active={activeTab === 'adventures'} onClick={() => setActiveTab('adventures'} label="ADVENTURE" icon="fa-rocket" activeClass={THEMES.adventures.tabActive} />
+            <TabItem active={activeTab === 'adventures'} onClick={() => setActiveTab('adventures')} label="ADVENTURE" icon="fa-rocket" activeClass={THEMES.adventures.tabActive} />
             <TabItem active={activeTab === 'files'} onClick={() => setActiveTab('files')} label="VAULT" icon="fa-moon" activeClass={THEMES.files.tabActive} />
             <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-microphone-lines" activeClass={THEMES.broadcast.tabActive} />
             <TabItem active={activeTab === 'explainer'} onClick={() => setActiveTab('explainer')} label="CINE" icon="fa-film" activeClass={THEMES.explainer.tabActive} />
@@ -286,52 +332,6 @@ const App: React.FC = () => {
 
   return <div className="min-h-screen bg-black">{renderContent()}</div>;
 };
-
-interface TabItemProps {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  icon: string;
-  activeClass: string;
-}
-
-const TabItem: React.FC<TabItemProps> = ({ active, onClick, label, icon, activeClass }) => (
-  <button 
-    onClick={onClick}
-    className={`px-3 sm:px-5 py-2.5 rounded-full flex items-center gap-2 transition-all duration-500 border border-transparent shrink-0 ${
-      active 
-        ? `${activeClass} scale-[1.05] z-10 font-black` 
-        : 'text-white/30 hover:text-white/60 hover:bg-white/5 font-bold'
-    }`}
-  >
-    <i className={`fas ${icon} text-[10px]`}></i>
-    <span className="text-[9px] tracking-[0.2em]">{label}</span>
-  </button>
-);
-
-interface PortalCardProps {
-  genre: Genre;
-  icon: string;
-  theme: any;
-  label?: string;
-  onStart: () => void;
-}
-
-const PortalCard: React.FC<PortalCardProps> = ({ genre, icon, theme, label = "Link", onStart }) => (
-  <button 
-    onClick={onStart}
-    className={`group relative p-8 md:p-12 rounded-[2.5rem] md:rounded-[4rem] border transition-all duration-700 hover:scale-[1.03] active:scale-95 flex flex-col items-center text-center overflow-hidden h-[280px] md:h-[340px] justify-center ${theme.card}`}
-  >
-    <div className={`absolute inset-0 bg-gradient-to-b from-transparent to-white/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-1000`}></div>
-    <div className={`w-16 h-16 md:w-20 md:h-20 rounded-[2rem] md:rounded-[2.5rem] bg-white/5 flex items-center justify-center mb-6 md:mb-10 group-hover:scale-110 group-hover:rotate-6 transition-all duration-700 ${theme.accent} border border-white/5 shadow-inner`}>
-       <i className={`fas ${icon} text-2xl md:text-3xl`}></i>
-    </div>
-    <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tighter mb-2 group-hover:tracking-[0.1em] transition-all duration-700 leading-none">
-        {label === "Link" ? genre : label}
-    </h3>
-    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.4em] opacity-30 group-hover:opacity-80 group-hover:text-white transition-all">Link Protocol</span>
-  </button>
-);
 
 interface SetupViewProps {
   genre: Genre;

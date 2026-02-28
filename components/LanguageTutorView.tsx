@@ -123,6 +123,11 @@ const LanguageTutorView: React.FC<LanguageTutorViewProps> = ({ config, onBack, o
     const service = new StoryScapeService();
     serviceRef.current = service;
 
+    service.setOnBufferingChange((buffering) => {
+      if (buffering) startBuffering();
+      else stopBuffering();
+    });
+
     const tutorInstruction = `
 # Role: Neural Language Sensei (Terminal Protocol)
 You are a highly advanced AI language tutor operating within a terminal environment. 

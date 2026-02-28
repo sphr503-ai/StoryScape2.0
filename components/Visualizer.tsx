@@ -33,6 +33,9 @@ const Visualizer: React.FC<VisualizerProps> = ({
     const inputDataArray = new Uint8Array(inputAnalyser?.frequencyBinCount || 0);
     const outputDataArray = new Uint8Array(outputAnalyser?.frequencyBinCount || 0);
 
+    let smoothedInputVol = 0;
+    let smoothedOutputVol = 0;
+
     const render = (now: number) => {
       const deltaTime = (now - lastFrameTimeRef.current) / 1000;
       lastFrameTimeRef.current = now;
@@ -53,7 +56,12 @@ const Visualizer: React.FC<VisualizerProps> = ({
       // Average volumes
       const inputVol = inputDataArray.length ? inputDataArray.reduce((a, b) => a + b) / inputDataArray.length : 0;
       const outputVol = outputDataArray.length ? outputDataArray.reduce((a, b) => a + b) / outputDataArray.length : 0;
-      const mainVol = Math.max(inputVol, outputVol);
+      
+      // Smooth volumes
+      smoothedInputVol += (inputVol - smoothedInputVol) * 0.15;
+      smoothedOutputVol += (outputVol - smoothedOutputVol) * 0.15;
+      
+      const mainVol = Math.max(smoothedInputVol, smoothedOutputVol);
 
       const activityFactor = 1 + (mainVol / 64); 
       timeRef.current += deltaTime * activityFactor;

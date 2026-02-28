@@ -31,7 +31,8 @@ export async function decodeAudioData(
   for (let channel = 0; channel < numChannels; channel++) {
     const channelData = buffer.getChannelData(channel);
     for (let i = 0; i < frameCount; i++) {
-      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+      // Optimized conversion: 1/32768 is approx 0.000030517578125
+      channelData[i] = dataInt16[i * numChannels + channel] * 0.000030517578125;
     }
   }
   return buffer;

@@ -129,6 +129,11 @@ const AdventureView: React.FC<AdventureViewProps> = ({ config, onBack, onExit, i
     const service = new StoryScapeService();
     serviceRef.current = service;
 
+    service.setOnBufferingChange((buffering) => {
+      if (buffering) startBuffering();
+      else stopBuffering();
+    });
+
     try {
       setConnectingProgress(30);
       const fetchedLore = await service.fetchLore(advConfig);
