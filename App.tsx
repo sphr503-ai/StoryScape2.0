@@ -126,14 +126,14 @@ interface TabItemProps {
 const TabItem: React.FC<TabItemProps> = ({ active, onClick, label, icon, activeClass }) => (
   <button 
     onClick={onClick}
-    className={`px-3 sm:px-5 py-2.5 rounded-full flex items-center gap-2 transition-all duration-500 border border-transparent shrink-0 ${
+    className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-1.5 transition-all duration-500 border border-transparent shrink-0 ${
       active 
-        ? `${activeClass} scale-[1.05] z-10 font-black` 
+        ? `${activeClass} scale-[1.03] z-10 font-black` 
         : 'text-white/30 hover:text-white/60 hover:bg-white/5 font-bold'
     }`}
   >
-    <i className={`fas ${icon} text-[10px]`}></i>
-    <span className="text-[9px] tracking-[0.2em]">{label}</span>
+    <i className={`fas ${icon} text-[9px] sm:text-[10px]`}></i>
+    <span className="text-[8px] sm:text-[9px] tracking-[0.1em] sm:tracking-[0.2em]">{label}</span>
   </button>
 );
 
@@ -242,7 +242,7 @@ const App: React.FC = () => {
             <h1 className="text-sm font-black tracking-tighter hidden lg:block uppercase opacity-90">StoryScape 2.0</h1>
           </div>
           
-          <div className="flex bg-white/5 rounded-full p-1 border border-white/5 scale-90 sm:scale-100 overflow-x-auto no-scrollbar">
+          <div className="flex-1 min-w-0 mx-2 sm:mx-4 flex justify-start md:justify-center bg-white/5 rounded-full p-0.5 sm:p-1 border border-white/5 overflow-x-auto no-scrollbar">
             <TabItem active={activeTab === 'adventures'} onClick={() => setActiveTab('adventures')} label="ADVENTURE" icon="fa-rocket" activeClass={THEMES.adventures.tabActive} />
             <TabItem active={activeTab === 'files'} onClick={() => setActiveTab('files')} label="VAULT" icon="fa-moon" activeClass={THEMES.files.tabActive} />
             <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-microphone-lines" activeClass={THEMES.broadcast.tabActive} />
