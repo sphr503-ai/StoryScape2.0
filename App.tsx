@@ -233,16 +233,29 @@ const App: React.FC = () => {
         <div className={`absolute bottom-[-15%] right-[-5%] w-[70%] h-[70%] ${theme.glow2} blur-[250px] rounded-full animate-float transition-colors duration-1000`} style={{animationDelay: '-6s'}}></div>
       </div>
 
-      <nav className={`sticky top-6 z-50 w-[95%] max-w-4xl glass-dark border ${theme.border} rounded-full transition-colors duration-700 backdrop-blur-3xl shadow-2xl`}>
-        <div className="px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 ${theme.accent}`}>
-               <i className={`fas ${theme.icon} text-sm animate-pulse`}></i>
+      <nav className={`sticky top-6 z-50 w-[95%] max-w-4xl glass-dark border ${theme.border} rounded-[2rem] md:rounded-full transition-all duration-700 backdrop-blur-3xl shadow-2xl`}>
+        <div className="px-4 md:px-6 py-3 md:py-0 md:h-16 flex flex-col md:flex-row items-center justify-between gap-3 md:gap-0">
+          <div className="w-full md:w-auto flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 ${theme.accent}`}>
+                 <i className={`fas ${theme.icon} text-sm animate-pulse`}></i>
+              </div>
+              <h1 className="text-sm font-black tracking-tighter uppercase opacity-90">StoryScape 2.0</h1>
             </div>
-            <h1 className="text-sm font-black tracking-tighter hidden lg:block uppercase opacity-90">StoryScape 2.0</h1>
+
+            {/* Mobile Feedback Button */}
+            <div className="md:hidden">
+              <button 
+                onClick={() => setViewMode(ViewMode.FEEDBACK)}
+                className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all border-white/5"
+                title="Transmissions"
+              >
+                 <i className="fas fa-comment-dots text-xs opacity-60"></i>
+              </button>
+            </div>
           </div>
           
-          <div className="flex-1 min-w-0 mx-2 sm:mx-4 flex justify-start md:justify-center bg-white/5 rounded-full p-0.5 sm:p-1 border border-white/5 overflow-x-auto no-scrollbar">
+          <div className="flex-1 md:flex-none min-w-0 mx-2 sm:mx-4 flex flex-wrap justify-center bg-white/5 rounded-2xl md:rounded-full p-1 border border-white/5 gap-1">
             <TabItem active={activeTab === 'adventures'} onClick={() => setActiveTab('adventures')} label="ADVENTURE" icon="fa-rocket" activeClass={THEMES.adventures.tabActive} />
             <TabItem active={activeTab === 'files'} onClick={() => setActiveTab('files')} label="VAULT" icon="fa-moon" activeClass={THEMES.files.tabActive} />
             <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-microphone-lines" activeClass={THEMES.broadcast.tabActive} />
@@ -251,7 +264,8 @@ const App: React.FC = () => {
             <TabItem active={activeTab === 'interviewee'} onClick={() => setActiveTab('interviewee')} label="INTERVIEWEE" icon="fa-user-tie" activeClass={THEMES.interviewee.tabActive} />
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Desktop Feedback Button */}
+          <div className="hidden md:block">
             <button 
               onClick={() => setViewMode(ViewMode.FEEDBACK)}
               className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-all border-white/5"
