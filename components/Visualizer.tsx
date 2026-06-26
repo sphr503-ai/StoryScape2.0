@@ -5,7 +5,7 @@ import { Genre } from '../types';
 interface VisualizerProps {
   inputAnalyser: AnalyserNode | null;
   outputAnalyser: AnalyserNode | null;
-  genre: Genre | 'TUTOR';
+  genre: Genre | 'TUTOR' | 'INTERVIEWEE';
   isPaused?: boolean;
   customInputColor?: string;
   customOutputColor?: string;
@@ -67,7 +67,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
       timeRef.current += deltaTime * activityFactor;
       const t = timeRef.current;
 
-      if (genre === 'TUTOR') {
+      if (genre === 'TUTOR' || genre === 'INTERVIEWEE') {
         drawTutorWaves(ctx, width, height, inputDataArray, outputDataArray, t);
       } else {
         switch (genre) {

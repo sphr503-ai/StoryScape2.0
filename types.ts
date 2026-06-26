@@ -33,6 +33,8 @@ export interface AdventureConfig {
   durationMinutes?: number;
   movieName?: string;
   isOriginalScript?: boolean; // New: For "Create Your Own" movie mode
+  currentJobRole?: string;
+  appliedJobRole?: string;
 }
 
 export interface StoryState {

@@ -6,6 +6,7 @@ import FeedbackView from './components/FeedbackView';
 import PodcastView from './components/PodcastView';
 import MovieExplainerView from './components/MovieExplainerView';
 import LanguageTutorView from './components/LanguageTutorView';
+import IntervieweeView from './components/IntervieweeView';
 import SecretHubView from './components/SecretHubView';
 import { StoryScapeService } from './services/geminiLiveService';
 
@@ -96,6 +97,21 @@ const THEMES = {
     icon: 'fa-terminal',
     card: 'bg-black border-[#00ff41]/20 hover:border-[#00ff41]/60 hover:shadow-[0_0_30px_rgba(0,255,65,0.1)]',
     tag: 'STATUS: ROOT_ACCESS'
+  },
+  interviewee: {
+    bg: 'bg-[#060814]',
+    glow1: 'bg-indigo-600/10',
+    glow2: 'bg-blue-600/10',
+    accent: 'text-indigo-400',
+    accentBg: 'bg-indigo-500',
+    border: 'border-indigo-500/20',
+    tabActive: 'bg-indigo-600 text-white shadow-[0_0_20px_#4f46e5]',
+    heroTitle: 'Interviewee AI',
+    heroSub: 'SIMULATE RECONNAISSANCE & CRACK INTERVIEWS',
+    font: 'font-sans',
+    icon: 'fa-user-tie',
+    card: 'glass border-indigo-500/10 hover:border-indigo-400/50 hover:shadow-[0_0_35px_rgba(79,70,229,0.15)]',
+    tag: 'MODE: SIMULATION'
   }
 };
 
@@ -147,8 +163,8 @@ const PortalCard: React.FC<PortalCardProps> = ({ genre, icon, theme, label = "Li
 
 const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.HOME);
-  const [activeTab, setActiveTab] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor'>('adventures');
-  const [sessionOrigin, setSessionOrigin] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | null>(null);
+  const [activeTab, setActiveTab] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | 'interviewee'>('adventures');
+  const [sessionOrigin, setSessionOrigin] = useState<'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | 'interviewee' | null>(null);
   const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
   const [setupConfig, setSetupConfig] = useState<AdventureConfig | null>(null);
   const [initialHistory, setInitialHistory] = useState<Array<{role: 'user' | 'model', text: string}>>([]);
@@ -232,6 +248,7 @@ const App: React.FC = () => {
             <TabItem active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} label="CAST" icon="fa-microphone-lines" activeClass={THEMES.broadcast.tabActive} />
             <TabItem active={activeTab === 'explainer'} onClick={() => setActiveTab('explainer')} label="CINE" icon="fa-film" activeClass={THEMES.explainer.tabActive} />
             <TabItem active={activeTab === 'tutor'} onClick={() => setActiveTab('tutor')} label="TUTOR" icon="fa-terminal" activeClass={THEMES.tutor.tabActive} />
+            <TabItem active={activeTab === 'interviewee'} onClick={() => setActiveTab('interviewee')} label="INTERVIEWEE" icon="fa-user-tie" activeClass={THEMES.interviewee.tabActive} />
           </div>
 
           <div className="flex items-center gap-2">
@@ -290,12 +307,19 @@ const App: React.FC = () => {
               <PortalCard genre={Genre.MYSTERY} icon="fa-mask" label="Crime Explainer" theme={theme} onStart={() => handleStartSetup(Genre.MYSTERY)} />
               <PortalCard genre={Genre.THRILLER} icon="fa-bolt" label="War Decoder" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
             </>
-          ) : (
+          ) : activeTab === 'tutor' ? (
             <>
               <PortalCard genre={Genre.DOCUMENTARY} icon="fa-keyboard" label="Terminal A" theme={theme} onStart={() => handleStartSetup(Genre.DOCUMENTARY)} />
               <PortalCard genre={Genre.SCIFI} icon="fa-code" label="Terminal B" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
               <PortalCard genre={Genre.FANTASY} icon="fa-bug" label="Terminal C" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
               <PortalCard genre={Genre.THRILLER} icon="fa-shield-halved" label="Terminal D" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
+            </>
+          ) : (
+            <>
+              <PortalCard genre={Genre.DOCUMENTARY} icon="fa-laptop-code" label="Tech Deck" theme={theme} onStart={() => handleStartSetup(Genre.DOCUMENTARY)} />
+              <PortalCard genre={Genre.SCIFI} icon="fa-briefcase" label="Biz Dev Deck" theme={theme} onStart={() => handleStartSetup(Genre.SCIFI)} />
+              <PortalCard genre={Genre.FANTASY} icon="fa-palette" label="Design Deck" theme={theme} onStart={() => handleStartSetup(Genre.FANTASY)} />
+              <PortalCard genre={Genre.THRILLER} icon="fa-chart-line" label="Executive Deck" theme={theme} onStart={() => handleStartSetup(Genre.THRILLER)} />
             </>
           )}
         </div>
@@ -322,6 +346,9 @@ const App: React.FC = () => {
       if (sessionOrigin === 'tutor') {
         return <LanguageTutorView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
       }
+      if (sessionOrigin === 'interviewee') {
+        return <IntervieweeView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
+      }
       return <AdventureView config={setupConfig} initialHistory={initialHistory} onBack={handleBackToSetup} onExit={handleClearEverything} />;
     }
     if (viewMode === ViewMode.SETUP) return renderSetup();
@@ -335,7 +362,7 @@ const App: React.FC = () => {
 
 interface SetupViewProps {
   genre: Genre;
-  origin: 'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor';
+  origin: 'adventures' | 'files' | 'broadcast' | 'explainer' | 'tutor' | 'interviewee';
   onBack: () => void;
   onConfirm: (config: AdventureConfig) => void;
 }
@@ -348,6 +375,8 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
   const [duration, setDuration] = useState(25);
   const [isOriginal, setIsOriginal] = useState(false);
   const [isRandomizing, setIsRandomizing] = useState(false);
+  const [currentJobRole, setCurrentJobRole] = useState('');
+  const [appliedJobRole, setAppliedJobRole] = useState('');
 
   const currentTheme = THEMES[origin as keyof typeof THEMES] || THEMES.adventures;
 
@@ -363,6 +392,103 @@ const SetupView: React.FC<SetupViewProps> = ({ genre, origin, onBack, onConfirm 
       setIsRandomizing(false);
     }
   };
+
+  // Dedicated Setup UI for Interviewee mode
+  if (origin === 'interviewee') {
+    return (
+      <div className="min-h-screen bg-[#070913] text-indigo-100 flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Themed Glows */}
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-600/10 blur-[150px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[150px] rounded-full"></div>
+
+        <div className="max-w-2xl w-full border border-indigo-500/20 bg-[#0c0e22]/90 backdrop-blur-xl p-8 md:p-12 space-y-8 rounded-3xl animate-in fade-in zoom-in-95 duration-500 shadow-2xl relative overflow-hidden">
+          <div className="border-b border-indigo-500/20 pb-6 flex justify-between items-end">
+            <div>
+              <span className="px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest border border-indigo-500/20">
+                Mode: Simulation
+              </span>
+              <h2 className="text-2xl font-black tracking-tight text-white uppercase mt-3">CONFIG_INIT: INTERVIEWEE</h2>
+              <p className="text-[10px] text-indigo-300/60 mt-1">ALIGN CANDIDATE PROFILE AND CRACK THE INTERVIEW</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-300/40 block">Currently Job Role / Profile:</label>
+                <input 
+                  type="text" 
+                  value={currentJobRole} 
+                  onChange={e => setCurrentJobRole(e.target.value)}
+                  placeholder="e.g. Junior Web Developer"
+                  className="w-full bg-[#0a0d20] border border-indigo-500/20 rounded-xl px-4 py-3 outline-none focus:border-indigo-400 text-sm placeholder-indigo-500/30"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-300/40 block">Applied Job / Target Role:</label>
+                <input 
+                  type="text" 
+                  value={appliedJobRole} 
+                  onChange={e => setAppliedJobRole(e.target.value)}
+                  placeholder="e.g. Senior Software Engineer"
+                  className="w-full bg-[#0a0d20] border border-indigo-500/20 rounded-xl px-4 py-3 outline-none focus:border-indigo-400 text-sm placeholder-indigo-500/30"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-300/40 block">Interview Language:</label>
+                <select 
+                  value={language} 
+                  onChange={e => setLanguage(e.target.value)}
+                  className="w-full bg-[#0a0d20] border border-indigo-500/20 rounded-xl px-4 py-3 outline-none focus:border-indigo-400 text-sm text-indigo-200"
+                >
+                  {LANGUAGES.map(l => <option key={l} value={l} className="bg-[#0c0e22]">{l}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-indigo-300/40 block">Candidate Voice Persona:</label>
+                <select 
+                  value={voice} 
+                  onChange={e => setVoice(e.target.value as GeminiVoice)}
+                  className="w-full bg-[#0a0d20] border border-indigo-500/20 rounded-xl px-4 py-3 outline-none focus:border-indigo-400 text-sm text-indigo-200"
+                >
+                  {VOICES.map(v => <option key={v.id} value={v.id} className="bg-[#0c0e22]">{v.name} ({v.gender})</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300/40">Interview Session Limit:</span>
+                <span className="font-bold text-indigo-400">{duration} minutes</span>
+              </div>
+              <input 
+                type="range" min="5" max="60" step="5" value={duration} onChange={e => setDuration(parseInt(e.target.value))}
+                className="w-full h-1 bg-indigo-500/10 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 pt-4">
+            <button 
+              onClick={() => onConfirm({ genre, topic: `Interview for ${appliedJobRole || "Candidate"}`, language, voice, mode, isOriginalScript: isOriginal, durationMinutes: duration, currentJobRole, appliedJobRole })} 
+              disabled={!currentJobRole.trim() || !appliedJobRole.trim()}
+              className="w-full py-4 bg-indigo-600 text-white text-xs font-black uppercase rounded-xl hover:bg-indigo-500 disabled:opacity-25 transition-all shadow-[0_0_20px_rgba(79,70,229,0.2)]"
+            >
+              LAUNCH SIMULATION
+            </button>
+            <button onClick={onBack} className="w-full py-4 border border-indigo-500/20 text-indigo-400/60 hover:text-indigo-400 text-xs font-black uppercase rounded-xl hover:bg-indigo-500/5 transition-all">
+              ABORT PROTOCOL
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Dedicated Terminal Setup UI for Tutor mode
   if (origin === 'tutor') {
