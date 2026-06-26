@@ -132,8 +132,17 @@ Your primary language of communication in this interview is ${advConfig.language
 2. Incorporate realistic anecdotes, challenges, and architectural patterns based on your experience as a "${advConfig.currentJobRole}" transitioning or stepping up to "${advConfig.appliedJobRole}".
 3. Keep answers concise but thorough (typically 3-5 sentences), leaving room for a follow-up discussion.
 4. If the question is ambiguous or highly technical, clarify or make reasonable assumptions like a seasoned professional would.
-5. Do NOT include any meta-commentary or developer instructions in your output. Talk *directly* as the candidate.
+5. Do NOT include any meta-commentary, developer instructions, planning steps, or reasoning thoughts in your output. Talk *directly* as the candidate.
+6. CRITICAL: DO NOT use double asterisks "**" or output bold headers like "**Defining SQL's Role**" or any internal reasoning/planning steps. Output ONLY the candidate's spoken words.
 `;
+
+    const cleanModelText = (text: string): string => {
+      // Remove any block of text wrapped in double asterisks, e.g. **Thinking Process**
+      let cleaned = text.replace(/\*\*[^*]+\*\*/g, '');
+      // Remove any unfinished trailing bold block (e.g. "**Thin..." during streaming)
+      cleaned = cleaned.replace(/\*\*.*$/g, '');
+      return cleaned.trim();
+    };
 
     service.startAdventure(advConfig, {
       onTranscriptionUpdate: (role, text, isFinal) => {
@@ -147,9 +156,10 @@ Your primary language of communication in this interview is ${advConfig.language
             setCurrentUserText('');
           }
           modelTextAccumulator.current = smartAppend(modelTextAccumulator.current, text);
-          setCurrentModelText(modelTextAccumulator.current);
+          const cleanedCurrent = cleanModelText(modelTextAccumulator.current);
+          setCurrentModelText(cleanedCurrent);
           if (isFinal) {
-            const finalModelText = modelTextAccumulator.current.trim();
+            const finalModelText = cleanModelText(modelTextAccumulator.current);
             if (finalModelText) {
               setMessages(prev => [...prev, { role: 'model', text: finalModelText, timestamp }]);
               setCurrentModelText('');
@@ -173,9 +183,11 @@ Your primary language of communication in this interview is ${advConfig.language
       onTurnComplete: () => {
         stopBuffering();
         if (modelTextAccumulator.current.trim()) {
-          const txt = modelTextAccumulator.current.trim();
+          const txt = cleanModelText(modelTextAccumulator.current);
           const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          setMessages(prev => [...prev, { role: 'model', text: txt, timestamp: ts }]);
+          if (txt) {
+            setMessages(prev => [...prev, { role: 'model', text: txt, timestamp: ts }]);
+          }
           setCurrentModelText('');
           modelTextAccumulator.current = '';
         }
